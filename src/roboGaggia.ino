@@ -40,11 +40,12 @@ SYSTEM_THREAD(ENABLED);
 #define HEATER_steam  D8
 
 // User Input
+// Pull high to trigger
 #define BUTTON  D3
 
 
 //
-// Contants
+// Constants
 //
 
 // These are constants of proportionality for the three PID 
@@ -53,61 +54,71 @@ int kp = 9.1;
 int ki = 0.3;   
 int kd = 1.8;
 
-//float targetBrewTempC = 103;
-//float targetSteamTempC = 140;
+float TARGET_BREW_TEMP = 45; // should be 103
+float TOO_HOT_TEMP = 55; // should be 130
+float TARGET_STEAM_TEMP = 65; // should be 140
 
-// NJD TODO - for testing
-float targetBrewTemp = 45;
-float targetSteamTemp = 55;
+// How long the button has to be pressed before it is considered
+// a long press
+float BUTTON_LONG_PRESS_DURATION_MILLIS = 1000;
+
+float BREW_MEASURED_WEIGHT_MULTIPLIER = 2.0;
 
 
 //
 // State
 //
+struct ScaleState {
 
-// The difference between current temperature and set temperature
-float previousBrewTempError = 0;
-float previousSteamTempError = 0;
+  // current weight
+  long measuredWeight = 0;
 
-// Used for heater duration calculation
-float previousBrewSampleTime;
-float previousSteamSampleTime;
+  // recorded weight
+  long recordedWeight = 0; 
 
-// Used to track ongoing brew/steam heat cycles...
-float brewHeaterStarTime = -1;
-float brewHeaterDurationMillis = -1;
-
-float steamHeaterStartTime = -1;
-float steamHeaterDurationMillis = -1;
-
-bool steamHeaterShouldBeOn = false;
-bool brewHeaterShouldBeOn = true;
+  // recorded weight of cup meant be used when
+  // measuring the weight of beans or brew  
+  long tareWeight = 0;
+} scaleState;
 
 
-// Not necessary to store, but making available as Particle Variable.
-double measuredBrewTemp;
-double measuredSteamTemp;
+struct HeaterState {
+
+  // current temp
+  double measuredTemp;
+
+  // The difference between measured temperature and set temperature
+  float previousTempError = 0;
+
+  // When last measurement was taken
+  // Used for heater duration calculation
+  float previousSampleTime = millis();
+
+  // Used to track ongoing heat cycles...
+  float heaterStarTime = -1;
+  float heaterDurationMillis = -1;
+
+
+} brewHeaterState, steamHeaterState;
 
 
 //
 // the state of the button
 //
 
-// We need to evaluate the state of a button over time to determine
-// if it's a short press or a long press
-float previousButtonSampleTime;
-
-// How long the button has to be pressed before it is considered
-// a long press
-float buttonLongPressDurationMillis = -1;
-
-enum ButtonState {
+// Based on the physical button, we derive one of three
+// input states
+enum UserInputStateEnum {
   IDLE = 0,
   SHORT_PRESS = 1,
   LONG_PRESS = 2 
 };
-ButtonState currentButtonState = IDLE;
-
+struct UserInputState {
+  enum UserInputStateEnum state;
+  // We need to evaluate the state of a button over time to determine
+  // if it's a short press or a long press
+  float buttonPressStartTimeMillis = -1;
+} userInputState;
 
 
 // This describes the overall state of the robo Gaggia
@@ -177,10 +188,6 @@ void setup() {
     Log.error("Scale not detected!");
   }
   
-  previousBrewSampleTime = millis(); 
-  previousSteamSampleTime = millis(); 
-  previousButtonSampleTime = millis(); 
-  
   // setup MAX6675 to read the temperature from thermocouple
   pinMode(MAX6675_CS_brew, OUTPUT);
   pinMode(MAX6675_CS_steam, OUTPUT);
@@ -195,10 +202,10 @@ void setup() {
   // user input .. will be used mostly for one-click,
   // but also will support 'hold/long-press' to give it
   // two modes capability
-  pinMode(BUTTON, INPUT);
+  pinMode(BUTTON, INPUT_PULLDOWN);
 
-  Particle.variable("measuredBrewTemp", measuredBrewTemp);
-  Particle.variable("measuredSteamTemp", measuredSteamTemp);
+  Particle.variable("measuredBrewTemp", brewHeaterState.measuredTemp);
+  Particle.variable("measuredSteamTemp", steamHeaterState.measuredTemp);
 
   // Define all possible states of RoboGaggia
   helloState.state = HELLO; 
@@ -273,162 +280,254 @@ void setup() {
   coolDoneState.display4 =    "                     Click when Ready -->";
   coolDoneState.brewHeaterOn = true; 
 
-
-
   // Wait for a USB serial connection for up to 15 seconds
   waitFor(Serial.isConnected, 15000);
 }
 
-void loop() {
+void readScaleState(NAU7802 myScale, ScaleState *scaleState) {
+  scaleState->measuredWeight = 0;
+
+  if (myScale.available() == true) {
+    scaleState->measuredWeight = myScale.getReading();
+    Log.error("Scale Reading: " + String(scaleState->measuredWeight));
+  }
+}
+
+void readUserInputState(boolean isButtonPressedRightNow, float nowTimeMillis, UserInputState *userInputState) {
+  // Derive current user input state
+  userInputState->state = IDLE;
+  if (isButtonPressedRightNow) {
+    if (userInputState->buttonPressStartTimeMillis < 0) {  
+      // rising edge detected...
+      userInputState->buttonPressStartTimeMillis = nowTimeMillis;
+    }
+  } else {
+    if (userInputState->buttonPressStartTimeMillis > 0) {  
+      // falling edge detected...
+      if (nowTimeMillis - userInputState->buttonPressStartTimeMillis < BUTTON_LONG_PRESS_DURATION_MILLIS) {
+        userInputState->state = SHORT_PRESS;
+      } else {
+        userInputState->state = LONG_PRESS;
+      }
   
-  // NJD TODO - For now, we will do the brew and steam heaters sequentially until we get 
-  // everything tuned.. the problem with this approach is it blocks this loop thread
-  // so we can't listen for input.. evnentually we will need to 'schedule' the start
-  // and stop brew/steam intervals.. and make the loop interval MUCH faster (e.g. 100ms)..
-  // In one loop we would start a heater and in a subsequent loop we would end the heater duty
-  // cycle...
-  
-  //
-  // Check on Brew Heater State
-  //
-  // If the Gaggia is on, we're always trying to set the
-  // brew temp!
-  //
-  float now = millis();  
+      userInputState->buttonPressStartTimeMillis = -1;
+    }
+  }
+}
 
-  measuredBrewTemp = measureTemperature(MAX6675_CS_brew, MAX6675_SO_brew, MAX6675_SCK);  
-  Log.error("measuredBrewTempC '" + String(measuredBrewTemp) + "'.");
+GaggiaState getCurrentGaggiaState(GaggiaState currentGaggiaState, 
+                                  HeaterState brewHeaterState,
+                                  HeaterState steamHeaterState,
+                                  ScaleState scaleState,
+                                  UserInputState userInputState) {
 
-  measuredSteamTemp = measureTemperature(MAX6675_CS_steam, MAX6675_SO_steam, MAX6675_SCK);  
-  Log.error("measuredSteamTempC '" + String(measuredSteamTemp) + "'.");
+  switch (currentGaggiaState.state) {
 
-  long measuredWeight = 0;
-  if(myScale.available() == true) {
-    measuredWeight = myScale.getReading();
-    Log.error("Scale Reading: " + String(measuredWeight));
+    case HELLO :
+
+      if (userInputState.state == SHORT_PRESS) {
+        if (brewHeaterState.measuredTemp >= TOO_HOT_TEMP) {
+          return coolStartState;
+        } else {
+          return tareCup1State;
+        }
+      }
+
+      if (userInputState.state == LONG_PRESS) {
+        return heatingToSteamState;
+      }
+      break;
+      
+    case TARE_CUP_1 :
+
+      if (userInputState.state == SHORT_PRESS) {
+        return measureBeansState;
+      }
+      break;
+
+    case MEASURE_BEANS :
+
+      if (userInputState.state == SHORT_PRESS) {
+        return tareCup2State;
+      }
+      break;  
+
+    case TARE_CUP_2 :
+
+      if (userInputState.state == SHORT_PRESS) {
+        return heatingToBrewState;
+      }
+      break;
+
+    case HEATING_TO_BREW :
+
+      if (brewHeaterState.measuredTemp >= TARGET_BREW_TEMP) {
+        return brewingState;
+      }
+      break;
+
+    case BREWING :
+
+      if (scaleState.measuredWeight >= scaleState.recordedWeight*BREW_MEASURED_WEIGHT_MULTIPLIER) {
+        return doneBrewingState;
+      }
+      break;
+
+    case DONE_BREWING :
+
+      if (userInputState.state == SHORT_PRESS) {
+        return helloState;
+      }
+      break;
+
+    case HEATING_TO_STEAM :
+
+      if (steamHeaterState.measuredTemp >= TARGET_STEAM_TEMP) {
+        return steamingState;
+      }
+      break;
+
+    case STEAMING :
+
+      if (userInputState.state == SHORT_PRESS) {
+        return helloState;
+      }
+      break;
+      
+    case COOL_START :
+
+      if (userInputState.state == SHORT_PRESS) {
+        return coolingState;
+      }
+      break;
+
+    case COOLING :
+
+      if (brewHeaterState.measuredTemp <= TARGET_BREW_TEMP) {
+        return coolDoneState;
+      }
+      break;
+
+    case COOL_DONE :
+
+      if (userInputState.state == SHORT_PRESS) {
+        return helloState;
+      }
+      break;  
+  } 
+
+  return currentGaggiaState;
+}  
+
+boolean shouldTurnOnHeater(HeaterState *heaterState,
+                           float targetTemp,
+                           float nowTimeMillis) {
+                        
+  boolean shouldTurnOnHeater = false;
+
+  if (heaterState->heaterStarTime > 0 ) {
+    // we're in a heat cycle....
+
+    if ((nowTimeMillis - heaterState->heaterStarTime) > heaterState->heaterDurationMillis) {
+      // done this heat cycle!
+      Log.error("Stopping current heat cycle.");
+
+      heaterState->heaterStarTime = -1;
+      shouldTurnOnHeater = false;
+    }
+  } else {
+    // determine if we should be in a heat cycle ...
+
+    heaterState->heaterDurationMillis = 
+      calculateHeaterPulseDurationMillis(heaterState->measuredTemp, 
+                                         targetTemp, 
+                                         &(heaterState->previousTempError), 
+                                         &(heaterState->previousSampleTime));
+    if (heaterState->heaterDurationMillis > 0) {
+      Log.error("Starting heat cycle for '" + String(heaterState->heaterDurationMillis) + "' milliseconds.");
+      heaterState->heaterStarTime = nowTimeMillis;
+
+      shouldTurnOnHeater = true;
+    }
   }
 
+  return shouldTurnOnHeater;
+}
 
+void startDispensingWater() {
+  // NJD TODO
+}
 
-  if (previousButtonSampleTime > 0 ) {
-      // we're in a button cycle.... meaning
-      // in the near past, the button was pressed... our job here
-      // is to determine if it's a short press or a long press
+void stopDispensingWater() {
+  // NJD TODO
+}
 
-      if ((now - previousButtonSampleTime) > brewHeaterDurationMillis) {
-        // done this brew heat cycle!
-        Log.error("Stopping current brew heat cycle.");
-        turnBrewHeaterOff();
-        brewHeaterStarTime = -1;
-      }
+void processCurrentGaggiaState(GaggiaState currentGaggiaState, 
+                               HeaterState *brewHeaterState,
+                               HeaterState *steamHeaterState,
+                               ScaleState *scaleState,
+                               float nowTimeMillis) {
+
+  // 
+  // Process Display
+  //
+  lcd.clear();
+  updateDisplayLine(currentGaggiaState.display1, 1);
+  updateDisplayLine(currentGaggiaState.display2, 2);
+  updateDisplayLine(currentGaggiaState.display3, 3);
+  updateDisplayLine(currentGaggiaState.display4, 4);
+
+  // Process Heaters
+  //
+  // Even though a heater may be 'on' during this state, the control system
+  // for the heater turns it off and on intermittently in an attempt to regulate
+  // the temperature around the target temp.
+  if (currentGaggiaState.brewHeaterOn) {
+    if (shouldTurnOnHeater(brewHeaterState, TARGET_BREW_TEMP, nowTimeMillis)) {
+      Log.error("Turning on brew heater.");
+      turnBrewHeaterOn();
     } else {
-      // determine if we should be in a brew heat cycle ...
-
-      brewHeaterDurationMillis = calculateHeaterPulseDurationMillis(measuredBrewTemp, targetBrewTemp, &previousBrewTempError, &previousBrewSampleTime);
-      if (brewHeaterDurationMillis > 0) {
-        Log.error("Starting brew heat cycle for '" + String(brewHeaterDurationMillis) + "' milliseconds.");
-        brewHeaterStarTime = now;
-        turnBrewHeaterOn();
-      }
-    }
-
-
-
-
-
-
-  if (brewHeaterShouldBeOn) {
-    if (brewHeaterStarTime > 0 ) {
-      // we're in a brew heat cycle....
-
-      if ((now - brewHeaterStarTime) > brewHeaterDurationMillis) {
-        // done this brew heat cycle!
-        Log.error("Stopping current brew heat cycle.");
-        turnBrewHeaterOff();
-        brewHeaterStarTime = -1;
-      }
-    } else {
-      // determine if we should be in a brew heat cycle ...
-
-      brewHeaterDurationMillis = calculateHeaterPulseDurationMillis(measuredBrewTemp, targetBrewTemp, &previousBrewTempError, &previousBrewSampleTime);
-      if (brewHeaterDurationMillis > 0) {
-        Log.error("Starting brew heat cycle for '" + String(brewHeaterDurationMillis) + "' milliseconds.");
-        brewHeaterStarTime = now;
-        turnBrewHeaterOn();
-      }
-    }
+      Log.error("Turning off brew heater.");
+      turnBrewHeaterOff();
+    } 
   } else {
     turnBrewHeaterOff();
   }
 
-
-  //
-  // Check on Stem Heater State
-  //
-  // We only steam if user has chosen to do so...
-  //
-  //
-
-  if (steamHeaterShouldBeOn) {
-    if (steamHeaterStartTime > 0 ) {
-      // we're in a steam heat cycle....
-
-      if ((now - steamHeaterStartTime) > steamHeaterDurationMillis) {
-        // done this steam heat cycle!
-        Log.error("Stopping current steam heat cycle.");
-        turnSteamHeaterOff();
-        steamHeaterStartTime = -1;
-      }
-
+  if (currentGaggiaState.steamHeaterOn) {
+    if (shouldTurnOnHeater(steamHeaterState, TARGET_STEAM_TEMP, nowTimeMillis)) {
+      Log.error("Turning on steam heater.");
+      turnSteamHeaterOn();
     } else {
-      // determine if we should be in a steam heat cycle ...
-
-      steamHeaterDurationMillis = calculateHeaterPulseDurationMillis(measuredSteamTemp, targetSteamTemp, &previousSteamTempError, &previousSteamSampleTime);
-      if (steamHeaterDurationMillis > 0) {
-        Log.error("Starting steam heat cycle for '" + String(steamHeaterDurationMillis) + "' milliseconds.");
-        steamHeaterStartTime = now;
-        turnSteamHeaterOn();
-      }
-    }  
+      Log.error("Turning off steam heater.");
+      turnSteamHeaterOff();
+    } 
   } else {
     turnSteamHeaterOff();
   }
 
+  // Process Tare Scale
+  if (currentGaggiaState.tareScale) {
+    scaleState->tareWeight = scaleState->measuredWeight;
+  }
 
+  // Process Dispense Water 
+  if (currentGaggiaState.dispenseWater) {
+    Log.error("Start dispending water.");
+    startDispensingWater();
+  } else {
+    Log.error("Stop dispending water.");
+    stopDispensingWater();
+  }
 
-
-
-  lcd.clear();
-  updateDisplayLine("Hello", 1);
-  updateDisplayLine("Temp : " + String(measuredBrewTemp), 2);
-  updateDisplayLine("Weight : " + String(measuredWeight), 3);
-
-  delay(5000);
+  // Process Record Weight 
+  if (currentGaggiaState.recordWeight) {
+    scaleState->measuredWeight = scaleState->measuredWeight;
+  }
 }
 
-void turnBrewHeaterOn() {
-  digitalWrite(HEATER_brew, HIGH);
-}
 
-void turnBrewHeaterOff() {
-  digitalWrite(HEATER_brew, LOW);
-}
-
-void turnSteamHeaterOn() {
-  digitalWrite(HEATER_steam, HIGH);
-}
-
-void turnSteamHeaterOff() {
-  digitalWrite(HEATER_steam, LOW);
-}
-
-// line starts at 1
-void updateDisplayLine(const char* message, int line) {
-  lcd.setCursor(0,line-1);
-  lcd.print(message);
-}
-
-double measureTemperature(int CHIP_SELECT_PIN, int SERIAL_OUT_PIN, int SERIAL_CLOCK_PIN) {
+void readHeaterTemperature(int CHIP_SELECT_PIN, int SERIAL_OUT_PIN, int SERIAL_CLOCK_PIN, HeaterState *heaterState) {
 
   uint16_t measuredValue;
 
@@ -449,17 +548,79 @@ double measureTemperature(int CHIP_SELECT_PIN, int SERIAL_OUT_PIN, int SERIAL_CL
   // disable MAX6675
   digitalWrite(CHIP_SELECT_PIN, HIGH);
 
-  if (measuredValue & 0x4) 
-  {    
+  if (measuredValue & 0x4) {    
     // Bit 2 indicates if the thermocouple is disconnected
-    return NAN;     
+      Log.error("Thermocouple is disconnected!");
+  } else {
+
+    // The lower three bits (0,1,2) are discarded status bits
+    measuredValue >>= 3;
+
+    // The remaining bits are the number of 0.25 degree (C) counts
+    heaterState->measuredTemp = measuredValue*0.25;
   }
+}
 
-  // The lower three bits (0,1,2) are discarded status bits
-  measuredValue >>= 3;
+void loop() {
+  
+  float nowTimeMillis = millis();  
 
-  // The remaining bits are the number of 0.25 degree (C) counts
-  return measuredValue*0.25;
+  // First we read all inputs... even if these inputs aren't always needed for
+  // our given state.. it's easier to just do it here as it costs very little.
+
+  readScaleState(myScale, &scaleState);
+  
+  readUserInputState(isButtonPressedRightNow(), nowTimeMillis, &userInputState);
+
+  readHeaterTemperature(MAX6675_CS_brew, MAX6675_SO_brew, MAX6675_SCK, &brewHeaterState);  
+  Log.error("measuredBrewTempC '" + String(brewHeaterState.measuredTemp) + "'.");
+
+  readHeaterTemperature(MAX6675_CS_steam, MAX6675_SO_steam, MAX6675_SCK, &steamHeaterState);  
+  Log.error("measuredSteamTempC '" + String(  steamHeaterState.measuredTemp) + "'.");
+
+  // Given current input, determine current Gaggia state...
+  currentGaggiaState = getCurrentGaggiaState(currentGaggiaState, 
+                                             brewHeaterState, 
+                                             steamHeaterState, 
+                                             scaleState, 
+                                             userInputState);
+
+  // Perform actions given current Gaggia state...
+  // This step does also mutate current state
+  // (e.g. record weight of beans, tare measuring cup)
+  processCurrentGaggiaState(currentGaggiaState, 
+                            &brewHeaterState, 
+                            &steamHeaterState, 
+                            &scaleState,
+                            nowTimeMillis);
+
+  delay(5000);
+}
+
+void turnBrewHeaterOn() {
+  digitalWrite(HEATER_brew, HIGH);
+}
+
+void turnBrewHeaterOff() {
+  digitalWrite(HEATER_brew, LOW);
+}
+
+void turnSteamHeaterOn() {
+  digitalWrite(HEATER_steam, HIGH);
+}
+
+void turnSteamHeaterOff() {
+  digitalWrite(HEATER_steam, LOW);
+}
+
+boolean isButtonPressedRightNow() {
+  return digitalRead(BUTTON) == HIGH;
+}
+
+// line starts at 1
+void updateDisplayLine(const char* message, int line) {
+  lcd.setCursor(0,line-1);
+  lcd.print(message);
 }
 
 int calculateHeaterPulseDurationMillis(double currentTempC, float targetTempC, float *previousTempError, float *previousSampleTime) {
