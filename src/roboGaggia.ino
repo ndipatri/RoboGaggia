@@ -6,6 +6,7 @@
  */
 
 #include <Wire.h> 
+#include <string.h> 
 #include <SPI.h>
 #include "SerLCD.h"
 #include "SparkFun_Qwiic_Scale_NAU7802_Arduino_Library.h"
@@ -41,7 +42,7 @@ SYSTEM_THREAD(ENABLED);
 
 // User Input
 // Pull high to trigger
-#define BUTTON  D3
+#define BUTTON  RX 
 
 // Output - For dispensing water
 #define WATER_DISPENSER  TX
@@ -59,7 +60,8 @@ int kd = 1.8;
 
 float TARGET_BREW_TEMP = 45; // should be 103
 float TOO_HOT_TEMP = 55; // should be 130
-float TARGET_STEAM_TEMP = 65; // should be 140
+float TARGET_STEAM_TEMP = 100; // should be 140
+float TARGET_BEAN_WEIGHT = 22; // grams
 
 // How long the button has to be pressed before it is considered
 // a long press
@@ -81,9 +83,13 @@ struct ScaleState {
   // recorded weight
   long recordedWeight = 0; 
 
+  // this will be the recordedWeight * BREW_MEASURED_WEIGHT_MULTIPLIER
+  long targetWeight = 0; 
+
   // recorded weight of cup meant be used when
   // measuring the weight of beans or brew  
   long tareWeight = 0;
+
 } scaleState;
 void readScaleState(NAU7802 myScale, ScaleState *scaleState);
 NAU7802 myScale; //Create instance of the NAU7802 class
@@ -103,7 +109,6 @@ struct HeaterState {
   // Used to track ongoing heat cycles...
   float heaterStarTime = -1;
   float heaterDurationMillis = -1;
-
 
 } brewHeaterState, steamHeaterState;
 void readHeaterState(int CHIP_SELECT_PIN, int SERIAL_OUT_PIN, int SERIAL_CLOCK_PIN, HeaterState *heaterState);
@@ -126,6 +131,13 @@ struct UserInputState {
 } userInputState;
 void readUserInputState(boolean isButtonPressedRightNow, float nowTimeMillis, UserInputState *userInputState);
 
+struct DisplayState {
+  String display1;
+  String display2;
+  String display3;
+  String display4;
+
+} displayState;
 
 enum GaggiaStateEnum {
   HELLO = 0, 
@@ -152,21 +164,21 @@ struct GaggiaState {
    boolean  tareScale = false;
    boolean  dispenseWater = false;
    boolean  recordWeight = false;
-} roboGaggiaState;
-struct GaggiaState helloState;
-struct GaggiaState tareCup1State;
-struct GaggiaState measureBeansState;
-struct GaggiaState tareCup2State;
-struct GaggiaState heatingToBrewState;
-struct GaggiaState brewingState;
-struct GaggiaState doneBrewingState;
-struct GaggiaState heatingToSteamState;
-struct GaggiaState steamingState;
-struct GaggiaState coolStartState;
-struct GaggiaState coolingState;
-struct GaggiaState coolDoneState;
+} 
+helloState,
+tareCup1State,
+measureBeansState,
+tareCup2State,
+heatingToBrewState,
+brewingState,
+doneBrewingState,
+heatingToSteamState,
+steamingState,
+coolStartState,
+coolingState,
+coolDoneState,
 
-struct GaggiaState currentGaggiaState = helloState;
+currentGaggiaState;
 
 SerLCD display; // Initialize the library with default I2C address 0x72
 
@@ -179,11 +191,15 @@ GaggiaState getCurrentGaggiaState(GaggiaState currentGaggiaState,
 
 // Once we know the state, we affect appropriate change in our
 // system attributes (e.g. temp, display)
-void processCurrentGaggiaState(GaggiaState currentGaggiaState, 
+void processCurrentGaggiaState(GaggiaState currentGaggiaState,
                                HeaterState *brewHeaterState,
                                HeaterState *steamHeaterState,
                                ScaleState *scaleState,
+                               DisplayState *displayState,
                                float nowTimeMillis);
+
+
+boolean firstLoop = true;
 
 // setup() runs once, when the device is first turned on.
 void setup() {
@@ -225,89 +241,108 @@ void setup() {
   pinMode(WATER_DISPENSER, OUTPUT);
 
 
-  // Useful state exposed to Particle web console
-  Particle.variable("brewTempC", brewHeaterState.measuredTemp);
-  Particle.variable("steamTempC", steamHeaterState.measuredTemp);
+  // // Useful state exposed to Particle web console
+  // Particle.variable("brewTempC", brewHeaterState.measuredTemp);
+  // Particle.variable("steamTempC", steamHeaterState.measuredTemp);
 
-  Particle.variable("measuredWeightG", scaleState.measuredWeight);
-  Particle.variable("recordedWeightC", scaleState.recordedWeight);
-  Particle.variable("tareWeightC", scaleState.tareWeight);
+  // Particle.variable("measuredWeightG", scaleState.measuredWeight);
+  // Particle.variable("recordedWeightC", scaleState.recordedWeight);
+  // Particle.variable("tareWeightC", scaleState.tareWeight);
 
-  Particle.variable("roboGaggiaState", roboGaggiaState.state);
+  // Particle.variable("currentGaggiaState", currentGaggiaState.state);
 
 
   // Define all possible states of RoboGaggia
   helloState.state = HELLO; 
-  helloState.display1 =           "Hello. I am RoboGaggia!";
-  helloState.display4 =           " .      Click to Brew, Hold for Steam -->";
+  helloState.display1 =            "Hello.              ";
+  helloState.display2 =            "                    ";
+  helloState.display3 =            "Click to Brew,      ";
+  helloState.display4 =            "Hold for Steam      ";
   helloState.brewHeaterOn = true; 
 
   tareCup1State.state = TARE_CUP_1; 
-  tareCup1State.display1 =         "Place bean cup on tray";
-  tareCup1State.display4 =         "                    Click when Ready -->";
+  tareCup1State.display1 =         "Place cup on tray.  ";
+  tareCup1State.display2 =         "                    ";
+  tareCup1State.display3 =         "                    ";
+  tareCup1State.display4 =         "Click when Ready    ";
   tareCup1State.brewHeaterOn = true; 
   tareCup1State.tareScale = true; 
 
   measureBeansState.state = MEASURE_BEANS; 
-  measureBeansState.display1 =    "Add beans to cup";
-  measureBeansState.display2 =    "${measuredWeight}/${targetBeanWeight}";
-  measureBeansState.display4 =    "                     Click when Ready -->";
+  measureBeansState.display1 =     "Add beans to cup.   ";
+  measureBeansState.display2 =     "{measuredWeight}/{targetBeanWeight}";
+  measureBeansState.display3 =     "                    ";
+  measureBeansState.display4 =     "Click when Ready    ";
   measureBeansState.brewHeaterOn = true; 
   measureBeansState.recordWeight = true; 
 
   tareCup2State.state = TARE_CUP_2; 
-  tareCup2State.display1 =        "Grind beans, load portafiler,";
-  tareCup2State.display2 =        "place empty cup on tray";
-  tareCup2State.display4 =        "                   Click when Ready -->";
+  tareCup2State.display1 =         "Grind & load beans, ";
+  tareCup2State.display2 =         "Put cup on tray.    ";
+  tareCup2State.display3 =         "                    ";
+  tareCup2State.display4 =         "Click when Ready    ";
   tareCup2State.brewHeaterOn = true; 
   tareCup2State.tareScale = true; 
 
   heatingToBrewState.state = HEATING_TO_BREW; 
-  heatingToBrewState.display1 =   "Heating to brew. Leave cup on tray.";
-  heatingToBrewState.display2 =   "${measuredBrewTemp}/${targetBrewTemp}";
-  heatingToBrewState.display4 =   "Please wait ...";
+  heatingToBrewState.display1 =    "Heating to brew.    ";
+  heatingToBrewState.display2 =    "Leave cup on tray.  ";
+  heatingToBrewState.display3 =    "{measuredBrewTemp}/{targetBrewTemp}";
+  heatingToBrewState.display4 =    "Please wait ...     ";
   heatingToBrewState.brewHeaterOn = true; 
 
   brewingState.state = BREWING; 
-  brewingState.display1 =         "Brewing.";
-  brewingState.display2 =         "${measuredWeight}/${targetBrewWeight}";
-  brewingState.display4 =         "Please wait ...";
+  brewingState.display1 =          "Brewing.            ";
+  brewingState.display2 =          "{measuredWeight}/{targetBrewWeight}";
+  brewingState.display3 =          "                    ";
+  brewingState.display4 =          "Please wait ...     ";
   brewingState.brewHeaterOn = true; 
   brewingState.dispenseWater = true; 
 
   doneBrewingState.state = DONE_BREWING; 
-  doneBrewingState.display1 =    "Done brewing.";
-  doneBrewingState.display2 =    "Remove cup from tray.";
-  doneBrewingState.display4 =    "                     Click when Ready -->";
+  doneBrewingState.display1 =      "Done brewing.       ";
+  doneBrewingState.display2 =      "Remove cup.         ";
+  doneBrewingState.display3 =      "                    ";
+  doneBrewingState.display4 =      "Click when Ready    ";
   doneBrewingState.brewHeaterOn = true; 
 
   heatingToSteamState.state = HEATING_TO_STEAM; 
-  heatingToSteamState.display1 =   "Heating to steam.";
-  heatingToSteamState.display2 =   "${measuredSteamTemp}/${targetSteamTemp}";
-  heatingToSteamState.display4 =   "Please wait ...";
+  heatingToSteamState.display1 =   "Heating to steam.   ";
+  heatingToSteamState.display2 =   "{measuredSteamTemp}/{targetSteamTemp}";
+  heatingToSteamState.display3 =   "                    ";
+  heatingToSteamState.display4 =   "Please wait ...     ";
   heatingToSteamState.brewHeaterOn = true; 
   heatingToSteamState.steamHeaterOn = true; 
 
   steamingState.state = STEAMING; 
-  steamingState.display1 =         "Operate steam wand.";
-  steamingState.display4 =    "                        Click when Done -->";
+  steamingState.display1 =         "Operate steam wand. ";
+  steamingState.display2 =         "                    ";
+  steamingState.display3 =         "                    ";
+  steamingState.display4 =         "Click when Done     ";
   steamingState.brewHeaterOn = true; 
   steamingState.steamHeaterOn = true; 
 
   coolStartState.state = COOL_START; 
-  coolStartState.display1 =    "Place empty cup on tray.";
-  coolStartState.display4 =    "                     Click when Ready -->";
+  coolStartState.display1 =        "Place cup on tray.  ";
+  coolStartState.display2 =        "                    ";;
+  coolStartState.display3 =        "                    ";;
+  coolStartState.display4 =        "Click when Ready    ";
 
   coolingState.state = COOLING; 
-  coolingState.display1 =   "Dispensing water to cool";
-  coolingState.display2 =   "${measuredBrewTemp}/${targetBrewTemp}";
-  coolingState.display4 =   "Please wait ...";
+  coolingState.display1 =          "Dispensing to cool  ";
+  coolingState.display2 =          "{measuredBrewTemp}/{targetBrewTemp}";
+  coolingState.display3 =          "                    ";
+  coolingState.display4 =          "Please wait ...     ";
   coolingState.dispenseWater = true; 
 
   coolDoneState.state = COOL_DONE;
-  coolDoneState.display1 =    "Remove cup and discard water.";
-  coolDoneState.display4 =    "                     Click when Ready -->";
+  coolDoneState.display1 =         "Discard water.      ";
+  coolDoneState.display2 =         "                    ";
+  coolDoneState.display3 =         "                    ";
+  coolDoneState.display4 =         "Click when Ready    ";
   coolDoneState.brewHeaterOn = true; 
+
+  currentGaggiaState = helloState;
 
   // Wait for a USB serial connection for up to 15 seconds
   waitFor(Serial.isConnected, 15000);
@@ -325,19 +360,8 @@ void loop() {
   readUserInputState(isButtonPressedRightNow(), nowTimeMillis, &userInputState);
 
   readHeaterState(MAX6675_CS_brew, MAX6675_SO_brew, MAX6675_SCK, &brewHeaterState);  
-  Log.error("measuredBrewTempC '" + String(brewHeaterState.measuredTemp) + "'.");
 
   readHeaterState(MAX6675_CS_steam, MAX6675_SO_steam, MAX6675_SCK, &steamHeaterState);  
-  Log.error("measuredSteamTempC '" + String(  steamHeaterState.measuredTemp) + "'.");
-
-  // Perform actions given current Gaggia state and input ...
-  // This step does also mutate current state
-  // (e.g. record weight of beans, tare measuring cup)
-  processCurrentGaggiaState(currentGaggiaState, 
-                            &brewHeaterState, 
-                            &steamHeaterState, 
-                            &scaleState,
-                            nowTimeMillis);
 
   // Determine next Gaggia state...
   // (e.g. move to 'Done Brewing' state once target weight is achieved, etc.)
@@ -347,8 +371,19 @@ void loop() {
                                              scaleState, 
                                              userInputState);
 
-  // NJD TODO - this should be around 200ms after we've done initial testing
-  delay(5000);
+  // Perform actions given current Gaggia state and input ...
+  // This step does also mutate current state
+  // (e.g. record weight of beans, tare measuring cup)
+  processCurrentGaggiaState(currentGaggiaState,
+                            &brewHeaterState, 
+                            &steamHeaterState, 
+                            &scaleState,
+                            &displayState,
+                            nowTimeMillis);
+
+  firstLoop = false;
+
+  delay(200);
 }
 
 void readScaleState(NAU7802 myScale, ScaleState *scaleState) {
@@ -356,42 +391,11 @@ void readScaleState(NAU7802 myScale, ScaleState *scaleState) {
 
   if (myScale.available() == true) {
     scaleState->measuredWeight = myScale.getReading();
-    Log.error("Scale Reading: " + String(scaleState->measuredWeight));
   }
-}
-
-void turnBrewHeaterOn() {
-  digitalWrite(HEATER_brew, HIGH);
-}
-
-void turnBrewHeaterOff() {
-  digitalWrite(HEATER_brew, LOW);
-}
-
-void turnSteamHeaterOn() {
-  digitalWrite(HEATER_steam, HIGH);
-}
-
-void turnSteamHeaterOff() {
-  digitalWrite(HEATER_steam, LOW);
-}
-
-void startDispensingWater() {
-  digitalWrite(WATER_DISPENSER, HIGH);
-}
-
-void stopDispensingWater() {
-  digitalWrite(WATER_DISPENSER, LOW);
 }
 
 boolean isButtonPressedRightNow() {
   return digitalRead(BUTTON) == HIGH;
-}
-
-// line starts at 1
-void updateDisplayLine(const char* message, int line) {
-  display.setCursor(0,line-1);
-  display.print(message);
 }
 
 void readUserInputState(boolean isButtonPressedRightNow, float nowTimeMillis, UserInputState *userInputState) {
@@ -450,6 +454,116 @@ void readHeaterState(int CHIP_SELECT_PIN, int SERIAL_OUT_PIN, int SERIAL_CLOCK_P
   }
 }
 
+void turnBrewHeaterOn() {
+  digitalWrite(HEATER_brew, HIGH);
+}
+
+void turnBrewHeaterOff() {
+  digitalWrite(HEATER_brew, LOW);
+}
+
+void turnSteamHeaterOn() {
+  digitalWrite(HEATER_steam, HIGH);
+}
+
+void turnSteamHeaterOff() {
+  digitalWrite(HEATER_steam, LOW);
+}
+
+void startDispensingWater() {
+  digitalWrite(WATER_DISPENSER, HIGH);
+}
+
+void stopDispensingWater() {
+  digitalWrite(WATER_DISPENSER, LOW);
+}
+
+// If no decoding is necessary, the original string
+// is returned
+String decodeMessageIfNecessary(char* _message, 
+                                char* escapeSequence,
+                                long firstValue,
+                                long secondValue,                         
+                                HeaterState *brewHeaterState,
+                                HeaterState *steamHeaterState,
+                                ScaleState *scaleState) {
+  char *message = _message; 
+
+  if (strcmp(message, escapeSequence) == 0) {
+    char firstValueString[9];
+    sprintf(firstValueString, "%ld", firstValue);
+
+    char secondValueString[9];
+    sprintf(secondValueString, "%ld", secondValue);
+
+    message = strcat(strcat(firstValueString, "/"), secondValueString);
+
+    return String(message);
+  }
+
+  return String("");
+}
+
+// line starts at 1
+String updateDisplayLine(char *message, 
+                        int line,
+                        HeaterState *brewHeaterState,
+                        HeaterState *steamHeaterState,
+                        ScaleState *scaleState,
+                        String previousLineDisplayed) {
+
+  display.setCursor(0,line-1);
+  
+  String lineToDisplay; 
+  
+  lineToDisplay = decodeMessageIfNecessary(message,
+                                           "{measuredWeight}/{targetBeanWeight}",
+                                           scaleState->measuredWeight,
+                                           TARGET_BEAN_WEIGHT,
+                                           brewHeaterState,
+                                           steamHeaterState,
+                                           scaleState);
+  if (lineToDisplay == "") {
+    lineToDisplay = decodeMessageIfNecessary(message,
+                                            "{measuredBrewTemp}/{targetBrewTemp}",
+                                            brewHeaterState->measuredTemp,
+                                            TARGET_BREW_TEMP,
+                                            brewHeaterState,
+                                            steamHeaterState,
+                                            scaleState);
+    if (lineToDisplay == "") {
+      lineToDisplay = decodeMessageIfNecessary(message,
+                                              "{measuredWeight}/{targetBrewWeight}",
+                                              scaleState->measuredWeight,
+                                              scaleState->targetWeight,
+                                              brewHeaterState,
+                                              steamHeaterState,
+                                              scaleState);
+      if (lineToDisplay == "") {
+        lineToDisplay = decodeMessageIfNecessary(message,
+                                              "{measuredSteamTemp}/{targetSteamTemp}",
+                                              steamHeaterState->measuredTemp,
+                                              TARGET_STEAM_TEMP,
+                                              brewHeaterState,
+                                              steamHeaterState,
+                                              scaleState);
+      }
+    }
+  }
+
+  if (lineToDisplay == "") {
+    lineToDisplay = String(message);
+  }
+
+  // This prevents flashing
+  if (lineToDisplay != previousLineDisplayed) {
+    display.print(lineToDisplay);
+  }
+
+  return lineToDisplay;
+}
+
+
 boolean shouldTurnOnHeater(float targetTemp,
                            float nowTimeMillis,
                            HeaterState *heaterState) {
@@ -461,7 +575,6 @@ boolean shouldTurnOnHeater(float targetTemp,
 
     if ((nowTimeMillis - heaterState->heaterStarTime) > heaterState->heaterDurationMillis) {
       // done this heat cycle!
-      Log.error("Stopping current heat cycle.");
 
       heaterState->heaterStarTime = -1;
       shouldTurnOnHeater = false;
@@ -475,7 +588,6 @@ boolean shouldTurnOnHeater(float targetTemp,
                                          &(heaterState->previousTempError), 
                                          &(heaterState->previousSampleTime));
     if (heaterState->heaterDurationMillis > 0) {
-      Log.error("Starting heat cycle for '" + String(heaterState->heaterDurationMillis) + "' milliseconds.");
       heaterState->heaterStarTime = nowTimeMillis;
 
       shouldTurnOnHeater = true;
@@ -562,7 +674,7 @@ GaggiaState getCurrentGaggiaState(GaggiaState currentGaggiaState,
 
     case TARE_CUP_2 :
 
-      if (userInputState.state == SHORT_PRESS) {
+      if (userInputState.state == SHORT_PRESS || userInputState.state == LONG_PRESS) {
         return heatingToBrewState;
       }
       break;
@@ -577,14 +689,14 @@ GaggiaState getCurrentGaggiaState(GaggiaState currentGaggiaState,
     case BREWING :
 
       if ((scaleState.measuredWeight - scaleState.tareWeight) >= 
-            scaleState.recordedWeight*BREW_MEASURED_WEIGHT_MULTIPLIER) {
+            scaleState.targetWeight) {
         return doneBrewingState;
       }
       break;
 
     case DONE_BREWING :
 
-      if (userInputState.state == SHORT_PRESS) {
+      if (userInputState.state == SHORT_PRESS || userInputState.state == LONG_PRESS) {
         return helloState;
       }
       break;
@@ -598,14 +710,14 @@ GaggiaState getCurrentGaggiaState(GaggiaState currentGaggiaState,
 
     case STEAMING :
 
-      if (userInputState.state == SHORT_PRESS) {
+      if (userInputState.state == SHORT_PRESS || userInputState.state == LONG_PRESS) {
         return helloState;
       }
       break;
       
     case COOL_START :
 
-      if (userInputState.state == SHORT_PRESS) {
+      if (userInputState.state == SHORT_PRESS || userInputState.state == LONG_PRESS) {
         return coolingState;
       }
       break;
@@ -619,7 +731,7 @@ GaggiaState getCurrentGaggiaState(GaggiaState currentGaggiaState,
 
     case COOL_DONE :
 
-      if (userInputState.state == SHORT_PRESS) {
+      if (userInputState.state == SHORT_PRESS || userInputState.state == LONG_PRESS) {
         return helloState;
       }
       break;  
@@ -628,20 +740,43 @@ GaggiaState getCurrentGaggiaState(GaggiaState currentGaggiaState,
   return currentGaggiaState;
 }  
 
-void processCurrentGaggiaState(GaggiaState currentGaggiaState, 
+void processCurrentGaggiaState(GaggiaState currentGaggiaState,  
                                HeaterState *brewHeaterState,
                                HeaterState *steamHeaterState,
                                ScaleState *scaleState,
+                               DisplayState *displayState,
                                float nowTimeMillis) {
-
   // 
   // Process Display
   //
-  display.clear();
-  updateDisplayLine(currentGaggiaState.display1, 1);
-  updateDisplayLine(currentGaggiaState.display2, 2);
-  updateDisplayLine(currentGaggiaState.display3, 3);
-  updateDisplayLine(currentGaggiaState.display4, 4);
+  displayState->display1 = updateDisplayLine(currentGaggiaState.display1, 
+                                             1, 
+                                             brewHeaterState, 
+                                             steamHeaterState, 
+                                             scaleState, 
+                                             displayState->display1);
+
+  displayState->display2 = updateDisplayLine(currentGaggiaState.display2, 
+                                             2, 
+                                             brewHeaterState, 
+                                             steamHeaterState, 
+                                             scaleState, 
+                                             displayState->display2);
+
+  displayState->display3 = updateDisplayLine(currentGaggiaState.display3, 
+                                             3, 
+                                             brewHeaterState, 
+                                             steamHeaterState, 
+                                             scaleState,  
+                                             displayState->display3);
+
+  displayState->display4 = updateDisplayLine(currentGaggiaState.display4, 
+                                             4, 
+                                             brewHeaterState, 
+                                             steamHeaterState, 
+                                             scaleState, 
+                                             displayState->display4);
+
 
 
   // Process Heaters
@@ -651,10 +786,8 @@ void processCurrentGaggiaState(GaggiaState currentGaggiaState,
   // the temperature around the target temp.
   if (currentGaggiaState.brewHeaterOn) {
     if (shouldTurnOnHeater(TARGET_BREW_TEMP, nowTimeMillis, brewHeaterState)) {
-      Log.error("Turning on brew heater.");
       turnBrewHeaterOn();
     } else {
-      Log.error("Turning off brew heater.");
       turnBrewHeaterOff();
     } 
   } else {
@@ -663,10 +796,8 @@ void processCurrentGaggiaState(GaggiaState currentGaggiaState,
 
   if (currentGaggiaState.steamHeaterOn) {
     if (shouldTurnOnHeater(TARGET_STEAM_TEMP, nowTimeMillis, steamHeaterState)) {
-      Log.error("Turning on steam heater.");
       turnSteamHeaterOn();
     } else {
-      Log.error("Turning off steam heater.");
       turnSteamHeaterOff();
     } 
   } else {
@@ -680,15 +811,14 @@ void processCurrentGaggiaState(GaggiaState currentGaggiaState,
 
   // Process Dispense Water 
   if (currentGaggiaState.dispenseWater) {
-    Log.error("Start dispending water.");
     startDispensingWater();
   } else {
-    Log.error("Stop dispending water.");
     stopDispensingWater();
   }
 
   // Process Record Weight 
   if (currentGaggiaState.recordWeight) {
     scaleState->recordedWeight = scaleState->measuredWeight - scaleState->tareWeight;
+    scaleState->targetWeight = scaleState->recordedWeight*BREW_MEASURED_WEIGHT_MULTIPLIER; 
   }
 }
