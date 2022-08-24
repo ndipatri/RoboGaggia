@@ -71,19 +71,22 @@ float BUTTON_LONG_PRESS_DURATION_MILLIS = 1000;
 // that of the ground beans.  Typically this is 2-to-1
 float BREW_MEASURED_WEIGHT_MULTIPLIER = 2.0;
 
+int SCALE_OFFSET = 573;
+double SCALE_FACTOR = -.01;
+
+// Below which we consider weight to be 0
+int LOW_WEIGHT_THRESHOLD = 4;
+
 //
 // State
 //
 
 struct ScaleState {
 
-  // current weight
   long measuredWeight = 0;
 
-  // recorded weight
-  long recordedWeight = 0; 
-
-  // this will be the recordedWeight * BREW_MEASURED_WEIGHT_MULTIPLIER
+  // this will be the measuredWegith - tareWeight * BREW_MEASURED_WEIGHT_MULTIPLIER
+  // at the moment this value is recorded...
   long targetWeight = 0; 
 
   // recorded weight of cup meant be used when
@@ -183,21 +186,30 @@ currentGaggiaState;
 SerLCD display; // Initialize the library with default I2C address 0x72
 
 // Using all current state, we derive the next state of the system
-GaggiaState getCurrentGaggiaState(GaggiaState currentGaggiaState, 
-                                  HeaterState brewHeaterState,
-                                  HeaterState steamHeaterState,
-                                  ScaleState scaleState,
-                                  UserInputState userInputState);
+GaggiaState getNextGaggiaState(GaggiaState currentGaggiaState, 
+                               HeaterState brewHeaterState,
+                               HeaterState steamHeaterState,
+                               ScaleState scaleState,
+                               UserInputState userInputState);
 
 // Once we know the state, we affect appropriate change in our
 // system attributes (e.g. temp, display)
+// Things we do while we are in a state 
 void processCurrentGaggiaState(GaggiaState currentGaggiaState,
                                HeaterState *brewHeaterState,
                                HeaterState *steamHeaterState,
                                ScaleState *scaleState,
                                DisplayState *displayState,
                                float nowTimeMillis);
-
+// Things we do when we leave a state
+void processOutgoingGaggiaState(GaggiaState currentGaggiaState,
+                                GaggiaState nextGaggiaState, 
+                                HeaterState *brewHeaterState,
+                                HeaterState *steamHeaterState,
+                                ScaleState *scaleState,
+                                DisplayState *displayState,
+                                float nowTimeMillis);
+GaggiaState returnToHelloState(ScaleState *scaleState);
 
 boolean firstLoop = true;
 
@@ -242,27 +254,35 @@ void setup() {
 
 
   // // Useful state exposed to Particle web console
-  // Particle.variable("brewTempC", brewHeaterState.measuredTemp);
-  // Particle.variable("steamTempC", steamHeaterState.measuredTemp);
+  Particle.variable("brewTempC", brewHeaterState.measuredTemp);
+  Particle.variable("steamTempC", steamHeaterState.measuredTemp);
 
-  // Particle.variable("measuredWeightG", scaleState.measuredWeight);
-  // Particle.variable("recordedWeightC", scaleState.recordedWeight);
-  // Particle.variable("tareWeightC", scaleState.tareWeight);
+  Particle.variable("measuredWeightG", scaleState.measuredWeight);
+  Particle.variable("tareWeightC", scaleState.tareWeight);
+  Particle.variable("SCALE_OFFSET", SCALE_OFFSET);
+  Particle.variable("SCALE_FACTOR", SCALE_FACTOR);
+  Particle.function("setScaleOffset", setScaleOffset);
+  Particle.function("setScaleFactor", setScaleFactor);
 
-  // Particle.variable("currentGaggiaState", currentGaggiaState.state);
+  Particle.variable("currentGaggiaState", currentGaggiaState.state);
+ 
 
 
   // Define all possible states of RoboGaggia
   helloState.state = HELLO; 
   helloState.display1 =            "Hello.              ";
-  helloState.display2 =            "                    ";
+  helloState.display2 =            "Clear scale surface.";
   helloState.display3 =            "Click to Brew,      ";
   helloState.display4 =            "Hold for Steam      ";
   helloState.brewHeaterOn = true; 
+  // we tare here so the weight of the scale itself isn't shown
+  // when we are measuring things...
+  tareCup1State.tareScale = true; 
+
 
   tareCup1State.state = TARE_CUP_1; 
   tareCup1State.display1 =         "Place cup on tray.  ";
-  tareCup1State.display2 =         "                    ";
+  tareCup1State.display2 =         "{measuredWeight}";
   tareCup1State.display3 =         "                    ";
   tareCup1State.display4 =         "Click when Ready    ";
   tareCup1State.brewHeaterOn = true; 
@@ -270,7 +290,7 @@ void setup() {
 
   measureBeansState.state = MEASURE_BEANS; 
   measureBeansState.display1 =     "Add beans to cup.   ";
-  measureBeansState.display2 =     "{measuredWeight}/{targetBeanWeight}";
+  measureBeansState.display2 =     "{adjustedWeight}/{targetBeanWeight}";
   measureBeansState.display3 =     "                    ";
   measureBeansState.display4 =     "Click when Ready    ";
   measureBeansState.brewHeaterOn = true; 
@@ -293,7 +313,7 @@ void setup() {
 
   brewingState.state = BREWING; 
   brewingState.display1 =          "Brewing.            ";
-  brewingState.display2 =          "{measuredWeight}/{targetBrewWeight}";
+  brewingState.display2 =          "{adjustedWeight}/{targetBrewWeight}";
   brewingState.display3 =          "                    ";
   brewingState.display4 =          "Please wait ...     ";
   brewingState.brewHeaterOn = true; 
@@ -348,6 +368,18 @@ void setup() {
   waitFor(Serial.isConnected, 15000);
 }
 
+int setScaleOffset(String offsetString) {
+  SCALE_OFFSET = atoi(offsetString);
+  
+  return 0;
+}
+
+int setScaleFactor(String factorString) {
+  SCALE_FACTOR = atoi(factorString);
+  
+  return 0;
+}
+
 void loop() {
   
   float nowTimeMillis = millis();  
@@ -365,15 +397,31 @@ void loop() {
 
   // Determine next Gaggia state...
   // (e.g. move to 'Done Brewing' state once target weight is achieved, etc.)
-  currentGaggiaState = getCurrentGaggiaState(currentGaggiaState, 
-                                             brewHeaterState, 
-                                             steamHeaterState, 
-                                             scaleState, 
-                                             userInputState);
+  GaggiaState nextGaggiaState = getNextGaggiaState(currentGaggiaState, 
+                                                   brewHeaterState, 
+                                                   steamHeaterState, 
+                                                   scaleState, 
+                                                   userInputState);
 
-  // Perform actions given current Gaggia state and input ...
-  // This step does also mutate current state
-  // (e.g. record weight of beans, tare measuring cup)
+  if (nextGaggiaState.state != currentGaggiaState.state) {
+
+    // Perform actions given current Gaggia state and input ...
+    // This step does also mutate current state
+    // (e.g. record weight of beans, tare measuring cup)
+
+    // Things we do when we leave a state
+    processOutgoingGaggiaState(currentGaggiaState,
+                               nextGaggiaState,
+                               &brewHeaterState, 
+                               &steamHeaterState, 
+                               &scaleState,
+                               &displayState,
+                               nowTimeMillis);
+  }
+
+  currentGaggiaState = nextGaggiaState;
+
+    // Things we do when we enter a state
   processCurrentGaggiaState(currentGaggiaState,
                             &brewHeaterState, 
                             &steamHeaterState, 
@@ -390,7 +438,18 @@ void readScaleState(NAU7802 myScale, ScaleState *scaleState) {
   scaleState->measuredWeight = 0;
 
   if (myScale.available() == true) {
-    scaleState->measuredWeight = myScale.getReading();
+    int reading = myScale.getReading();
+    Log.error("reading: " + String(reading));
+
+    int scaledReading = reading*SCALE_FACTOR;
+
+    if (scaledReading > SCALE_OFFSET) {
+      scaledReading -= SCALE_OFFSET;
+    }
+
+    Log.error("scaledReading: " + String(scaledReading));
+
+    scaleState->measuredWeight = scaledReading;
   }
 }
 
@@ -400,24 +459,42 @@ boolean isButtonPressedRightNow() {
 
 void readUserInputState(boolean isButtonPressedRightNow, float nowTimeMillis, UserInputState *userInputState) {
   // Derive current user input state
-  userInputState->state = IDLE;
+
   if (isButtonPressedRightNow) {
     if (userInputState->buttonPressStartTimeMillis < 0) {  
       // rising edge detected...
       userInputState->buttonPressStartTimeMillis = nowTimeMillis;
     }
+  
+    // if long press hasn't already been identified (parking on button), and we identify a LONG press...
+    if ((userInputState->buttonPressStartTimeMillis != 0) && 
+        (nowTimeMillis - userInputState->buttonPressStartTimeMillis > BUTTON_LONG_PRESS_DURATION_MILLIS)) {
+      userInputState->state = LONG_PRESS;
+      userInputState->buttonPressStartTimeMillis = 0; // this indicates a LONG press was already identified..
+      Log.error("LONG PRESS!");
+      return;
+    }
   } else {
     if (userInputState->buttonPressStartTimeMillis > 0) {  
       // falling edge detected...
       if (nowTimeMillis - userInputState->buttonPressStartTimeMillis < BUTTON_LONG_PRESS_DURATION_MILLIS) {
+        Log.error("SHORT PRESS!");
         userInputState->state = SHORT_PRESS;
-      } else {
-        userInputState->state = LONG_PRESS;
+        userInputState->buttonPressStartTimeMillis = -1;
+
+        return;
       }
-  
+    } else {
+      // button is not being pressed
+      
+      // we do this because we are in a 'button idle' state and we want to ensure this 
+      // is reset.. it could have been @ -999 due to a extended LONG press
       userInputState->buttonPressStartTimeMillis = -1;
     }
   }
+
+  // if here, fallback is IDLE
+  userInputState->state = IDLE;
 }
 
 void readHeaterState(int CHIP_SELECT_PIN, int SERIAL_OUT_PIN, int SERIAL_CLOCK_PIN, HeaterState *heaterState) {
@@ -484,6 +561,7 @@ String decodeMessageIfNecessary(char* _message,
                                 char* escapeSequence,
                                 long firstValue,
                                 long secondValue,                         
+                                char* units,
                                 HeaterState *brewHeaterState,
                                 HeaterState *steamHeaterState,
                                 ScaleState *scaleState) {
@@ -493,12 +571,18 @@ String decodeMessageIfNecessary(char* _message,
     char firstValueString[9];
     sprintf(firstValueString, "%ld", firstValue);
 
-    char secondValueString[9];
-    sprintf(secondValueString, "%ld", secondValue);
+    char *decodedMessage;
+    char lineBuff[20] = "                   ";
+    if (secondValue != 0) {
+      char secondValueString[9];
+      sprintf(secondValueString, "%ld", secondValue);
 
-    message = strcat(strcat(firstValueString, "/"), secondValueString);
+      decodedMessage = strcat(strcat(strcat(firstValueString, "/"), secondValueString), units);
+    } else {
+      decodedMessage = strcat(firstValueString, units);
+    }
 
-    return String(message);
+    return String((char *)(memcpy(lineBuff, decodedMessage, strlen(decodedMessage))));
   }
 
   return String("");
@@ -517,9 +601,10 @@ String updateDisplayLine(char *message,
   String lineToDisplay; 
   
   lineToDisplay = decodeMessageIfNecessary(message,
-                                           "{measuredWeight}/{targetBeanWeight}",
-                                           scaleState->measuredWeight,
+                                           "{adjustedWeight}/{targetBeanWeight}",
+                                           filterLowWeight(scaleState->measuredWeight - scaleState->tareWeight),
                                            TARGET_BEAN_WEIGHT,
+                                           " g",
                                            brewHeaterState,
                                            steamHeaterState,
                                            scaleState);
@@ -528,14 +613,16 @@ String updateDisplayLine(char *message,
                                             "{measuredBrewTemp}/{targetBrewTemp}",
                                             brewHeaterState->measuredTemp,
                                             TARGET_BREW_TEMP,
+                                            " °C",
                                             brewHeaterState,
                                             steamHeaterState,
                                             scaleState);
     if (lineToDisplay == "") {
       lineToDisplay = decodeMessageIfNecessary(message,
-                                              "{measuredWeight}/{targetBrewWeight}",
-                                              scaleState->measuredWeight,
+                                              "{adjustedWeight}/{targetBrewWeight}",
+                                              filterLowWeight(scaleState->measuredWeight - scaleState->tareWeight),
                                               scaleState->targetWeight,
+                                              " g",
                                               brewHeaterState,
                                               steamHeaterState,
                                               scaleState);
@@ -544,9 +631,19 @@ String updateDisplayLine(char *message,
                                               "{measuredSteamTemp}/{targetSteamTemp}",
                                               steamHeaterState->measuredTemp,
                                               TARGET_STEAM_TEMP,
+                                              " °C",
                                               brewHeaterState,
                                               steamHeaterState,
                                               scaleState);
+        if (lineToDisplay == "") {
+          lineToDisplay = decodeMessageIfNecessary(message,
+                                                "{measuredWeight}",
+                                                filterLowWeight(scaleState->measuredWeight - scaleState->tareWeight),                                                0,
+                                                " g",
+                                                brewHeaterState,
+                                                steamHeaterState,
+                                                scaleState);
+        }      
       }
     }
   }
@@ -563,6 +660,13 @@ String updateDisplayLine(char *message,
   return lineToDisplay;
 }
 
+long filterLowWeight(long weight) {
+  if (abs(weight) < LOW_WEIGHT_THRESHOLD) {
+    return 0;
+  } else {
+    return weight;
+  }
+}
 
 boolean shouldTurnOnHeater(float targetTemp,
                            float nowTimeMillis,
@@ -635,11 +739,11 @@ int calculateHeaterPulseDurationMillis(double currentTempC, float targetTempC, f
   return currentOutput;
 }
 
-GaggiaState getCurrentGaggiaState(GaggiaState currentGaggiaState, 
-                                  HeaterState brewHeaterState,
-                                  HeaterState steamHeaterState,
-                                  ScaleState scaleState,
-                                  UserInputState userInputState) {
+GaggiaState getNextGaggiaState(GaggiaState currentGaggiaState, 
+                               HeaterState brewHeaterState,
+                               HeaterState steamHeaterState,
+                               ScaleState scaleState,
+                               UserInputState userInputState) {
 
   switch (currentGaggiaState.state) {
 
@@ -663,6 +767,10 @@ GaggiaState getCurrentGaggiaState(GaggiaState currentGaggiaState,
       if (userInputState.state == SHORT_PRESS) {
         return measureBeansState;
       }
+     
+      if (userInputState.state == LONG_PRESS) {
+        return helloState;
+      }
       break;
 
     case MEASURE_BEANS :
@@ -670,12 +778,18 @@ GaggiaState getCurrentGaggiaState(GaggiaState currentGaggiaState,
       if (userInputState.state == SHORT_PRESS) {
         return tareCup2State;
       }
+      if (userInputState.state == LONG_PRESS) {
+        return helloState;
+      }
       break;  
 
     case TARE_CUP_2 :
 
-      if (userInputState.state == SHORT_PRESS || userInputState.state == LONG_PRESS) {
+      if (userInputState.state == SHORT_PRESS) {
         return heatingToBrewState;
+      }
+      if (userInputState.state == LONG_PRESS) {
+        return helloState;
       }
       break;
 
@@ -683,6 +797,9 @@ GaggiaState getCurrentGaggiaState(GaggiaState currentGaggiaState,
 
       if (brewHeaterState.measuredTemp >= TARGET_BREW_TEMP) {
         return brewingState;
+      }
+      if (userInputState.state == LONG_PRESS) {
+        return helloState;
       }
       break;
 
@@ -692,11 +809,17 @@ GaggiaState getCurrentGaggiaState(GaggiaState currentGaggiaState,
             scaleState.targetWeight) {
         return doneBrewingState;
       }
+      if (userInputState.state == LONG_PRESS) {
+        return helloState;
+      }
       break;
 
     case DONE_BREWING :
 
-      if (userInputState.state == SHORT_PRESS || userInputState.state == LONG_PRESS) {
+      if (userInputState.state == SHORT_PRESS) {
+        return helloState;
+      }
+      if (userInputState.state == LONG_PRESS) {
         return helloState;
       }
       break;
@@ -706,19 +829,28 @@ GaggiaState getCurrentGaggiaState(GaggiaState currentGaggiaState,
       if (steamHeaterState.measuredTemp >= TARGET_STEAM_TEMP) {
         return steamingState;
       }
+      if (userInputState.state == LONG_PRESS) {
+        return helloState;
+      }
       break;
 
     case STEAMING :
 
-      if (userInputState.state == SHORT_PRESS || userInputState.state == LONG_PRESS) {
+      if (userInputState.state == SHORT_PRESS) {
+        return helloState;
+      }
+      if (userInputState.state == LONG_PRESS) {
         return helloState;
       }
       break;
       
     case COOL_START :
 
-      if (userInputState.state == SHORT_PRESS || userInputState.state == LONG_PRESS) {
+      if (userInputState.state == SHORT_PRESS) {
         return coolingState;
+      }
+      if (userInputState.state == LONG_PRESS) {
+        return helloState;
       }
       break;
 
@@ -727,11 +859,17 @@ GaggiaState getCurrentGaggiaState(GaggiaState currentGaggiaState,
       if (brewHeaterState.measuredTemp <= TARGET_BREW_TEMP) {
         return coolDoneState;
       }
+      if (userInputState.state == LONG_PRESS) {
+        return helloState;
+      }
       break;
 
     case COOL_DONE :
 
-      if (userInputState.state == SHORT_PRESS || userInputState.state == LONG_PRESS) {
+      if (userInputState.state == SHORT_PRESS) {
+        return helloState;
+      }
+      if (userInputState.state == LONG_PRESS) {
         return helloState;
       }
       break;  
@@ -739,6 +877,26 @@ GaggiaState getCurrentGaggiaState(GaggiaState currentGaggiaState,
 
   return currentGaggiaState;
 }  
+
+void processOutgoingGaggiaState(GaggiaState currentGaggiaState,  
+                                GaggiaState nextGaggiaState,
+                                HeaterState *brewHeaterState,
+                                HeaterState *steamHeaterState,
+                                ScaleState *scaleState,
+                                DisplayState *displayState,
+                                float nowTimeMillis) {
+
+  // Process Tare Scale
+  if (currentGaggiaState.tareScale) {
+    scaleState->tareWeight = scaleState->measuredWeight;
+  }
+
+  // Process Record Weight 
+  if (currentGaggiaState.recordWeight) {
+    scaleState->targetWeight = 
+      (scaleState->measuredWeight - scaleState->tareWeight)*BREW_MEASURED_WEIGHT_MULTIPLIER; 
+  }
+}
 
 void processCurrentGaggiaState(GaggiaState currentGaggiaState,  
                                HeaterState *brewHeaterState,
@@ -804,21 +962,10 @@ void processCurrentGaggiaState(GaggiaState currentGaggiaState,
     turnSteamHeaterOff();
   }
 
-  // Process Tare Scale
-  if (currentGaggiaState.tareScale) {
-    scaleState->tareWeight = scaleState->measuredWeight;
-  }
-
   // Process Dispense Water 
   if (currentGaggiaState.dispenseWater) {
     startDispensingWater();
   } else {
     stopDispensingWater();
-  }
-
-  // Process Record Weight 
-  if (currentGaggiaState.recordWeight) {
-    scaleState->recordedWeight = scaleState->measuredWeight - scaleState->tareWeight;
-    scaleState->targetWeight = scaleState->recordedWeight*BREW_MEASURED_WEIGHT_MULTIPLIER; 
   }
 }

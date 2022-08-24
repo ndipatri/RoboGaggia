@@ -5,6 +5,6 @@
         "*.ino": "cpp"
     },
     "particle.targetDevice": "rogoGaggia",
-    "particle.firmwareVersion": "3.0.0",
+    "particle.firmwareVersion": "3.3.0",
     "particle.targetPlatform": "argon"
 }
