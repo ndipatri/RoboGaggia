@@ -757,6 +757,8 @@ int calculateHeaterPulseDurationMillis(double currentTempC, float targetTempC, f
   return currentOutput;
 }
 
+// State transitions are documented here:
+// https://docs.google.com/drawings/d/1EcaUzklpJn34cYeWsTnApoJhwBhA1Q4EVMr53Kz9T7I/edit?usp=sharing
 GaggiaState getNextGaggiaState(GaggiaState currentGaggiaState, 
                                HeaterState *brewHeaterState,
                                HeaterState *steamHeaterState,
@@ -897,6 +899,10 @@ GaggiaState getNextGaggiaState(GaggiaState currentGaggiaState,
 
     case COOLING :
 
+      if (userInputState->state == SHORT_PRESS) {
+        return coolDoneState;
+      }
+
       if (steamHeaterState->measuredTemp < TOO_HOT_TO_BREW_TEMP &&
           brewHeaterState->measuredTemp < TOO_HOT_TO_BREW_TEMP) {
         return coolDoneState;
@@ -909,7 +915,12 @@ GaggiaState getNextGaggiaState(GaggiaState currentGaggiaState,
     case COOL_DONE :
 
       if (userInputState->state == SHORT_PRESS) {
-        return helloState;
+        if (steamHeaterState->measuredTemp >= TOO_HOT_TO_BREW_TEMP || 
+            brewHeaterState->measuredTemp >= TOO_HOT_TO_BREW_TEMP) {
+          return coolStartState;
+        } else {
+          return helloState;
+        }
       }
       if (userInputState->state == LONG_PRESS) {
         return helloState;
