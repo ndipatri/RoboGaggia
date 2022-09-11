@@ -40,13 +40,18 @@ SYSTEM_THREAD(ENABLED);
 #define HEATER_brew   D7
 #define HEATER_steam  D8
 
-// User Input
-// Pull high to trigger
-#define BUTTON  RX 
 
 // Output - For dispensing water
+// IT IS EXPECTED FOR THIS TO ALSO BE TIED TO THE WATER_SENSOR
+// POWER PIN... AS WE EXPECT TO TAKE WATER LEVEL MEASUREMENTS WHILE
+// WE ARE DISPENSING WATER
 #define WATER_DISPENSER  TX
 
+// 0 - low water mark, ~500 high water mark
+#define WATER_RESERVOIR_SENSOR  A1
+
+// send high to turn on solenoid
+#define WATER_RESERVOIR_SOLENOID  RX 
 
 
 //
@@ -81,10 +86,25 @@ double SCALE_OFFSET = 47;
 // Below which we consider weight to be 0
 int LOW_WEIGHT_THRESHOLD = 4;
 
+// This is for implementing a schmitt trigger control system for
+// water reservoir sensor
+int LOW_WATER_RESEVOIR_LIMIT = 100;
+int HIGH_WATER_RESEVOIR_LIMIT = 400;
 
 //
 // State
 //
+
+struct WaterReservoirState {
+
+  int measuredWaterLevel = 0;
+
+  boolean isSolenoidOn = false;
+
+} waterReservoirState;
+boolean doesWaterReservoirNeedFilling(int ANALOG_INPUT_PIN, WaterReservoirState *waterReservoirState);
+boolean isThereEnoughWaterInReservoirToBrew(WaterReservoirState *waterReservoirState);
+
 
 struct ScaleState {
 
@@ -120,7 +140,7 @@ struct HeaterState {
 
   // indicates that a single cup is desired so we can immediately begin
   // heating for steam after finished brewing
-  boolean  singleOn = false;
+  boolean singleOn = false;
 
 } brewHeaterState, steamHeaterState;
 void readHeaterState(int CHIP_SELECT_PIN, int SERIAL_OUT_PIN, int SERIAL_CLOCK_PIN, HeaterState *heaterState);
@@ -173,6 +193,7 @@ struct GaggiaState {
    char *display3 = "";
    char *display4 = "";
    boolean  brewHeaterOn = false;
+   boolean  waterReservoirSolenoidOn = false;
    boolean  steamHeaterOn = false;
    boolean  tareScale = false;
    boolean  dispenseWater = false;
@@ -200,7 +221,8 @@ GaggiaState getNextGaggiaState(GaggiaState currentGaggiaState,
                                HeaterState *brewHeaterState,
                                HeaterState *steamHeaterState,
                                ScaleState *scaleState,
-                               UserInputState *userInputState);
+                               UserInputState *userInputState,
+                               WaterReservoirState *waterReservoirState);
 
 // Once we know the state, we affect appropriate change in our
 // system attributes (e.g. temp, display)
@@ -210,6 +232,7 @@ void processCurrentGaggiaState(GaggiaState currentGaggiaState,
                                HeaterState *steamHeaterState,
                                ScaleState *scaleState,
                                DisplayState *displayState,
+                               WaterReservoirState *waterReservoirState,
                                float nowTimeMillis);
 // Things we do when we leave a state
 void processOutgoingGaggiaState(GaggiaState currentGaggiaState,
@@ -218,10 +241,9 @@ void processOutgoingGaggiaState(GaggiaState currentGaggiaState,
                                 HeaterState *steamHeaterState,
                                 ScaleState *scaleState,
                                 DisplayState *displayState,
+                                WaterReservoirState *waterReservoirState,
                                 float nowTimeMillis);
 GaggiaState returnToHelloState(ScaleState *scaleState);
-
-boolean firstLoop = true;
 
 // setup() runs once, when the device is first turned on.
 void setup() {
@@ -254,13 +276,10 @@ void setup() {
   pinMode(HEATER_brew, OUTPUT);
   pinMode(HEATER_steam, OUTPUT);
 
-  // user input .. will be used mostly for one-click,
-  // but also will support 'hold/long-press' to give it
-  // two modes capability
-  pinMode(BUTTON, INPUT_PULLDOWN);
-
   // water dispenser
   pinMode(WATER_DISPENSER, OUTPUT);
+
+  pinMode(WATER_RESERVOIR_SOLENOID, OUTPUT);
 
 
   // // Useful state exposed to Particle web console
@@ -423,7 +442,8 @@ void loop() {
                                                    &brewHeaterState, 
                                                    &steamHeaterState, 
                                                    &scaleState, 
-                                                   &userInputState);
+                                                   &userInputState,
+                                                   &waterReservoirState);
 
   if (nextGaggiaState.state != currentGaggiaState.state) {
 
@@ -438,6 +458,7 @@ void loop() {
                                &steamHeaterState, 
                                &scaleState,
                                &displayState,
+                               &waterReservoirState,
                                nowTimeMillis);
   }
 
@@ -449,9 +470,8 @@ void loop() {
                             &steamHeaterState, 
                             &scaleState,
                             &displayState,
+                            &waterReservoirState,
                             nowTimeMillis);
-
-  firstLoop = false;
 
   delay(50);
 }
@@ -473,7 +493,8 @@ void readScaleState(NAU7802 myScale, ScaleState *scaleState) {
 }
 
 boolean isButtonPressedRightNow() {
-  return digitalRead(BUTTON) == HIGH;
+  // NJD TODO - read I2C button state!
+  return false;
 }
 
 void readUserInputState(boolean isButtonPressedRightNow, float nowTimeMillis, UserInputState *userInputState) {
@@ -572,6 +593,14 @@ void startDispensingWater() {
 
 void stopDispensingWater() {
   digitalWrite(WATER_DISPENSER, LOW);
+}
+
+void turnWaterReservoirSolenoidOn() {
+  digitalWrite(WATER_RESERVOIR_SOLENOID, HIGH);
+}
+
+void turnWaterReservoirSolenoidOff() {
+  digitalWrite(WATER_RESERVOIR_SOLENOID, LOW);
 }
 
 // If no decoding is necessary, the original string
@@ -764,7 +793,8 @@ GaggiaState getNextGaggiaState(GaggiaState currentGaggiaState,
                                HeaterState *brewHeaterState,
                                HeaterState *steamHeaterState,
                                ScaleState *scaleState,
-                               UserInputState *userInputState) {
+                               UserInputState *userInputState,
+                               WaterReservoirState *waterReservoirState ) {
 
   switch (currentGaggiaState.state) {
 
@@ -938,6 +968,7 @@ void processOutgoingGaggiaState(GaggiaState currentGaggiaState,
                                 HeaterState *steamHeaterState,
                                 ScaleState *scaleState,
                                 DisplayState *displayState,
+                                WaterReservoirState *waterReservoirState,
                                 float nowTimeMillis) {
 
   // Process Tare Scale
@@ -960,6 +991,7 @@ void processCurrentGaggiaState(GaggiaState currentGaggiaState,
                                HeaterState *steamHeaterState,
                                ScaleState *scaleState,
                                DisplayState *displayState,
+                               WaterReservoirState *waterReservoirState,
                                float nowTimeMillis) {
   // 
   // Process Display
@@ -1021,8 +1053,42 @@ void processCurrentGaggiaState(GaggiaState currentGaggiaState,
 
   // Process Dispense Water 
   if (currentGaggiaState.dispenseWater) {
-    startDispensingWater();
+    if (isThereEnoughWaterInReservoirToBrew(waterReservoirState)) {
+      startDispensingWater();
+    }
+
+    if (doesWaterReservoirNeedFilling(WATER_RESERVOIR_SENSOR, waterReservoirState)) {
+      waterReservoirState->isSolenoidOn = true;
+      turnWaterReservoirSolenoidOn();
+    } else {
+      waterReservoirState->isSolenoidOn = false;
+      turnWaterReservoirSolenoidOff();
+    }
+
   } else {
     stopDispensingWater();
   }
+}
+
+boolean doesWaterReservoirNeedFilling(int ANALOG_INPUT_PIN, WaterReservoirState *waterReservoirState) {
+  int measuredWaterLevel = analogRead(ANALOG_INPUT_PIN);
+  
+  waterReservoirState->measuredWaterLevel = measuredWaterLevel;
+
+  // Schmitt Trigger
+  if (waterReservoirState->isSolenoidOn) {
+    if (measuredWaterLevel < HIGH_WATER_RESEVOIR_LIMIT) {
+      return true;
+    }
+  } else {
+    if (measuredWaterLevel < LOW_WATER_RESEVOIR_LIMIT) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+boolean isThereEnoughWaterInReservoirToBrew(WaterReservoirState *waterReservoirState) {
+  return waterReservoirState->measuredWaterLevel > LOW_WATER_RESEVOIR_LIMIT;
 }
