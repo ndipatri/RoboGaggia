@@ -10,6 +10,7 @@
 #include <SPI.h>
 #include <SerLCD.h>
 #include <Qwiic_Scale_NAU7802_Arduino_Library.h>
+#include <SparkFun_Qwiic_Button.h>
 
 SerialLogHandler logHandler;
 SYSTEM_THREAD(ENABLED);
@@ -162,6 +163,8 @@ struct UserInputState {
   float buttonPressStartTimeMillis = -1;
 } userInputState;
 void readUserInputState(boolean isButtonPressedRightNow, float nowTimeMillis, UserInputState *userInputState);
+QwiicButton userButton;
+
 
 struct DisplayState {
   String display1;
@@ -264,6 +267,12 @@ void setup() {
   {
     Log.error("Scale not detected!");
   }
+  
+  if (userButton.begin() == false) {
+    Log.error("Device did not acknowledge! Freezing.");
+  }
+  Log.error("Button acknowledged.");
+
   
   // setup MAX6675 to read the temperature from thermocouple
   pinMode(MAX6675_CS_brew, OUTPUT);
@@ -493,8 +502,7 @@ void readScaleState(NAU7802 myScale, ScaleState *scaleState) {
 }
 
 boolean isButtonPressedRightNow() {
-  // NJD TODO - read I2C button state!
-  return false;
+  return userButton.isPressed();
 }
 
 void readUserInputState(boolean isButtonPressedRightNow, float nowTimeMillis, UserInputState *userInputState) {

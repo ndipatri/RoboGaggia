@@ -1,0 +1,44 @@
+######################################################################
+# Syntax Coloring Map for SparkFun Qwiic Button/Switch Arduino Library           #
+######################################################################
+# Class
+######################################################################
+
+QwiicButton	KEYWORD1
+
+######################################################################
+# Methods and Functions
+######################################################################
+
+begin	KEYWORD2
+isConnected	KEYWORD2
+deviceID	KEYWORD2
+checkDeviceID	KEYWORD2
+getDeviceType   KEYWORD2
+getFirmwareVersion  KEYWORD2
+setI2Caddress   KEYWORD2
+getI2Caddress   KEYWORD2
+isPressed   KEYWORD2
+hasBeenClicked  KEYWORD2
+getDebounceTime KEYWORD2
+setDebounceTime KEYWORD2
+enablePressedInterrupt  KEYWORD2
+disablePressedInterrupt KEYWORD2
+enableClickedInterrupt  KEYWORD2
+disableClickedInterrupt KEYWORD2
+available  KEYWORD2
+clearEventBits  KEYWORD2
+resetInterruptConfig    KEYWORD2
+isPressedQueueFull  KEYWORD2
+isPressedQueueEmpty KEYWORD2
+timeSinceLastPress  KEYWORD2
+timeSinceFirstPress KEYWORD2
+popPressedQueue KEYWORD2
+isClickedQueueFull  KEYWORD2
+isClickedQueueEmpty KEYWORD2
+timeSinceLastClick  KEYWORD2
+timeSinceFirstClick KEYWORD2
+popClickedQueue KEYWORD2
+LEDconfig   KEYWORD2
+LEDoff  KEYWORD2
+LEDon   KEYWORD2
