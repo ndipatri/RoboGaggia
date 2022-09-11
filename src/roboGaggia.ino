@@ -8,8 +8,8 @@
 #include <Wire.h> 
 #include <string.h> 
 #include <SPI.h>
-#include "SerLCD.h"
-#include "SparkFun_Qwiic_Scale_NAU7802_Arduino_Library.h"
+#include <SerLCD.h>
+#include <Qwiic_Scale_NAU7802_Arduino_Library.h>
 
 SerialLogHandler logHandler;
 SYSTEM_THREAD(ENABLED);
@@ -46,6 +46,7 @@ SYSTEM_THREAD(ENABLED);
 
 // Output - For dispensing water
 #define WATER_DISPENSER  TX
+
 
 
 //

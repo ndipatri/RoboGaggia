@@ -20,8 +20,8 @@
   https://www.sparkfun.com/products/15242
 */
 
-#ifndef SparkFun_Qwiic_Scale_NAU7802_Arduino_Library_h
-#define SparkFun_Qwiic_Scale_NAU7802_Arduino_Library_h
+#ifndef Qwiic_Scale_NAU7802_Arduino_Library_h
+#define Qwiic_Scale_NAU7802_Arduino_Library_h
 
 #include "Arduino.h"
 #include <Wire.h>

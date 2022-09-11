@@ -20,7 +20,7 @@
   https://www.sparkfun.com/products/15242
 */
 
-#include "SparkFun_Qwiic_Scale_NAU7802_Arduino_Library.h"
+#include "Qwiic_Scale_NAU7802_Arduino_Library.h"
 
 //Constructor
 NAU7802::NAU7802()
