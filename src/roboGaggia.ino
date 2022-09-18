@@ -89,8 +89,8 @@ int LOW_WEIGHT_THRESHOLD = 4;
 
 // This is for implementing a schmitt trigger control system for
 // water reservoir sensor
-int LOW_WATER_RESEVOIR_LIMIT = 100;
-int HIGH_WATER_RESEVOIR_LIMIT = 400;
+int LOW_WATER_RESEVOIR_LIMIT = 600;
+int HIGH_WATER_RESEVOIR_LIMIT = 900;
 
 //
 // State
@@ -104,7 +104,6 @@ struct WaterReservoirState {
 
 } waterReservoirState;
 boolean doesWaterReservoirNeedFilling(int ANALOG_INPUT_PIN, WaterReservoirState *waterReservoirState);
-boolean isThereEnoughWaterInReservoirToBrew(WaterReservoirState *waterReservoirState);
 
 
 struct ScaleState {
@@ -294,17 +293,9 @@ void setup() {
   // // Useful state exposed to Particle web console
   Particle.variable("brewTempC", brewHeaterState.measuredTemp);
   Particle.variable("steamTempC", steamHeaterState.measuredTemp);
-
-  Particle.variable("measuredWeightG", scaleState.measuredWeight);
-  Particle.variable("tareWeightC", scaleState.tareWeight);
-  Particle.variable("SCALE_FACTOR", SCALE_FACTOR);
-  Particle.function("setScaleFactor", setScaleFactor);
-  Particle.variable("SCALE_OFFSET", SCALE_OFFSET);
-  Particle.function("setScaleOffset", setScaleOffset);
-
-  Particle.variable("currentGaggiaState", currentGaggiaState.state);
- 
-
+  Particle.variable("waterLevel",  waterReservoirState.measuredWaterLevel);
+  Particle.variable("isDispensingWater",  currentGaggiaState.dispenseWater);
+  Particle.variable("isFillingWater",  currentGaggiaState.waterReservoirSolenoidOn);
 
   // Define all possible states of RoboGaggia
   helloState.state = HELLO; 
@@ -1061,9 +1052,7 @@ void processCurrentGaggiaState(GaggiaState currentGaggiaState,
 
   // Process Dispense Water 
   if (currentGaggiaState.dispenseWater) {
-    if (isThereEnoughWaterInReservoirToBrew(waterReservoirState)) {
-      startDispensingWater();
-    }
+    startDispensingWater();
 
     if (doesWaterReservoirNeedFilling(WATER_RESERVOIR_SENSOR, waterReservoirState)) {
       waterReservoirState->isSolenoidOn = true;
@@ -1095,8 +1084,4 @@ boolean doesWaterReservoirNeedFilling(int ANALOG_INPUT_PIN, WaterReservoirState 
   }
 
   return false;
-}
-
-boolean isThereEnoughWaterInReservoirToBrew(WaterReservoirState *waterReservoirState) {
-  return waterReservoirState->measuredWaterLevel > LOW_WATER_RESEVOIR_LIMIT;
 }
