@@ -38,8 +38,9 @@ SYSTEM_THREAD(ENABLED);
 // from the MAX6675 
 
 // Output - For turning on the heater
-#define HEATER_brew   D7
-#define HEATER_steam  D8
+#define HEATER  D8
+
+#define AUX   D7
 
 
 // Output - For dispensing water
@@ -65,9 +66,9 @@ int kp = 9.1;
 int ki = 0.3;   
 int kd = 1.8;
 
-float TARGET_BREW_TEMP = 65; // should be 103
-float TOO_HOT_TO_BREW_TEMP = 80; // should be 110
-float TARGET_STEAM_TEMP = 80; // should be 140
+float TARGET_BREW_TEMP = 103; // should be 65
+float TOO_HOT_TO_BREW_TEMP = 110; // should be 80
+float TARGET_STEAM_TEMP = 140; // should be 80
 float TARGET_BEAN_WEIGHT = 22; // grams
 
 // How long the button has to be pressed before it is considered
@@ -89,14 +90,18 @@ int LOW_WEIGHT_THRESHOLD = 4;
 
 // This is for implementing a schmitt trigger control system for
 // water reservoir sensor
-int LOW_WATER_RESEVOIR_LIMIT = 600;
-int HIGH_WATER_RESEVOIR_LIMIT = 900;
+// These values were imperically derived by measuring these levels
+// while immersing the water sensor.
+int LOW_WATER_RESEVOIR_LIMIT = 350;
+int HIGH_WATER_RESEVOIR_LIMIT = 950;
 
 //
 // State
 //
 
 struct WaterReservoirState {
+
+  boolean manualOverride = false;
 
   int measuredWaterLevel = 0;
 
@@ -124,6 +129,10 @@ NAU7802 myScale; //Create instance of the NAU7802 class
 
 
 struct HeaterState {
+  boolean manualOverride = false;
+
+  boolean thermocoupleError = false;  
+
   // current temp
   double measuredTemp;
 
@@ -142,7 +151,7 @@ struct HeaterState {
   // heating for steam after finished brewing
   boolean singleOn = false;
 
-} brewHeaterState, steamHeaterState;
+} heaterState;
 void readHeaterState(int CHIP_SELECT_PIN, int SERIAL_OUT_PIN, int SERIAL_CLOCK_PIN, HeaterState *heaterState);
 boolean shouldTurnOnHeater(HeaterState *heaterState, float targetTemp, float nowTimeMillis);
 
@@ -194,8 +203,8 @@ struct GaggiaState {
    char *display2 = "";
    char *display3 = "";
    char *display4 = "";
-   boolean  brewHeaterOn = false;
    boolean  waterReservoirSolenoidOn = false;
+   boolean  brewHeaterOn = false;
    boolean  steamHeaterOn = false;
    boolean  tareScale = false;
    boolean  dispenseWater = false;
@@ -218,10 +227,11 @@ currentGaggiaState;
 
 SerLCD display; // Initialize the library with default I2C address 0x72
 
+boolean isInTestMode = false;
+
 // Using all current state, we derive the next state of the system
 GaggiaState getNextGaggiaState(GaggiaState currentGaggiaState, 
-                               HeaterState *brewHeaterState,
-                               HeaterState *steamHeaterState,
+                               HeaterState *heaterState,
                                ScaleState *scaleState,
                                UserInputState *userInputState,
                                WaterReservoirState *waterReservoirState);
@@ -230,8 +240,7 @@ GaggiaState getNextGaggiaState(GaggiaState currentGaggiaState,
 // system attributes (e.g. temp, display)
 // Things we do while we are in a state 
 void processCurrentGaggiaState(GaggiaState currentGaggiaState,
-                               HeaterState *brewHeaterState,
-                               HeaterState *steamHeaterState,
+                               HeaterState *heaterState,
                                ScaleState *scaleState,
                                DisplayState *displayState,
                                WaterReservoirState *waterReservoirState,
@@ -239,8 +248,7 @@ void processCurrentGaggiaState(GaggiaState currentGaggiaState,
 // Things we do when we leave a state
 void processOutgoingGaggiaState(GaggiaState currentGaggiaState,
                                 GaggiaState nextGaggiaState, 
-                                HeaterState *brewHeaterState,
-                                HeaterState *steamHeaterState,
+                                HeaterState *heaterState,
                                 ScaleState *scaleState,
                                 DisplayState *displayState,
                                 WaterReservoirState *waterReservoirState,
@@ -281,8 +289,8 @@ void setup() {
   pinMode(MAX6675_SCK, OUTPUT);
   
   // external heater elements
-  pinMode(HEATER_brew, OUTPUT);
-  pinMode(HEATER_steam, OUTPUT);
+  pinMode(AUX, OUTPUT);
+  pinMode(HEATER, OUTPUT);
 
   // water dispenser
   pinMode(WATER_DISPENSER, OUTPUT);
@@ -291,11 +299,19 @@ void setup() {
 
 
   // // Useful state exposed to Particle web console
-  Particle.variable("brewTempC", brewHeaterState.measuredTemp);
-  Particle.variable("steamTempC", steamHeaterState.measuredTemp);
+  Particle.variable("heaterTempC", heaterState.measuredTemp);
   Particle.variable("waterLevel",  waterReservoirState.measuredWaterLevel);
   Particle.variable("isDispensingWater",  currentGaggiaState.dispenseWater);
   Particle.variable("isFillingWater",  currentGaggiaState.waterReservoirSolenoidOn);
+  Particle.variable("thermocoupleError",  heaterState.thermocoupleError);
+  Particle.variable("isInTestMode",  isInTestMode);
+
+  Particle.function("turnHeaterOn", _turnHeaterOn);
+  Particle.function("turnHeaterOff", _turnHeaterOff);
+  Particle.function("turnOnTestMode", turnOnTestMode);
+  Particle.function("turnOffTestMode", turnOffTestMode);
+  Particle.function("startDispensingWater", _startDispensingWater);
+  Particle.function("stopDispensingWater", _stopDispensingWater);
 
   // Define all possible states of RoboGaggia
   helloState.state = HELLO; 
@@ -432,15 +448,10 @@ void loop() {
   
   readUserInputState(isButtonPressedRightNow(), nowTimeMillis, &userInputState);
 
-  readHeaterState(MAX6675_CS_brew, MAX6675_SO_brew, MAX6675_SCK, &brewHeaterState);  
-
-  readHeaterState(MAX6675_CS_steam, MAX6675_SO_steam, MAX6675_SCK, &steamHeaterState);  
-
   // Determine next Gaggia state based on inputs and current state ...
   // (e.g. move to 'Done Brewing' state once target weight is achieved, etc.)
   GaggiaState nextGaggiaState = getNextGaggiaState(currentGaggiaState, 
-                                                   &brewHeaterState, 
-                                                   &steamHeaterState, 
+                                                   &heaterState, 
                                                    &scaleState, 
                                                    &userInputState,
                                                    &waterReservoirState);
@@ -454,8 +465,7 @@ void loop() {
     // Things we do when we leave a state
     processOutgoingGaggiaState(currentGaggiaState,
                                nextGaggiaState,
-                               &brewHeaterState, 
-                               &steamHeaterState, 
+                               &heaterState, 
                                &scaleState,
                                &displayState,
                                &waterReservoirState,
@@ -466,14 +476,17 @@ void loop() {
 
     // Things we do when we are within a state 
   processCurrentGaggiaState(currentGaggiaState,
-                            &brewHeaterState, 
-                            &steamHeaterState, 
+                            &heaterState, 
                             &scaleState,
                             &displayState,
                             &waterReservoirState,
                             nowTimeMillis);
 
-  delay(50);
+  if (isInTestMode) {
+    delay(5000);
+  } else {
+    delay(50);
+  }
 }
 
 void readScaleState(NAU7802 myScale, ScaleState *scaleState) {
@@ -560,45 +573,59 @@ void readHeaterState(int CHIP_SELECT_PIN, int SERIAL_OUT_PIN, int SERIAL_CLOCK_P
   if (measuredValue & 0x4) {    
     // Bit 2 indicates if the thermocouple is disconnected
     Log.error("Thermocouple is disconnected!");
+    heaterState->thermocoupleError = true;
+
   } else {
+    
+    heaterState->thermocoupleError = false;
 
     // The lower three bits (0,1,2) are discarded status bits
     measuredValue >>= 3;
+
+    publishParticleLog("renderHeaterState", "measuredInC:" + String(measuredValue*0.25));
 
     // The remaining bits are the number of 0.25 degree (C) counts
     heaterState->measuredTemp = measuredValue*0.25;
   }
 }
 
-void turnBrewHeaterOn() {
-  digitalWrite(HEATER_brew, HIGH);
+void turnAuxOn() {
+  publishParticleLog("aux", "on");
+  digitalWrite(AUX, HIGH);
 }
 
-void turnBrewHeaterOff() {
-  digitalWrite(HEATER_brew, LOW);
+void turnAuxOff() {
+  publishParticleLog("aux", "off");
+  digitalWrite(AUX, LOW);
 }
 
-void turnSteamHeaterOn() {
-  digitalWrite(HEATER_steam, HIGH);
+void turnHeaterOn() {
+  publishParticleLog("heater", "on");
+  digitalWrite(HEATER, HIGH);
 }
 
-void turnSteamHeaterOff() {
-  digitalWrite(HEATER_steam, LOW);
+void turnHeaterOff() {
+  publishParticleLog("heater", "off");
+  digitalWrite(HEATER, LOW);
 }
 
 void startDispensingWater() {
+  publishParticleLog("dispenser", "dispensingOn");
   digitalWrite(WATER_DISPENSER, HIGH);
 }
 
 void stopDispensingWater() {
+  publishParticleLog("dispenser", "dispensingOff");
   digitalWrite(WATER_DISPENSER, LOW);
 }
 
 void turnWaterReservoirSolenoidOn() {
+  publishParticleLog("waterReservoirSolenoid", "on");
   digitalWrite(WATER_RESERVOIR_SOLENOID, HIGH);
 }
 
 void turnWaterReservoirSolenoidOff() {
+  publishParticleLog("waterReservoirSolenoid", "off");
   digitalWrite(WATER_RESERVOIR_SOLENOID, LOW);
 }
 
@@ -609,8 +636,7 @@ String decodeMessageIfNecessary(char* _message,
                                 long firstValue,
                                 long secondValue,                         
                                 char* units,
-                                HeaterState *brewHeaterState,
-                                HeaterState *steamHeaterState,
+                                HeaterState *heaterState,
                                 ScaleState *scaleState) {
   char *message = _message; 
 
@@ -638,8 +664,7 @@ String decodeMessageIfNecessary(char* _message,
 // line starts at 1
 String updateDisplayLine(char *message, 
                         int line,
-                        HeaterState *brewHeaterState,
-                        HeaterState *steamHeaterState,
+                        HeaterState *heaterState,
                         ScaleState *scaleState,
                         String previousLineDisplayed) {
 
@@ -652,17 +677,15 @@ String updateDisplayLine(char *message,
                                            filterLowWeight(scaleState->measuredWeight - scaleState->tareWeight),
                                            TARGET_BEAN_WEIGHT,
                                            " g",
-                                           brewHeaterState,
-                                           steamHeaterState,
+                                           heaterState,
                                            scaleState);
   if (lineToDisplay == "") {
     lineToDisplay = decodeMessageIfNecessary(message,
                                             "{measuredBrewTemp}/{targetBrewTemp}",
-                                            brewHeaterState->measuredTemp,
+                                            heaterState->measuredTemp,
                                             TARGET_BREW_TEMP,
                                             " degrees C",
-                                            brewHeaterState,
-                                            steamHeaterState,
+                                            heaterState,
                                             scaleState);
     if (lineToDisplay == "") {
       lineToDisplay = decodeMessageIfNecessary(message,
@@ -670,25 +693,22 @@ String updateDisplayLine(char *message,
                                               filterLowWeight(scaleState->measuredWeight - scaleState->tareWeight),
                                               scaleState->targetWeight,
                                               " g",
-                                              brewHeaterState,
-                                              steamHeaterState,
+                                              heaterState,
                                               scaleState);
       if (lineToDisplay == "") {
         lineToDisplay = decodeMessageIfNecessary(message,
                                               "{measuredSteamTemp}/{targetSteamTemp}",
-                                              steamHeaterState->measuredTemp,
+                                              heaterState->measuredTemp,
                                               TARGET_STEAM_TEMP,
                                               " degrees C",
-                                              brewHeaterState,
-                                              steamHeaterState,
+                                              heaterState,
                                               scaleState);
         if (lineToDisplay == "") {
           lineToDisplay = decodeMessageIfNecessary(message,
                                                 "{measuredWeight}",
                                                 filterLowWeight(scaleState->measuredWeight - scaleState->tareWeight),                                                0,
                                                 " g",
-                                                brewHeaterState,
-                                                steamHeaterState,
+                                                heaterState,
                                                 scaleState);
         }      
       }
@@ -728,6 +748,7 @@ boolean shouldTurnOnHeater(float targetTemp,
       // done this heat cycle!
 
       heaterState->heaterStarTime = -1;
+      publishParticleLog("shouldTurnOnHeater", "doneCycle..off");
       shouldTurnOnHeater = false;
     }
   } else {
@@ -739,6 +760,7 @@ boolean shouldTurnOnHeater(float targetTemp,
                                          &(heaterState->previousTempError), 
                                          &(heaterState->previousSampleTime));
     if (heaterState->heaterDurationMillis > 0) {
+      publishParticleLog("shouldTurnOnHeater", "startCycle..on");
       heaterState->heaterStarTime = nowTimeMillis;
 
       shouldTurnOnHeater = true;
@@ -783,14 +805,15 @@ int calculateHeaterPulseDurationMillis(double currentTempC, float targetTempC, f
   if(currentOutput > 255)  
   {    currentOutput = 255;  }
 
+  publishParticleLog("calculateHeaterPulse", "pulse:" + String(currentOutput));
+
   return currentOutput;
 }
 
 // State transitions are documented here:
 // https://docs.google.com/drawings/d/1EcaUzklpJn34cYeWsTnApoJhwBhA1Q4EVMr53Kz9T7I/edit?usp=sharing
 GaggiaState getNextGaggiaState(GaggiaState currentGaggiaState, 
-                               HeaterState *brewHeaterState,
-                               HeaterState *steamHeaterState,
+                               HeaterState *heaterState,
                                ScaleState *scaleState,
                                UserInputState *userInputState,
                                WaterReservoirState *waterReservoirState ) {
@@ -800,8 +823,8 @@ GaggiaState getNextGaggiaState(GaggiaState currentGaggiaState,
     case HELLO :
 
       if (userInputState->state == SHORT_PRESS) {
-        if (steamHeaterState->measuredTemp >= TOO_HOT_TO_BREW_TEMP || 
-            brewHeaterState->measuredTemp >= TOO_HOT_TO_BREW_TEMP) {
+        if (heaterState->measuredTemp >= TOO_HOT_TO_BREW_TEMP || 
+            heaterState->measuredTemp >= TOO_HOT_TO_BREW_TEMP) {
           return coolStartState;
         } else {
           return chooseSingleState;
@@ -816,12 +839,12 @@ GaggiaState getNextGaggiaState(GaggiaState currentGaggiaState,
     case CHOOSE_SINGLE :
 
       if (userInputState->state == SHORT_PRESS) {
-          brewHeaterState->singleOn = true;
+          heaterState->singleOn = true;
           return tareCup1State;
       }
 
       if (userInputState->state == LONG_PRESS) {
-          brewHeaterState->singleOn = false;
+          heaterState->singleOn = false;
           return tareCup1State;
       }
       break;
@@ -860,7 +883,7 @@ GaggiaState getNextGaggiaState(GaggiaState currentGaggiaState,
 
     case HEATING_TO_BREW :
 
-      if (brewHeaterState->measuredTemp >= TARGET_BREW_TEMP) {
+      if (heaterState->measuredTemp >= TARGET_BREW_TEMP) {
         return brewingState;
       }
       if (userInputState->state == LONG_PRESS) {
@@ -881,7 +904,7 @@ GaggiaState getNextGaggiaState(GaggiaState currentGaggiaState,
 
     case DONE_BREWING :
 
-      if (brewHeaterState->singleOn) {
+      if (heaterState->singleOn) {
         
         // So the user can just walk away and when they return, they have 
         // a brewed cup and they are ready to steam!
@@ -899,7 +922,7 @@ GaggiaState getNextGaggiaState(GaggiaState currentGaggiaState,
 
     case HEATING_TO_STEAM :
 
-      if (steamHeaterState->measuredTemp >= TARGET_STEAM_TEMP) {
+      if (heaterState->measuredTemp >= TARGET_STEAM_TEMP) {
         return steamingState;
       }
       if (userInputState->state == LONG_PRESS) {
@@ -933,8 +956,7 @@ GaggiaState getNextGaggiaState(GaggiaState currentGaggiaState,
         return coolDoneState;
       }
 
-      if (steamHeaterState->measuredTemp < TOO_HOT_TO_BREW_TEMP &&
-          brewHeaterState->measuredTemp < TOO_HOT_TO_BREW_TEMP) {
+      if (heaterState->measuredTemp < TOO_HOT_TO_BREW_TEMP) {
         return coolDoneState;
       }
       if (userInputState->state == LONG_PRESS) {
@@ -945,8 +967,8 @@ GaggiaState getNextGaggiaState(GaggiaState currentGaggiaState,
     case COOL_DONE :
 
       if (userInputState->state == SHORT_PRESS) {
-        if (steamHeaterState->measuredTemp >= TOO_HOT_TO_BREW_TEMP || 
-            brewHeaterState->measuredTemp >= TOO_HOT_TO_BREW_TEMP) {
+        if (heaterState->measuredTemp >= TOO_HOT_TO_BREW_TEMP || 
+            heaterState->measuredTemp >= TOO_HOT_TO_BREW_TEMP) {
           return coolStartState;
         } else {
           return helloState;
@@ -963,8 +985,7 @@ GaggiaState getNextGaggiaState(GaggiaState currentGaggiaState,
 
 void processOutgoingGaggiaState(GaggiaState currentGaggiaState,  
                                 GaggiaState nextGaggiaState,
-                                HeaterState *brewHeaterState,
-                                HeaterState *steamHeaterState,
+                                HeaterState *heaterState,
                                 ScaleState *scaleState,
                                 DisplayState *displayState,
                                 WaterReservoirState *waterReservoirState,
@@ -986,8 +1007,7 @@ void processOutgoingGaggiaState(GaggiaState currentGaggiaState,
 }
 
 void processCurrentGaggiaState(GaggiaState currentGaggiaState,  
-                               HeaterState *brewHeaterState,
-                               HeaterState *steamHeaterState,
+                               HeaterState *heaterState,
                                ScaleState *scaleState,
                                DisplayState *displayState,
                                WaterReservoirState *waterReservoirState,
@@ -997,29 +1017,25 @@ void processCurrentGaggiaState(GaggiaState currentGaggiaState,
   //
   displayState->display1 = updateDisplayLine(currentGaggiaState.display1, 
                                              1, 
-                                             brewHeaterState, 
-                                             steamHeaterState, 
+                                             heaterState, 
                                              scaleState, 
                                              displayState->display1);
 
   displayState->display2 = updateDisplayLine(currentGaggiaState.display2, 
                                              2, 
-                                             brewHeaterState, 
-                                             steamHeaterState, 
+                                             heaterState, 
                                              scaleState, 
                                              displayState->display2);
 
   displayState->display3 = updateDisplayLine(currentGaggiaState.display3, 
                                              3, 
-                                             brewHeaterState, 
-                                             steamHeaterState, 
+                                             heaterState, 
                                              scaleState,  
                                              displayState->display3);
 
   displayState->display4 = updateDisplayLine(currentGaggiaState.display4, 
                                              4, 
-                                             brewHeaterState, 
-                                             steamHeaterState, 
+                                             heaterState, 
                                              scaleState, 
                                              displayState->display4);
 
@@ -1031,23 +1047,24 @@ void processCurrentGaggiaState(GaggiaState currentGaggiaState,
   // for the heater turns it off and on intermittently in an attempt to regulate
   // the temperature around the target temp.
   if (currentGaggiaState.brewHeaterOn) {
-    if (shouldTurnOnHeater(TARGET_BREW_TEMP, nowTimeMillis, brewHeaterState)) {
-      turnBrewHeaterOn();
+    readHeaterState(MAX6675_CS_brew, MAX6675_SO_brew, MAX6675_SCK, heaterState);  
+
+    if (shouldTurnOnHeater(TARGET_BREW_TEMP, nowTimeMillis, heaterState)) {
+      //delay(500); // just to slow down logs.. not funtionally important
+      turnHeaterOn();
     } else {
-      turnBrewHeaterOff();
+      turnHeaterOff();
     } 
-  } else {
-    turnBrewHeaterOff();
   }
 
   if (currentGaggiaState.steamHeaterOn) {
-    if (shouldTurnOnHeater(TARGET_STEAM_TEMP, nowTimeMillis, steamHeaterState)) {
-      turnSteamHeaterOn();
+    readHeaterState(MAX6675_CS_steam, MAX6675_SO_steam, MAX6675_SCK, heaterState); 
+
+    if (shouldTurnOnHeater(TARGET_STEAM_TEMP, nowTimeMillis, heaterState)) {
+      turnHeaterOn();
     } else {
-      turnSteamHeaterOff();
+      turnHeaterOff();
     } 
-  } else {
-    turnSteamHeaterOff();
   }
 
   // Process Dispense Water 
@@ -1063,7 +1080,10 @@ void processCurrentGaggiaState(GaggiaState currentGaggiaState,
     }
 
   } else {
-    stopDispensingWater();
+    // if we are manually dispensing, we don't want to stop
+    if (!waterReservoirState->manualOverride) {
+      stopDispensingWater();
+    }
   }
 }
 
@@ -1084,4 +1104,58 @@ boolean doesWaterReservoirNeedFilling(int ANALOG_INPUT_PIN, WaterReservoirState 
   }
 
   return false;
+}
+
+void publishParticleLog(String group, String message) {
+    if (PLATFORM_ID == PLATFORM_ARGON && isInTestMode) {
+        Particle.publish(group, message, 60, PUBLIC);
+    }
+}
+
+int turnOnTestMode(String _na) {
+
+    Particle.publish("config", "testMode turned ON", 60, PUBLIC);
+    isInTestMode = true;
+
+    return 1;
+}
+
+int turnOffTestMode(String _na) {
+
+    Particle.publish("config", "testMode turned OFF", 60, PUBLIC);
+    isInTestMode = false;
+
+    return 1;
+}
+
+int _startDispensingWater(String _na) {
+    startDispensingWater();
+
+    waterReservoirState.manualOverride = true;
+
+    return 1;
+}
+
+int _stopDispensingWater(String _na) {
+    stopDispensingWater();
+
+    waterReservoirState.manualOverride = false;
+
+    return 1;
+}
+
+int _turnHeaterOn(String _na) {
+    turnHeaterOn();
+
+    heaterState.manualOverride = true;
+
+    return 1;
+}
+
+int _turnHeaterOff(String _na) {
+    turnHeaterOff();
+
+    heaterState.manualOverride = false;
+
+    return 1;
 }
