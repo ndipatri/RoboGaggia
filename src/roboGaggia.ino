@@ -391,15 +391,13 @@ void setup() {
   heatingToSteamState.display2 =   "{measuredSteamTemp}/{targetSteamTemp}";
   heatingToSteamState.display3 =   "                    ";
   heatingToSteamState.display4 =   "Please wait ...     ";
-  heatingToSteamState.brewHeaterOn = true; 
   heatingToSteamState.steamHeaterOn = true; 
 
   steamingState.state = STEAMING; 
   steamingState.display1 =         "Operate steam wand. ";
-  steamingState.display2 =         "                    ";
+  steamingState.display2 =         "{measuredSteamTemp}/{targetSteamTemp}";
   steamingState.display3 =         "                    ";
   steamingState.display4 =         "Click when Done     ";
-  steamingState.brewHeaterOn = true; 
   steamingState.steamHeaterOn = true; 
 
   coolStartState.state = COOL_START; 
@@ -725,6 +723,13 @@ String updateDisplayLine(char *message,
 
   if (lineToDisplay == "") {
     lineToDisplay = String(message);
+  }
+
+  if (line == 1) {
+    // inject 'heating' indicator
+    if (isHeaterOn()) {
+      lineToDisplay.setCharAt(19, '*');
+    }
   }
 
   // This prevents flashing
@@ -1065,7 +1070,6 @@ void processCurrentGaggiaState(GaggiaState currentGaggiaState,
       turnHeaterOff();
     } 
   }
-
   if (currentGaggiaState.steamHeaterOn) {
     readHeaterState(MAX6675_CS_steam, MAX6675_SO_steam, MAX6675_SCK, heaterState); 
 
