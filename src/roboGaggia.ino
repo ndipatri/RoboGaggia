@@ -397,14 +397,14 @@ void setup() {
   heatingToSteamState.state = HEATING_TO_STEAM; 
   heatingToSteamState.display1 =   "Heating to steam.   ";
   heatingToSteamState.display2 =   "{measuredSteamTemp}/{targetSteamTemp}";
-  heatingToSteamState.display3 =   "                    ";
+  heatingToSteamState.display3 =   "{flowRate}";
   heatingToSteamState.display4 =   "Please wait ...     ";
   heatingToSteamState.steamHeaterOn = true; 
 
   steamingState.state = STEAMING; 
   steamingState.display1 =         "Operate steam wand. ";
   steamingState.display2 =         "{measuredSteamTemp}/{targetSteamTemp}";
-  steamingState.display3 =         "                    ";
+  steamingState.display3 =         "{flowRate}";
   steamingState.display4 =         "Click when Done     ";
   steamingState.steamHeaterOn = true; 
 
@@ -1021,15 +1021,12 @@ void processOutgoingGaggiaState(GaggiaState currentGaggiaState,
   // Process Tare Scale
   if (currentGaggiaState.tareScale == true) {
     scaleState->tareWeight = scaleState->measuredWeight;
-    Log.error("Tare: " + String(scaleState->tareWeight));
   }
 
   // Process Record Weight 
   if (currentGaggiaState.recordWeight) {
     scaleState->targetWeight = 
       (scaleState->measuredWeight - scaleState->tareWeight)*BREW_MEASURED_WEIGHT_MULTIPLIER; 
-    Log.error("measuredWeight: " + String(scaleState->measuredWeight));
-    Log.error("targetWeight: " + String(scaleState->targetWeight));
   }
 
   // this is useful for state metrics...
@@ -1040,7 +1037,9 @@ void processOutgoingGaggiaState(GaggiaState currentGaggiaState,
     // Just finished brewing.. Need to calculate flow rate...
 
     // The rate is usually expressed as grams/30seconds
-    float timeSpent30SecondIntervals = timeSpentInCurrentStateMillis/(30 * 1000);
+    float timeSpent30SecondIntervals = timeSpentInCurrentStateMillis/(30 * 1000.0);
+
+    publishParticleLog("flowRate", "(" + String(scaleState->targetWeight) + "/" + String(timeSpent30SecondIntervals) + ")");
 
     scaleState->flowRate = scaleState->targetWeight/timeSpent30SecondIntervals;
   }
