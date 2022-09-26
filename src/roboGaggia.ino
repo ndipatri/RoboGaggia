@@ -92,8 +92,9 @@ int LOW_WEIGHT_THRESHOLD = 4;
 // water reservoir sensor
 // These values were imperically derived by measuring these levels
 // while immersing the water sensor.
-int LOW_WATER_RESEVOIR_LIMIT = 350;
-int HIGH_WATER_RESEVOIR_LIMIT = 950;
+// These values need to be recalibrated everytime you replace sensor
+int LOW_WATER_RESEVOIR_LIMIT = 800;
+int HIGH_WATER_RESEVOIR_LIMIT = 900;
 
 //
 // State
@@ -300,11 +301,11 @@ void setup() {
 
   // // Useful state exposed to Particle web console
   Particle.variable("heaterTempC", heaterState.measuredTemp);
-  Particle.variable("waterLevel",  waterReservoirState.measuredWaterLevel);
   Particle.variable("isDispensingWater",  currentGaggiaState.dispenseWater);
-  Particle.variable("isFillingWater",  currentGaggiaState.waterReservoirSolenoidOn);
+  Particle.variable("isFillingWater",  waterReservoirState.isSolenoidOn);
   Particle.variable("thermocoupleError",  heaterState.thermocoupleError);
   Particle.variable("isInTestMode",  isInTestMode);
+  Particle.variable("waterLevel",  readWaterLevel);
 
   Particle.function("turnHeaterOn", _turnHeaterOn);
   Particle.function("turnHeaterOff", _turnHeaterOff);
@@ -312,6 +313,8 @@ void setup() {
   Particle.function("turnOffTestMode", turnOffTestMode);
   Particle.function("startDispensingWater", _startDispensingWater);
   Particle.function("stopDispensingWater", _stopDispensingWater);
+  Particle.function("startWaterFill", _turnWaterReservoirSolenoidOn);
+  Particle.function("stopWaterFill", _turnWaterReservoirSolenoidOff);
 
   // Define all possible states of RoboGaggia
   helloState.state = HELLO; 
@@ -604,6 +607,11 @@ void turnHeaterOn() {
   digitalWrite(HEATER, HIGH);
 }
 
+boolean isHeaterOn() {
+  return digitalRead(HEATER) == HIGH;
+}
+
+
 void turnHeaterOff() {
   publishParticleLog("heater", "off");
   digitalWrite(HEATER, LOW);
@@ -750,6 +758,8 @@ boolean shouldTurnOnHeater(float targetTemp,
       heaterState->heaterStarTime = -1;
       publishParticleLog("shouldTurnOnHeater", "doneCycle..off");
       shouldTurnOnHeater = false;
+    } else {
+      shouldTurnOnHeater = true;
     }
   } else {
     // determine if we should be in a heat cycle ...
@@ -1050,7 +1060,6 @@ void processCurrentGaggiaState(GaggiaState currentGaggiaState,
     readHeaterState(MAX6675_CS_brew, MAX6675_SO_brew, MAX6675_SCK, heaterState);  
 
     if (shouldTurnOnHeater(TARGET_BREW_TEMP, nowTimeMillis, heaterState)) {
-      //delay(500); // just to slow down logs.. not funtionally important
       turnHeaterOn();
     } else {
       turnHeaterOff();
@@ -1065,6 +1074,9 @@ void processCurrentGaggiaState(GaggiaState currentGaggiaState,
     } else {
       turnHeaterOff();
     } 
+  }
+  if (!currentGaggiaState.brewHeaterOn && !currentGaggiaState.steamHeaterOn) {
+      turnHeaterOff();
   }
 
   // Process Dispense Water 
@@ -1083,6 +1095,11 @@ void processCurrentGaggiaState(GaggiaState currentGaggiaState,
     // if we are manually dispensing, we don't want to stop
     if (!waterReservoirState->manualOverride) {
       stopDispensingWater();
+    }
+
+    // if we are manually filling, we don't want to stop
+    if (!waterReservoirState->manualOverride) {
+      turnWaterReservoirSolenoidOff();
     }
   }
 }
@@ -1158,4 +1175,26 @@ int _turnHeaterOff(String _na) {
     heaterState.manualOverride = false;
 
     return 1;
+}
+
+int _turnWaterReservoirSolenoidOn(String _na) {
+    turnWaterReservoirSolenoidOn();
+
+    waterReservoirState.manualOverride = true;
+
+    return 1;
+}
+
+int _turnWaterReservoirSolenoidOff(String _na) {
+    turnWaterReservoirSolenoidOff();
+
+    waterReservoirState.manualOverride = false;
+
+    return 1;
+}
+
+// Make sure you are dispensing water when you call this! The power from
+// the dispenser is used to power this sensor
+int readWaterLevel() {
+  return analogRead(WATER_RESERVOIR_SENSOR);
 }
