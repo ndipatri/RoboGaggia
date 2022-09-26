@@ -77,7 +77,7 @@ float BUTTON_LONG_PRESS_DURATION_MILLIS = 1000;
 
 // This is the ration of final espresso weight compared to
 // that of the ground beans.  Typically this is 2-to-1
-float BREW_MEASURED_WEIGHT_MULTIPLIER = 2.0;
+float BREW_WEIGHT_TO_BEAN_RATIO = 2.0;
 
 // LOAD_BLOCK_READING = (SCALE_FACTOR)(ACTUAL_WEIGHT_IN_GRAMS) + SCALE_OFFSET 
 //
@@ -118,7 +118,7 @@ struct ScaleState {
 
   long measuredWeight = 0;
 
-  // this will be the measuredWegith - tareWeight * BREW_MEASURED_WEIGHT_MULTIPLIER
+  // this will be the measuredWeight - tareWeight * BREW_WEIGHT_TO_BEAN_RATIO
   // at the moment this value is recorded...
   long targetWeight = 0; 
 
@@ -1026,7 +1026,7 @@ void processOutgoingGaggiaState(GaggiaState currentGaggiaState,
   // Process Record Weight 
   if (currentGaggiaState.recordWeight) {
     scaleState->targetWeight = 
-      (scaleState->measuredWeight - scaleState->tareWeight)*BREW_MEASURED_WEIGHT_MULTIPLIER; 
+      (scaleState->measuredWeight - scaleState->tareWeight)*BREW_WEIGHT_TO_BEAN_RATIO; 
   }
 
   // this is useful for state metrics...
@@ -1039,9 +1039,11 @@ void processOutgoingGaggiaState(GaggiaState currentGaggiaState,
     // The rate is usually expressed as grams/30seconds
     float timeSpent30SecondIntervals = timeSpentInCurrentStateMillis/(30 * 1000.0);
 
-    publishParticleLog("flowRate", "(" + String(scaleState->targetWeight) + "/" + String(timeSpent30SecondIntervals) + ")");
+    float dispendedWaterWeight =  scaleState->targetWeight;
 
-    scaleState->flowRate = scaleState->targetWeight/timeSpent30SecondIntervals;
+    publishParticleLog("flowRate", "(" + String(dispendedWaterWeight) + "/" + String(timeSpent30SecondIntervals) + ")");
+
+    scaleState->flowRate = dispendedWaterWeight/timeSpent30SecondIntervals;
   }
 }
 
