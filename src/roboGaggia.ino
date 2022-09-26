@@ -96,6 +96,8 @@ int LOW_WEIGHT_THRESHOLD = 4;
 int LOW_WATER_RESEVOIR_LIMIT = 800;
 int HIGH_WATER_RESEVOIR_LIMIT = 900;
 
+int RETURN_TO_HOME_INACTIVITY_MINUTES = 10;
+
 //
 // State
 //
@@ -123,6 +125,9 @@ struct ScaleState {
   // recorded weight of cup meant be used when
   // measuring the weight of beans or brew  
   long tareWeight = 0;
+
+  // Units are grams/30-seconds
+  float flowRate = 0;
 
 } scaleState;
 void readScaleState(NAU7802 myScale, ScaleState *scaleState);
@@ -170,6 +175,8 @@ struct UserInputState {
   // We need to evaluate the state of a button over time to determine
   // if it's a short press or a long press
   float buttonPressStartTimeMillis = -1;
+
+  float lastUserInteractionTimeMillis = -1;
 } userInputState;
 void readUserInputState(boolean isButtonPressedRightNow, float nowTimeMillis, UserInputState *userInputState);
 QwiicButton userButton;
@@ -210,6 +217,7 @@ struct GaggiaState {
    boolean  tareScale = false;
    boolean  dispenseWater = false;
    boolean  recordWeight = false;
+   float stateEnterTimeMillis = -1;
 } 
 helloState,
 chooseSingleState,
@@ -381,8 +389,8 @@ void setup() {
 
   doneBrewingState.state = DONE_BREWING; 
   doneBrewingState.display1 =      "Done brewing.       ";
-  doneBrewingState.display2 =      "Remove cup.         ";
-  doneBrewingState.display3 =      "                    ";
+  doneBrewingState.display2 =      "{flowRate}";
+  doneBrewingState.display3 =      "Remove cup.         ";
   doneBrewingState.display4 =      "Click when Ready    ";
   doneBrewingState.brewHeaterOn = true; 
 
@@ -471,6 +479,8 @@ void loop() {
                                &displayState,
                                &waterReservoirState,
                                nowTimeMillis);
+  
+    nextGaggiaState.stateEnterTimeMillis = millis();
   }
 
   currentGaggiaState = nextGaggiaState;
@@ -524,16 +534,17 @@ void readUserInputState(boolean isButtonPressedRightNow, float nowTimeMillis, Us
         (nowTimeMillis - userInputState->buttonPressStartTimeMillis > BUTTON_LONG_PRESS_DURATION_MILLIS)) {
       userInputState->state = LONG_PRESS;
       userInputState->buttonPressStartTimeMillis = 0; // this indicates a LONG press was already identified..
-      Log.error("LONG PRESS!");
+      userInputState->lastUserInteractionTimeMillis = nowTimeMillis;
+
       return;
     }
   } else {
     if (userInputState->buttonPressStartTimeMillis > 0) {  
       // falling edge detected...
       if (nowTimeMillis - userInputState->buttonPressStartTimeMillis < BUTTON_LONG_PRESS_DURATION_MILLIS) {
-        Log.error("SHORT PRESS!");
         userInputState->state = SHORT_PRESS;
         userInputState->buttonPressStartTimeMillis = -1;
+        userInputState->lastUserInteractionTimeMillis = nowTimeMillis;
 
         return;
       }
@@ -641,9 +652,7 @@ String decodeMessageIfNecessary(char* _message,
                                 char* escapeSequence,
                                 long firstValue,
                                 long secondValue,                         
-                                char* units,
-                                HeaterState *heaterState,
-                                ScaleState *scaleState) {
+                                char* units) {
   char *message = _message; 
 
   if (strcmp(message, escapeSequence) == 0) {
@@ -682,40 +691,38 @@ String updateDisplayLine(char *message,
                                            "{adjustedWeight}/{targetBeanWeight}",
                                            filterLowWeight(scaleState->measuredWeight - scaleState->tareWeight),
                                            TARGET_BEAN_WEIGHT,
-                                           " g",
-                                           heaterState,
-                                           scaleState);
+                                           " g");
   if (lineToDisplay == "") {
     lineToDisplay = decodeMessageIfNecessary(message,
                                             "{measuredBrewTemp}/{targetBrewTemp}",
                                             heaterState->measuredTemp,
                                             TARGET_BREW_TEMP,
-                                            " degrees C",
-                                            heaterState,
-                                            scaleState);
+                                            " degrees C");
     if (lineToDisplay == "") {
       lineToDisplay = decodeMessageIfNecessary(message,
                                               "{adjustedWeight}/{targetBrewWeight}",
                                               filterLowWeight(scaleState->measuredWeight - scaleState->tareWeight),
                                               scaleState->targetWeight,
-                                              " g",
-                                              heaterState,
-                                              scaleState);
+                                              " g");
       if (lineToDisplay == "") {
         lineToDisplay = decodeMessageIfNecessary(message,
                                               "{measuredSteamTemp}/{targetSteamTemp}",
                                               heaterState->measuredTemp,
                                               TARGET_STEAM_TEMP,
-                                              " degrees C",
-                                              heaterState,
-                                              scaleState);
+                                              " degrees C");
         if (lineToDisplay == "") {
           lineToDisplay = decodeMessageIfNecessary(message,
                                                 "{measuredWeight}",
-                                                filterLowWeight(scaleState->measuredWeight - scaleState->tareWeight),                                                0,
-                                                " g",
-                                                heaterState,
-                                                scaleState);
+                                                filterLowWeight(scaleState->measuredWeight - scaleState->tareWeight),
+                                                0,
+                                                " g");
+          if (lineToDisplay == "") {
+            lineToDisplay = decodeMessageIfNecessary(message,
+                                                     "{flowRate}",
+                                                     scaleState->flowRate,
+                                                     0,
+                                                     " g/30sec");
+          }
         }      
       }
     }
@@ -995,6 +1002,11 @@ GaggiaState getNextGaggiaState(GaggiaState currentGaggiaState,
       break;  
   } 
 
+  if ((millis() - userInputState->lastUserInteractionTimeMillis) > 
+    RETURN_TO_HOME_INACTIVITY_MINUTES * 60 * 1000) {
+        return helloState;
+  }
+
   return currentGaggiaState;
 }  
 
@@ -1018,6 +1030,19 @@ void processOutgoingGaggiaState(GaggiaState currentGaggiaState,
       (scaleState->measuredWeight - scaleState->tareWeight)*BREW_MEASURED_WEIGHT_MULTIPLIER; 
     Log.error("measuredWeight: " + String(scaleState->measuredWeight));
     Log.error("targetWeight: " + String(scaleState->targetWeight));
+  }
+
+  // this is useful for state metrics...
+  float timeSpentInCurrentStateMillis = millis() - currentGaggiaState.stateEnterTimeMillis;
+  
+
+  if (currentGaggiaState.state == BREWING) {
+    // Just finished brewing.. Need to calculate flow rate...
+
+    // The rate is usually expressed as grams/30seconds
+    float timeSpent30SecondIntervals = timeSpentInCurrentStateMillis/(30 * 1000);
+
+    scaleState->flowRate = scaleState->targetWeight/timeSpent30SecondIntervals;
   }
 }
 
