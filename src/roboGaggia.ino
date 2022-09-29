@@ -94,8 +94,8 @@ int LOW_WEIGHT_THRESHOLD = 4;
 // These values were imperically derived by measuring these levels
 // while immersing the water sensor.
 // These values need to be recalibrated everytime you replace sensor
-int LOW_WATER_RESEVOIR_LIMIT = 800;
-int HIGH_WATER_RESEVOIR_LIMIT = 900;
+int LOW_WATER_RESEVOIR_LIMIT = 700;
+int HIGH_WATER_RESEVOIR_LIMIT = 800;
 
 int RETURN_TO_HOME_INACTIVITY_MINUTES = 10;
 
@@ -224,6 +224,7 @@ struct GaggiaState {
    boolean  brewHeaterOn = false;
    boolean  steamHeaterOn = false;
    boolean  cooling = false;
+   boolean  measureTemp = false;
    boolean  tareScale = false;
    boolean  dispenseWater = false;
    boolean  recordWeight = false;
@@ -342,6 +343,7 @@ void setup() {
   helloState.display2 =            "Clear scale surface.";
   helloState.display3 =            "Click to Brew,      ";
   helloState.display4 =            "Hold for Steam      ";
+  helloState.measureTemp = true;
   
   // we don't want to heat here in case the unit was turned on and
   // person walked away for 10 hours
@@ -1173,6 +1175,7 @@ void processCurrentGaggiaState(GaggiaState currentGaggiaState,
     // if we are manually dispensing, we don't want to stop
     if (!waterReservoirState->manualOverride) {
       stopDispensingWater();
+      turnWaterReservoirSolenoidOff();
     }
 
     // if we are manually filling, we don't want to stop
@@ -1182,6 +1185,10 @@ void processCurrentGaggiaState(GaggiaState currentGaggiaState,
   }
 
   if (currentGaggiaState.cooling) {
+    readHeaterState(MAX6675_CS_brew, MAX6675_SO_brew, MAX6675_SCK, heaterState);  
+  }
+
+  if (currentGaggiaState.measureTemp) {
     readHeaterState(MAX6675_CS_brew, MAX6675_SO_brew, MAX6675_SCK, heaterState);  
   }
 }
