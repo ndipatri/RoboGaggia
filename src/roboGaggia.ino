@@ -37,10 +37,13 @@ SYSTEM_THREAD(ENABLED);
 // CS, SCK, and SO together are used to read serial data
 // from the MAX6675 
 
-// Output - For turning on the heater
-#define HEATER  D8
 
-#define AUX D7
+// The TRIAC on/off signal for the AC Potentiometer
+// https://rocketcontroller.com/product/1-channel-high-load-ac-dimmer-for-use-witch-micro-controller-3-3v-5v-logic-ac-50-60hz/
+#define DISPENSE_POT D7 
+#define ZERO_CROSS_DISPENSE_POT A2  
+
+#define HEATER D8
 
 
 // Output - For dispensing water
@@ -103,10 +106,33 @@ int RETURN_TO_HOME_INACTIVITY_MINUTES = 10;
 int PREINFUSION_DURATION_SECONDS = 2;
 // How long we let that water sit before we start high pressure brew
 int STEEPING_DURATION_SECONDS = 4;
+  
+// How many 60Hz cycles we consider in our flow rate
+// So 10 means we count 10 cycles before we reset our count.  We could
+// then desire a 50% duty cycle, which would mean 5 cycles on and 
+// 5 cycles off
+int DISPENSE_FLOW_RATE_TOTAL_CYCES = 10;
 
 //
 // State
 //
+
+struct DispenseFlowRateState {
+
+  // Each service loop, we will check 
+  volatile int currentCycle = 1;
+  
+  // How much of the time we're dispensing out of our total
+  // coherence time.. in percentage
+  volatile int onRatio = 5; 
+  
+  // The interrupt routine will fire every time the power sinuoid falls below 
+  // the zero voltage point. This is twice per cycle.  So we only want to take
+  // action once a cycle.
+  volatile boolean startOfNewCycle = true;
+
+} dispenseFlowRateState;
+
 
 struct WaterReservoirState {
 
@@ -275,6 +301,14 @@ void processOutgoingGaggiaState(GaggiaState currentGaggiaState,
                                 DisplayState *displayState,
                                 WaterReservoirState *waterReservoirState,
                                 float nowTimeMillis);
+// Things we do when we enter a state
+void processIncomingGaggiaState(GaggiaState currentGaggiaState,
+                                GaggiaState nextGaggiaState, 
+                                HeaterState *heaterState,
+                                ScaleState *scaleState,
+                                DisplayState *displayState,
+                                WaterReservoirState *waterReservoirState,
+                                float nowTimeMillis);
 GaggiaState returnToHelloState(ScaleState *scaleState);
 
 // setup() runs once, when the device is first turned on.
@@ -311,8 +345,11 @@ void setup() {
   pinMode(MAX6675_SCK, OUTPUT);
   
   // external heater elements
-  pinMode(AUX, OUTPUT);
   pinMode(HEATER, OUTPUT);
+  
+  // Water Pump Potentiometer
+  pinMode(DISPENSE_POT, OUTPUT);
+  pinMode(ZERO_CROSS_DISPENSE_POT, INPUT);
 
   // water dispenser
   pinMode(DISPENSE_WATER, OUTPUT);
@@ -325,8 +362,10 @@ void setup() {
   Particle.variable("isDispensingWater",  currentGaggiaState.dispenseWater);
   Particle.variable("isFillingWater",  waterReservoirState.isSolenoidOn);
   Particle.variable("thermocoupleError",  heaterState.thermocoupleError);
+  Particle.variable("dispenseFlowRateOnRatio", (int*)&dispenseFlowRateState.onRatio, INT);
   Particle.variable("isInTestMode",  isInTestMode);
   Particle.variable("waterLevel",  readWaterLevel);
+  Particle.variable("dispenseFlowRateOffcycle",  getDispenseFlowRateOffCycle);
 
   Particle.function("turnHeaterOn", _turnHeaterOn);
   Particle.function("turnHeaterOff", _turnHeaterOff);
@@ -336,6 +375,7 @@ void setup() {
   Particle.function("stopDispensingWater", _stopDispensingWater);
   Particle.function("startWaterFill", _turnWaterReservoirSolenoidOn);
   Particle.function("stopWaterFill", _turnWaterReservoirSolenoidOff);
+  Particle.function("setDispenseFlowRateOnRatio", setDispenseFlowRateOnRatio);
 
   // Define all possible states of RoboGaggia
   helloState.state = HELLO; 
@@ -503,6 +543,15 @@ void loop() {
                                &waterReservoirState,
                                nowTimeMillis);
   
+      // Things we do when we enter a state
+    processIncomingGaggiaState(currentGaggiaState,
+                               nextGaggiaState,
+                               &heaterState, 
+                               &scaleState,
+                               &displayState,
+                               &waterReservoirState,
+                               nowTimeMillis);
+  
     nextGaggiaState.stateEnterTimeMillis = millis();
   }
 
@@ -641,11 +690,21 @@ void turnHeaterOff() {
 
 void startDispensingWater() {
   publishParticleLog("dispenser", "dispensingOn");
+
+  // The zero crossings from the incoming AC sinewave will trigger
+  // this interrupt handler, which will modulate the power duty cycle to
+  // the water pump.. It is assumed the proper values have been set
+  // already in waterPumpPotentiometerState
+  attachInterrupt(ZERO_CROSS_DISPENSE_POT, handleZeroCrossingInterrupt, RISING);
+
   digitalWrite(DISPENSE_WATER, HIGH);
 }
 
 void stopDispensingWater() {
   publishParticleLog("dispenser", "dispensingOff");
+  
+  detachInterrupt(ZERO_CROSS_DISPENSE_POT);
+
   digitalWrite(DISPENSE_WATER, LOW);
 }
 
@@ -1088,6 +1147,27 @@ void processOutgoingGaggiaState(GaggiaState currentGaggiaState,
   }
 }
 
+void processIncomingGaggiaState(GaggiaState currentGaggiaState,  
+                                GaggiaState nextGaggiaState,
+                                HeaterState *heaterState,
+                                ScaleState *scaleState,
+                                DisplayState *displayState,
+                                WaterReservoirState *waterReservoirState,
+                                float nowTimeMillis) {
+
+  if (nextGaggiaState.state == PREINFUSION) {
+    dispenseFlowRateState.onRatio = 10;
+  }
+
+  if (nextGaggiaState.state == BREWING) {
+    dispenseFlowRateState.onRatio = 100;
+  }
+
+  if (nextGaggiaState.state == COOLING) {
+    dispenseFlowRateState.onRatio = 100;
+  }
+}
+
 void processCurrentGaggiaState(GaggiaState currentGaggiaState,  
                                HeaterState *heaterState,
                                ScaleState *scaleState,
@@ -1250,6 +1330,13 @@ int _stopDispensingWater(String _na) {
     return 1;
 }
 
+int setDispenseFlowRateOnRatio(String _onRatio) {
+
+    dispenseFlowRateState.onRatio = _onRatio.toInt();
+
+    return 1;
+}
+
 int _turnHeaterOn(String _na) {
     turnHeaterOn();
 
@@ -1286,4 +1373,49 @@ int _turnWaterReservoirSolenoidOff(String _na) {
 // the dispenser is used to power this sensor
 int readWaterLevel() {
   return analogRead(WATER_RESERVOIR_SENSOR);
+}
+
+// This is when we now have shut off the dispense flow as we've
+// satisfied our 'on' ratio requirement.
+int getDispenseFlowRateOffCycle() {
+  int flowRateOffCycle = DISPENSE_FLOW_RATE_TOTAL_CYCES * (dispenseFlowRateState.onRatio/100.0);
+  return flowRateOffCycle;
+}
+
+// This is an Interrupt Service Routine (ISR) so it cannot take any arguments
+// nor return any values.
+//
+// We consider our current
+void handleZeroCrossingInterrupt() {
+
+  boolean startOfNewCycle = (boolean)dispenseFlowRateState.startOfNewCycle;
+  int currentCycle = (int)dispenseFlowRateState.currentCycle;
+  float onRatio = (float)dispenseFlowRateState.onRatio;
+  
+  // if 0, off all the time.. if DISPENSE_FLOW_RATE_TOTAL_CYCES , on 
+  // the time.
+  int offCycle = getDispenseFlowRateOffCycle(); 
+  
+  // We only care about every other crossing, so we do this once per cycle... 
+  // (since there are two zeor crossing per AC sinusoidal cycle)
+  if (startOfNewCycle) {
+    
+    // We start a new cycle with the power on (by turning ON the POT TRIAC)
+    if (currentCycle == 1 && onRatio > 0) {
+      digitalWrite(DISPENSE_POT, HIGH);
+    } else 
+    if (currentCycle == offCycle && offCycle < DISPENSE_FLOW_RATE_TOTAL_CYCES) {
+      
+      // we've reached the desired duty cycle, so we turn power off (turn off POT)
+      digitalWrite(DISPENSE_POT, LOW);
+    }
+
+    if (currentCycle == DISPENSE_FLOW_RATE_TOTAL_CYCES) {
+      dispenseFlowRateState.currentCycle = 1;
+    } else {
+      dispenseFlowRateState.currentCycle = currentCycle+1;
+    }
+  }
+
+  dispenseFlowRateState.startOfNewCycle = !dispenseFlowRateState.startOfNewCycle;
 }
