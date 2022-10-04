@@ -40,7 +40,13 @@ SYSTEM_THREAD(ENABLED);
 
 // The TRIAC on/off signal for the AC Potentiometer
 // https://rocketcontroller.com/product/1-channel-high-load-ac-dimmer-for-use-witch-micro-controller-3-3v-5v-logic-ac-50-60hz/
+// NOTE: Sendin this high triggers the TRIAC (turns it on and allows current flow), but at each zero crossing, the TRIAC
+// resets itself and stop current flow.
 #define DISPENSE_POT D7 
+
+// This provides a signal to help us time how to 'shape' the AC wave powering the water pump.
+// The zero crossings tell us when we can disable part of the AC wave to modulate the power.
+// 'Pulse Shape Modulation' (PSM)
 #define ZERO_CROSS_DISPENSE_POT A2  
 
 #define HEATER D8
@@ -111,7 +117,7 @@ int STEEPING_DURATION_SECONDS = 4;
 // So 10 means we count 10 cycles before we reset our count.  We could
 // then desire a 50% duty cycle, which would mean 5 cycles on and 
 // 5 cycles off
-int DISPENSE_FLOW_RATE_TOTAL_CYCES = 10;
+int DISPENSE_FLOW_RATE_TOTAL_CYCES = 20;
 
 //
 // State
@@ -119,17 +125,9 @@ int DISPENSE_FLOW_RATE_TOTAL_CYCES = 10;
 
 struct DispenseFlowRateState {
 
-  // Each service loop, we will check 
-  volatile int currentCycle = 1;
-  
   // How much of the time we're dispensing out of our total
   // coherence time.. in percentage
-  volatile int onRatio = 5; 
-  
-  // The interrupt routine will fire every time the power sinuoid falls below 
-  // the zero voltage point. This is twice per cycle.  So we only want to take
-  // action once a cycle.
-  volatile boolean startOfNewCycle = true;
+  volatile int dutyCycle = 100; 
 
 } dispenseFlowRateState;
 
@@ -349,7 +347,7 @@ void setup() {
   
   // Water Pump Potentiometer
   pinMode(DISPENSE_POT, OUTPUT);
-  pinMode(ZERO_CROSS_DISPENSE_POT, INPUT);
+  pinMode(ZERO_CROSS_DISPENSE_POT, INPUT_PULLDOWN);
 
   // water dispenser
   pinMode(DISPENSE_WATER, OUTPUT);
@@ -362,10 +360,9 @@ void setup() {
   Particle.variable("isDispensingWater",  currentGaggiaState.dispenseWater);
   Particle.variable("isFillingWater",  waterReservoirState.isSolenoidOn);
   Particle.variable("thermocoupleError",  heaterState.thermocoupleError);
-  Particle.variable("dispenseFlowRateOnRatio", (int*)&dispenseFlowRateState.onRatio, INT);
+  Particle.variable("dispenseFlowRateDutyCycle", (int*)&dispenseFlowRateState.dutyCycle, INT);
   Particle.variable("isInTestMode",  isInTestMode);
   Particle.variable("waterLevel",  readWaterLevel);
-  Particle.variable("dispenseFlowRateOffcycle",  getDispenseFlowRateOffCycle);
 
   Particle.function("turnHeaterOn", _turnHeaterOn);
   Particle.function("turnHeaterOff", _turnHeaterOff);
@@ -375,7 +372,7 @@ void setup() {
   Particle.function("stopDispensingWater", _stopDispensingWater);
   Particle.function("startWaterFill", _turnWaterReservoirSolenoidOn);
   Particle.function("stopWaterFill", _turnWaterReservoirSolenoidOff);
-  Particle.function("setDispenseFlowRateOnRatio", setDispenseFlowRateOnRatio);
+  Particle.function("setDispenseFlowRateDutyCycle", setDispenseFlowRateDutyCycle);
 
   // Define all possible states of RoboGaggia
   helloState.state = HELLO; 
@@ -693,9 +690,8 @@ void startDispensingWater() {
 
   // The zero crossings from the incoming AC sinewave will trigger
   // this interrupt handler, which will modulate the power duty cycle to
-  // the water pump.. It is assumed the proper values have been set
-  // already in waterPumpPotentiometerState
-  attachInterrupt(ZERO_CROSS_DISPENSE_POT, handleZeroCrossingInterrupt, RISING);
+  // the water pump..
+  attachInterrupt(ZERO_CROSS_DISPENSE_POT, handleZeroCrossingInterrupt, RISING, 0);
 
   digitalWrite(DISPENSE_WATER, HIGH);
 }
@@ -706,6 +702,7 @@ void stopDispensingWater() {
   detachInterrupt(ZERO_CROSS_DISPENSE_POT);
 
   digitalWrite(DISPENSE_WATER, LOW);
+  digitalWrite(DISPENSE_POT, LOW);
 }
 
 void turnWaterReservoirSolenoidOn() {
@@ -1156,15 +1153,17 @@ void processIncomingGaggiaState(GaggiaState currentGaggiaState,
                                 float nowTimeMillis) {
 
   if (nextGaggiaState.state == PREINFUSION) {
-    dispenseFlowRateState.onRatio = 10;
+    // at the moment, this is teh lowest value that produces
+    // appreciable volume.. good for preinfusion
+    dispenseFlowRateState.dutyCycle = 40;
   }
 
   if (nextGaggiaState.state == BREWING) {
-    dispenseFlowRateState.onRatio = 100;
+    dispenseFlowRateState.dutyCycle = 100;
   }
 
   if (nextGaggiaState.state == COOLING) {
-    dispenseFlowRateState.onRatio = 100;
+    dispenseFlowRateState.dutyCycle = 100;
   }
 }
 
@@ -1330,9 +1329,9 @@ int _stopDispensingWater(String _na) {
     return 1;
 }
 
-int setDispenseFlowRateOnRatio(String _onRatio) {
+int setDispenseFlowRateDutyCycle(String _dutyCycle) {
 
-    dispenseFlowRateState.onRatio = _onRatio.toInt();
+    dispenseFlowRateState.dutyCycle = _dutyCycle.toInt();
 
     return 1;
 }
@@ -1375,47 +1374,30 @@ int readWaterLevel() {
   return analogRead(WATER_RESERVOIR_SENSOR);
 }
 
-// This is when we now have shut off the dispense flow as we've
-// satisfied our 'on' ratio requirement.
-int getDispenseFlowRateOffCycle() {
-  int flowRateOffCycle = DISPENSE_FLOW_RATE_TOTAL_CYCES * (dispenseFlowRateState.onRatio/100.0);
-  return flowRateOffCycle;
-}
-
 // This is an Interrupt Service Routine (ISR) so it cannot take any arguments
 // nor return any values.
 //
 // We consider our current
+void turnOnDispensePotISR() {
+  digitalWrite(DISPENSE_POT, HIGH);
+}
+Timer timer(0, turnOnDispensePotISR, true);
 void handleZeroCrossingInterrupt() {
+  // IMPORTANT!: the Triac will automatically shut off at every zero
+  // crossing.. so it's best to start the cycle with teh triac off and
+  // then turn it on for the remainder of the cycle  
 
-  boolean startOfNewCycle = (boolean)dispenseFlowRateState.startOfNewCycle;
-  int currentCycle = (int)dispenseFlowRateState.currentCycle;
-  float onRatio = (float)dispenseFlowRateState.onRatio;
+  digitalWrite(DISPENSE_POT, LOW);
   
-  // if 0, off all the time.. if DISPENSE_FLOW_RATE_TOTAL_CYCES , on 
-  // the time.
-  int offCycle = getDispenseFlowRateOffCycle(); 
-  
-  // We only care about every other crossing, so we do this once per cycle... 
-  // (since there are two zeor crossing per AC sinusoidal cycle)
-  if (startOfNewCycle) {
-    
-    // We start a new cycle with the power on (by turning ON the POT TRIAC)
-    if (currentCycle == 1 && onRatio > 0) {
-      digitalWrite(DISPENSE_POT, HIGH);
-    } else 
-    if (currentCycle == offCycle && offCycle < DISPENSE_FLOW_RATE_TOTAL_CYCES) {
-      
-      // we've reached the desired duty cycle, so we turn power off (turn off POT)
-      digitalWrite(DISPENSE_POT, LOW);
-    }
+  // We assume 60Hz cycle (1000ms/60 = 16ms per cycle.)
+  // If we wait 8ms before turning on, the next cycle will happen immediately
+  // and shut off.. so 8ms is essentially 0% duty cycle
+  // If we wait 4ms before turning on, that's half the cycle.. so that's 50%
+  // If we wait 0ms before turning on, that's 100% duty cycle.
 
-    if (currentCycle == DISPENSE_FLOW_RATE_TOTAL_CYCES) {
-      dispenseFlowRateState.currentCycle = 1;
-    } else {
-      dispenseFlowRateState.currentCycle = currentCycle+1;
-    }
-  }
+  int onIntervalMs = 8 - round((8*(dispenseFlowRateState.dutyCycle/100.0)));
 
-  dispenseFlowRateState.startOfNewCycle = !dispenseFlowRateState.startOfNewCycle;
+  // 'FromISR' is critical otherwise, the timer hangs the ISR.
+  timer.changePeriodFromISR(onIntervalMs);
+  timer.startFromISR();  
 }
