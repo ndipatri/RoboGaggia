@@ -8,12 +8,26 @@ Although it's an amazing machine, the Gaggia requires a number of manual steps t
 2. After you've loaded the portafilter with coffee grounds and put a cup under the group head, you have to wait until the brew heater achieves the correct temperature before you can click the 'brew' button.
 3. While brewing, you need to remember the weight of your coffee grounds so you know how much to brew. You need to either weigh your resulting coffee using an external scale or approximate the output by counting the seconds of your extraction.
 4. After brewing, you then have to manually switch the 'steam' button and wait for the heater to achieve the steam temperature.
-5. After steaming, if you want to brew again, you have to go through the process of extracting water to cool off the heater - unfortunately, the heater is always on with the stock Gaggia, so cooling off the heeateater takes a while.
+5. After steaming, if you want to brew again, you have to go through the process of extracting water to cool off the heater - the heater is always on with the stock Gaggia, so cooling off the heateater takes a while.
 
 Other things to note about the stock Gaggia Pro:
 
-1. The thermostats which measure the brew and steam temperatures employ a simplistic 'Schmitt Trigger' control algorithm which means the target temperature can vary quite a bit.
-2.  
+1. The thermostats which measure the brew and steam temperatures employ a simplistic 'Schmitt Trigger' control algorithm which means the target temperature can vary quite a bit from shot to shot.
+2. When brewing, the water pump operates at a fixed rate, so there is no 'pre-infusion' period where the portafilter is filled with low-pressure water before the high pressure water is used to extract the espresso shot.
+
+In an attempt to mitigate the above Gaggia short comings, I've implemented the following features:
+
+1. Integrated scale that fits in the drip tray
+2. Dual PID temperature controllers
+3. Flow control
+4. Auto-Fill water reservoir
+5. Microcontroller-based automated brew process that eliminates the need for the Brew or Steam buttons.
+6. Cool-down feature to assist in cooling down the heater for brewing.
+
+
+# Disclaimer
+
+This project involves modifying a perfectly safe commercial espresso machine.  These modifications absolutely make your espresso machine less safe.  It involves both water and electricity.  Please proceed at your own risk.  This is a dangerous modification!
 
 
 
