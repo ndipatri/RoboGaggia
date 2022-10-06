@@ -75,7 +75,6 @@ int kp = 9.1;
 int ki = 0.3;   
 int kd = 1.8;
 
-float TARGET_PREINFUSION_TEMP = 85;  // too low and the coffee will steep too long
 float TARGET_BREW_TEMP = 103; // should be 65
 float TOO_HOT_TO_BREW_TEMP = 110; // should be 80
 float TARGET_STEAM_TEMP = 140; // should be 80
@@ -109,9 +108,7 @@ int HIGH_WATER_RESEVOIR_LIMIT = 800;
 int RETURN_TO_HOME_INACTIVITY_MINUTES = 10;
 
 // How long we will the portafilter with semi-hot water
-int PREINFUSION_DURATION_SECONDS = 2;
-// How long we let that water sit before we start high pressure brew
-int STEEPING_DURATION_SECONDS = 4;
+int PREINFUSION_DURATION_SECONDS = 6;
   
 // How many 60Hz cycles we consider in our flow rate
 // So 10 means we count 10 cycles before we reset our count.  We could
@@ -141,7 +138,7 @@ struct WaterReservoirState {
   boolean isSolenoidOn = false;
 
 } waterReservoirState;
-boolean doesWaterReservoirNeedFilling(int ANALOG_INPUT_PIN, WaterReservoirState *waterReservoirState);
+boolean doesWaterReservoirNeedFilling(int CHIP_ENABLE_PIN, int ANALOG_INPUT_PIN, WaterReservoirState *waterReservoirState);
 
 
 struct ScaleState {
@@ -189,8 +186,7 @@ struct HeaterState {
 
 } heaterState;
 void readHeaterState(int CHIP_SELECT_PIN, int SERIAL_OUT_PIN, int SERIAL_CLOCK_PIN, HeaterState *heaterState);
-boolean shouldTurnOnHeater(HeaterState *heaterState, float targetTemp, float nowTimeMillis);
-
+boolean shouldTurnOnHeater(float targetTemp, float nowTimeMillis, HeaterState *heaterState);
 
 
 // Based on the physical button, we derive one of three
@@ -219,6 +215,12 @@ struct DisplayState {
   String display4;
 
 } displayState;
+String updateDisplayLine(char *message, 
+                        int line,
+                        HeaterState *heaterState,
+                        ScaleState *scaleState,
+                        String previousLineDisplayed);
+
 
 enum GaggiaStateEnum {
   HELLO = 0, 
@@ -228,14 +230,13 @@ enum GaggiaStateEnum {
   TARE_CUP_2 = 4, 
   HEATING_TO_PREINFUSION = 5, 
   PREINFUSION = 6, 
-  STEEPING = 7, 
-  BREWING = 8, 
-  DONE_BREWING = 9, 
-  HEATING_TO_STEAM = 10, 
-  STEAMING = 11, 
-  COOL_START = 12, 
-  COOLING = 13, 
-  COOL_DONE = 14, 
+  BREWING = 7, 
+  DONE_BREWING = 8, 
+  HEATING_TO_STEAM = 9, 
+  STEAMING = 10, 
+  COOL_START = 11, 
+  COOLING = 12, 
+  COOL_DONE = 13, 
 };
 struct GaggiaState {
    enum GaggiaStateEnum state;   
@@ -244,7 +245,10 @@ struct GaggiaState {
    char *display3 = "";
    char *display4 = "";
    boolean  waterReservoirSolenoidOn = false;
-   boolean  preInfusionHeaterOn = false;
+   
+   // WARNING: this cannot be done at the same time (or even in an adjacent state)
+   // to dispensing water.
+   boolean  fillingReservoir = false;
    boolean  brewHeaterOn = false;
    boolean  steamHeaterOn = false;
    boolean  cooling = false;
@@ -261,7 +265,6 @@ measureBeansState,
 tareCup2State,
 heatingToPreinfusionState,
 preinfusionState,
-steepingState,
 brewingState,
 doneBrewingState,
 heatingToSteamState,
@@ -396,6 +399,7 @@ void setup() {
   chooseSingleState.display2 =         "cup?                ";
   chooseSingleState.display3 =         "Click for single,   ";
   chooseSingleState.display4 =         "Hold for many       ";
+  chooseSingleState.brewHeaterOn = true; 
 
   tareCup1State.state = TARE_CUP_1; 
   tareCup1State.display1 =         "Place empty cup     ";
@@ -403,6 +407,7 @@ void setup() {
   tareCup1State.display3 =         "{measuredWeight}";
   tareCup1State.display4 =         "Click when Ready    ";
   tareCup1State.tareScale = true; 
+  tareCup1State.brewHeaterOn = true; 
 
   measureBeansState.state = MEASURE_BEANS; 
   measureBeansState.display1 =     "Add beans to cup.   ";
@@ -410,6 +415,7 @@ void setup() {
   measureBeansState.display3 =     "                    ";
   measureBeansState.display4 =     "Click when Ready    ";
   measureBeansState.recordWeight = true; 
+  measureBeansState.brewHeaterOn = true; 
 
   tareCup2State.state = TARE_CUP_2; 
   tareCup2State.display1 =         "Grind & load beans, ";
@@ -417,27 +423,22 @@ void setup() {
   tareCup2State.display3 =         "back on tray.       ";
   tareCup2State.display4 =         "Click when Ready    ";
   tareCup2State.tareScale = true; 
+  tareCup2State.brewHeaterOn = true; 
 
   heatingToPreinfusionState.state = HEATING_TO_PREINFUSION; 
-  heatingToPreinfusionState.display1 =    "Heating to infuse.  ";
+  heatingToPreinfusionState.display1 =    "Heating to brew.    ";
   heatingToPreinfusionState.display2 =    "Leave cup on tray.  ";
-  heatingToPreinfusionState.display3 =    "{measuredBrewTemp}/{targetPreInfuseTemp}";
+  heatingToPreinfusionState.display3 =    "{measuredBrewTemp}/{targetBrewTemp}";
   heatingToPreinfusionState.display4 =    "Please wait ...     ";
-  heatingToPreinfusionState.preInfusionHeaterOn = true; 
+  heatingToPreinfusionState.brewHeaterOn = true; 
 
   preinfusionState.state = PREINFUSION; 
   preinfusionState.display1 =          "Infusing coffee.    ";
   preinfusionState.display2 =          "Leave cup on tray.  ";
-  preinfusionState.display3 =          "{measuredBrewTemp}/{targetPreInfuseTemp}";
+  preinfusionState.display3 =          "{measuredBrewTemp}/{targetBrewTemp}";
   preinfusionState.display4 =          "Please wait ...     ";
   preinfusionState.dispenseWater = true; 
-
-  steepingState.state = STEEPING; 
-  steepingState.display1 =          "Steeping coffee.    ";
-  steepingState.display2 =          "Leave cup on tray.  ";
-  steepingState.display3 =          "{measuredBrewTemp}/{targetBrewTemp}";
-  steepingState.display4 =          "Please wait ...     ";
-  steepingState.brewHeaterOn = true; 
+  preinfusionState.brewHeaterOn = true; 
 
   brewingState.state = BREWING; 
   brewingState.display1 =          "Brewing.            ";
@@ -453,6 +454,7 @@ void setup() {
   doneBrewingState.display3 =      "Remove cup.         ";
   doneBrewingState.display4 =      "Click when Ready    ";
   doneBrewingState.brewHeaterOn = true; 
+  doneBrewingState.fillingReservoir = true;
 
   heatingToSteamState.state = HEATING_TO_STEAM; 
   heatingToSteamState.display1 =   "Heating to steam.   ";
@@ -460,6 +462,7 @@ void setup() {
   heatingToSteamState.display3 =   "{flowRate}";
   heatingToSteamState.display4 =   "Please wait ...     ";
   heatingToSteamState.steamHeaterOn = true; 
+  heatingToSteamState.fillingReservoir = true;
 
   steamingState.state = STEAMING; 
   steamingState.display1 =         "Operate steam wand. ";
@@ -467,6 +470,7 @@ void setup() {
   steamingState.display3 =         "{flowRate}";
   steamingState.display4 =         "Click when Done     ";
   steamingState.steamHeaterOn = true; 
+  steamingState.fillingReservoir = true;
 
   coolStartState.state = COOL_START; 
   coolStartState.display1 =        "Too hot to brew,    ";
@@ -476,7 +480,7 @@ void setup() {
 
   coolingState.state = COOLING; 
   coolingState.display1 =          "Dispensing to cool  ";
-  coolingState.display2 =          "{measuredBrewTemp}/{targetPreInfuseTemp}";
+  coolingState.display2 =          "{measuredBrewTemp}/{targetBrewTemp}";
   coolingState.display3 =          "                    ";
   coolingState.display4 =          "Click to Stop       ";
   coolingState.dispenseWater = true; 
@@ -566,6 +570,353 @@ void loop() {
     delay(5000);
   } else {
     delay(50);
+  }
+}
+
+
+// State transitions are documented here:
+// https://docs.google.com/drawings/d/1EcaUzklpJn34cYeWsTnApoJhwBhA1Q4EVMr53Kz9T7I/edit?usp=sharing
+GaggiaState getNextGaggiaState(GaggiaState currentGaggiaState, 
+                               HeaterState *heaterState,
+                               ScaleState *scaleState,
+                               UserInputState *userInputState,
+                               WaterReservoirState *waterReservoirState ) {
+
+  switch (currentGaggiaState.state) {
+
+    case HELLO :
+
+      if (userInputState->state == SHORT_PRESS) {
+        if (heaterState->measuredTemp >= TARGET_BREW_TEMP) {
+          return coolStartState;
+        } else {
+          return chooseSingleState;
+        }
+      }
+
+      if (userInputState->state == LONG_PRESS) {
+        return heatingToSteamState;
+      }
+      break;
+      
+    case CHOOSE_SINGLE :
+
+      if (userInputState->state == SHORT_PRESS) {
+          heaterState->singleOn = true;
+          return tareCup1State;
+      }
+
+      if (userInputState->state == LONG_PRESS) {
+          heaterState->singleOn = false;
+          return tareCup1State;
+      }
+      break;
+
+      
+    case TARE_CUP_1 :
+
+      if (userInputState->state == SHORT_PRESS) {
+        return measureBeansState;
+      }
+     
+      if (userInputState->state == LONG_PRESS) {
+        return helloState;
+      }
+      break;
+
+    case MEASURE_BEANS :
+
+      if (userInputState->state == SHORT_PRESS) {
+        return tareCup2State;
+      }
+      if (userInputState->state == LONG_PRESS) {
+        return helloState;
+      }
+      break;  
+
+    case TARE_CUP_2 :
+
+      if (userInputState->state == SHORT_PRESS) {
+        return heatingToPreinfusionState;
+      }
+      if (userInputState->state == LONG_PRESS) {
+        return helloState;
+      }
+      break;
+
+    case HEATING_TO_PREINFUSION :
+
+      if (heaterState->measuredTemp >= TARGET_BREW_TEMP) {
+        return preinfusionState;
+      }
+      if (userInputState->state == LONG_PRESS) {
+        return helloState;
+      }
+      break;
+
+    case PREINFUSION :
+
+      if ((millis() - currentGaggiaState.stateEnterTimeMillis) > 
+             PREINFUSION_DURATION_SECONDS * 1000) {        
+        return brewingState;
+      }
+      if (userInputState->state == LONG_PRESS) {
+        return helloState;
+      }
+      break;
+
+    case BREWING :
+
+      if ((scaleState->measuredWeight - scaleState->tareWeight) >= 
+            scaleState->targetWeight) {
+        return doneBrewingState;
+      }
+      if (userInputState->state == LONG_PRESS) {
+        return helloState;
+      }
+      break;
+
+    case DONE_BREWING :
+
+      if (heaterState->singleOn) {
+        
+        // So the user can just walk away and when they return, they have 
+        // a brewed cup and they are ready to steam!
+        return heatingToSteamState;
+
+      } else {
+        if (userInputState->state == SHORT_PRESS) {
+          return helloState;
+        }
+        if (userInputState->state == LONG_PRESS) {
+          return helloState;
+        }
+      }
+      break;
+
+    case HEATING_TO_STEAM :
+
+      if (heaterState->measuredTemp >= TARGET_STEAM_TEMP) {
+        return steamingState;
+      }
+      if (userInputState->state == LONG_PRESS) {
+        return helloState;
+      }
+      break;
+
+    case STEAMING :
+
+      if (userInputState->state == SHORT_PRESS) {
+        return helloState;
+      }
+      if (userInputState->state == LONG_PRESS) {
+        return helloState;
+      }
+      break;
+      
+    case COOL_START :
+
+      if (userInputState->state == SHORT_PRESS) {
+        return coolingState;
+      }
+      if (userInputState->state == LONG_PRESS) {
+        return helloState;
+      }
+      break;
+
+    case COOLING :
+
+      if (userInputState->state == SHORT_PRESS) {
+        return coolDoneState;
+      }
+
+      if (heaterState->measuredTemp < TARGET_BREW_TEMP) {
+        return coolDoneState;
+      }
+      if (userInputState->state == LONG_PRESS) {
+        return helloState;
+      }
+      break;
+
+    case COOL_DONE :
+
+      if (userInputState->state == SHORT_PRESS) {
+        if (heaterState->measuredTemp >= TARGET_BREW_TEMP) {
+          return coolStartState;
+        } else {
+          return helloState;
+        }
+      }
+      if (userInputState->state == LONG_PRESS) {
+        return helloState;
+      }
+      break;  
+  } 
+
+  if ((millis() - userInputState->lastUserInteractionTimeMillis) > 
+    RETURN_TO_HOME_INACTIVITY_MINUTES * 60 * 1000) {
+        return helloState;
+  }
+
+  return currentGaggiaState;
+}  
+
+void processIncomingGaggiaState(GaggiaState currentGaggiaState,  
+                                GaggiaState nextGaggiaState,
+                                HeaterState *heaterState,
+                                ScaleState *scaleState,
+                                DisplayState *displayState,
+                                WaterReservoirState *waterReservoirState,
+                                float nowTimeMillis) {
+
+  if (nextGaggiaState.state == PREINFUSION) {
+    // at the moment, this is teh lowest value that produces
+    // appreciable volume.. good for preinfusion
+    dispenseFlowRateState.dutyCycle = 40;
+  }
+
+  if (nextGaggiaState.state == BREWING) {
+    dispenseFlowRateState.dutyCycle = 100;
+  }
+
+  if (nextGaggiaState.state == COOLING) {
+    dispenseFlowRateState.dutyCycle = 100;
+  }
+}
+
+
+void processOutgoingGaggiaState(GaggiaState currentGaggiaState,  
+                                GaggiaState nextGaggiaState,
+                                HeaterState *heaterState,
+                                ScaleState *scaleState,
+                                DisplayState *displayState,
+                                WaterReservoirState *waterReservoirState,
+                                float nowTimeMillis) {
+
+  // Process Tare Scale
+  if (currentGaggiaState.tareScale == true) {
+    scaleState->tareWeight = scaleState->measuredWeight;
+  }
+
+  // Process Record Weight 
+  if (currentGaggiaState.recordWeight) {
+    scaleState->targetWeight = 
+      (scaleState->measuredWeight - scaleState->tareWeight)*BREW_WEIGHT_TO_BEAN_RATIO; 
+  }
+
+  // this is useful for state metrics...
+  float timeSpentInCurrentStateMillis = millis() - currentGaggiaState.stateEnterTimeMillis;
+  
+
+  if (currentGaggiaState.state == BREWING) {
+    // Just finished brewing.. Need to calculate flow rate...
+
+    // The rate is usually expressed as grams/30seconds
+    float timeSpent30SecondIntervals = timeSpentInCurrentStateMillis/(30 * 1000.0);
+
+    float dispendedWaterWeight =  scaleState->targetWeight;
+
+    publishParticleLog("flowRate", "(" + String(dispendedWaterWeight) + "/" + String(timeSpent30SecondIntervals) + ")");
+
+    scaleState->flowRate = dispendedWaterWeight/timeSpent30SecondIntervals;
+  }
+}
+
+void processCurrentGaggiaState(GaggiaState currentGaggiaState,  
+                               HeaterState *heaterState,
+                               ScaleState *scaleState,
+                               DisplayState *displayState,
+                               WaterReservoirState *waterReservoirState,
+                               float nowTimeMillis) {
+  // 
+  // Process Display
+  //
+  displayState->display1 = updateDisplayLine(currentGaggiaState.display1, 
+                                             1, 
+                                             heaterState, 
+                                             scaleState, 
+                                             displayState->display1);
+
+  displayState->display2 = updateDisplayLine(currentGaggiaState.display2, 
+                                             2, 
+                                             heaterState, 
+                                             scaleState, 
+                                             displayState->display2);
+
+  displayState->display3 = updateDisplayLine(currentGaggiaState.display3, 
+                                             3, 
+                                             heaterState, 
+                                             scaleState,  
+                                             displayState->display3);
+
+  displayState->display4 = updateDisplayLine(currentGaggiaState.display4, 
+                                             4, 
+                                             heaterState, 
+                                             scaleState, 
+                                             displayState->display4);
+
+
+
+  // Process Heaters
+  //
+  // Even though a heater may be 'on' during this state, the control system
+  // for the heater turns it off and on intermittently in an attempt to regulate
+  // the temperature around the target temp.
+  if (currentGaggiaState.brewHeaterOn) {
+    readHeaterState(MAX6675_CS_brew, MAX6675_SO_brew, MAX6675_SCK, heaterState);  
+
+    if (shouldTurnOnHeater(TARGET_BREW_TEMP, nowTimeMillis, heaterState)) {
+      turnHeaterOn();
+    } else {
+      turnHeaterOff();
+    } 
+  }
+  if (currentGaggiaState.steamHeaterOn) {
+    readHeaterState(MAX6675_CS_steam, MAX6675_SO_steam, MAX6675_SCK, heaterState); 
+
+    if (shouldTurnOnHeater(TARGET_STEAM_TEMP, nowTimeMillis, heaterState)) {
+      turnHeaterOn();
+    } else {
+      turnHeaterOff();
+    } 
+  }
+  if (!currentGaggiaState.brewHeaterOn && !currentGaggiaState.steamHeaterOn) {
+      turnHeaterOff();
+  }
+
+  // Process Dispense Water 
+   if (currentGaggiaState.dispenseWater) {
+     startDispensingWater();
+   } else {
+    // if we are manually dispensing, we don't want to stop
+    if (!waterReservoirState->manualOverride) {
+      stopDispensingWater();
+    }
+  }
+
+   if (currentGaggiaState.fillingReservoir) {
+
+    if (doesWaterReservoirNeedFilling(DISPENSE_WATER,  WATER_RESERVOIR_SENSOR, waterReservoirState)) {
+      waterReservoirState->isSolenoidOn = true;
+      turnWaterReservoirSolenoidOn();
+    } else {
+      waterReservoirState->isSolenoidOn = false;
+      turnWaterReservoirSolenoidOff();
+    }
+
+   } else {
+    // if we are manually dispensing, we don't want to stop
+    if (!waterReservoirState->manualOverride) {
+      turnWaterReservoirSolenoidOff();
+    }
+  }
+
+  if (currentGaggiaState.cooling) {
+    readHeaterState(MAX6675_CS_brew, MAX6675_SO_brew, MAX6675_SCK, heaterState);  
+  }
+
+  if (currentGaggiaState.measureTemp) {
+    readHeaterState(MAX6675_CS_brew, MAX6675_SO_brew, MAX6675_SCK, heaterState);  
   }
 }
 
@@ -691,6 +1042,9 @@ void startDispensingWater() {
   // The zero crossings from the incoming AC sinewave will trigger
   // this interrupt handler, which will modulate the power duty cycle to
   // the water pump..
+  //
+  // This will not trigger unless water dispenser is running.
+  //
   attachInterrupt(ZERO_CROSS_DISPENSE_POT, handleZeroCrossingInterrupt, RISING, 0);
 
   digitalWrite(DISPENSE_WATER, HIGH);
@@ -698,7 +1052,7 @@ void startDispensingWater() {
 
 void stopDispensingWater() {
   publishParticleLog("dispenser", "dispensingOff");
-  
+
   detachInterrupt(ZERO_CROSS_DISPENSE_POT);
 
   digitalWrite(DISPENSE_WATER, LOW);
@@ -791,13 +1145,6 @@ String updateDisplayLine(char *message,
                                                      scaleState->flowRate,
                                                      0,
                                                      " g/30sec");
-            if (lineToDisplay == "") {
-              lineToDisplay = decodeMessageIfNecessary(message,
-                                                       "{measuredBrewTemp}/{targetPreInfuseTemp}",
-                                                       heaterState->measuredTemp,
-                                                       TARGET_PREINFUSION_TEMP,
-                                                       " degrees C");
-            }
           }
         }      
       }
@@ -908,371 +1255,12 @@ int calculateHeaterPulseDurationMillis(double currentTempC, float targetTempC, f
   return currentOutput;
 }
 
-// State transitions are documented here:
-// https://docs.google.com/drawings/d/1EcaUzklpJn34cYeWsTnApoJhwBhA1Q4EVMr53Kz9T7I/edit?usp=sharing
-GaggiaState getNextGaggiaState(GaggiaState currentGaggiaState, 
-                               HeaterState *heaterState,
-                               ScaleState *scaleState,
-                               UserInputState *userInputState,
-                               WaterReservoirState *waterReservoirState ) {
+boolean doesWaterReservoirNeedFilling(int CHIP_ENABLE_PIN, int ANALOG_INPUT_PIN, WaterReservoirState *waterReservoirState) {
 
-  switch (currentGaggiaState.state) {
-
-    case HELLO :
-
-      if (userInputState->state == SHORT_PRESS) {
-        if (heaterState->measuredTemp >= TARGET_PREINFUSION_TEMP) {
-          return coolStartState;
-        } else {
-          return chooseSingleState;
-        }
-      }
-
-      if (userInputState->state == LONG_PRESS) {
-        return heatingToSteamState;
-      }
-      break;
-      
-    case CHOOSE_SINGLE :
-
-      if (userInputState->state == SHORT_PRESS) {
-          heaterState->singleOn = true;
-          return tareCup1State;
-      }
-
-      if (userInputState->state == LONG_PRESS) {
-          heaterState->singleOn = false;
-          return tareCup1State;
-      }
-      break;
-
-      
-    case TARE_CUP_1 :
-
-      if (userInputState->state == SHORT_PRESS) {
-        return measureBeansState;
-      }
-     
-      if (userInputState->state == LONG_PRESS) {
-        return helloState;
-      }
-      break;
-
-    case MEASURE_BEANS :
-
-      if (userInputState->state == SHORT_PRESS) {
-        return tareCup2State;
-      }
-      if (userInputState->state == LONG_PRESS) {
-        return helloState;
-      }
-      break;  
-
-    case TARE_CUP_2 :
-
-      if (userInputState->state == SHORT_PRESS) {
-        return heatingToPreinfusionState;
-      }
-      if (userInputState->state == LONG_PRESS) {
-        return helloState;
-      }
-      break;
-
-    case HEATING_TO_PREINFUSION :
-
-      if (heaterState->measuredTemp >= TARGET_PREINFUSION_TEMP) {
-        return preinfusionState;
-      }
-      if (userInputState->state == LONG_PRESS) {
-        return helloState;
-      }
-      break;
-
-    case PREINFUSION :
-
-      if ((millis() - currentGaggiaState.stateEnterTimeMillis) > 
-             PREINFUSION_DURATION_SECONDS * 1000) {        
-        return steepingState;
-      }
-      if (userInputState->state == LONG_PRESS) {
-        return helloState;
-      }
-      break;
-
-    case STEEPING :
-
-      if (((heaterState->measuredTemp >= TARGET_BREW_TEMP) &&
-          (millis() - currentGaggiaState.stateEnterTimeMillis) > 
-            STEEPING_DURATION_SECONDS * 1000)) {        
-        return brewingState;
-      }
-      if (userInputState->state == LONG_PRESS) {
-        return helloState;
-      }
-      break;
-
-    case BREWING :
-
-      if ((scaleState->measuredWeight - scaleState->tareWeight) >= 
-            scaleState->targetWeight) {
-        return doneBrewingState;
-      }
-      if (userInputState->state == LONG_PRESS) {
-        return helloState;
-      }
-      break;
-
-    case DONE_BREWING :
-
-      if (heaterState->singleOn) {
-        
-        // So the user can just walk away and when they return, they have 
-        // a brewed cup and they are ready to steam!
-        return heatingToSteamState;
-
-      } else {
-        if (userInputState->state == SHORT_PRESS) {
-          return helloState;
-        }
-        if (userInputState->state == LONG_PRESS) {
-          return helloState;
-        }
-      }
-      break;
-
-    case HEATING_TO_STEAM :
-
-      if (heaterState->measuredTemp >= TARGET_STEAM_TEMP) {
-        return steamingState;
-      }
-      if (userInputState->state == LONG_PRESS) {
-        return helloState;
-      }
-      break;
-
-    case STEAMING :
-
-      if (userInputState->state == SHORT_PRESS) {
-        return helloState;
-      }
-      if (userInputState->state == LONG_PRESS) {
-        return helloState;
-      }
-      break;
-      
-    case COOL_START :
-
-      if (userInputState->state == SHORT_PRESS) {
-        return coolingState;
-      }
-      if (userInputState->state == LONG_PRESS) {
-        return helloState;
-      }
-      break;
-
-    case COOLING :
-
-      if (userInputState->state == SHORT_PRESS) {
-        return coolDoneState;
-      }
-
-      if (heaterState->measuredTemp < TARGET_PREINFUSION_TEMP) {
-        return coolDoneState;
-      }
-      if (userInputState->state == LONG_PRESS) {
-        return helloState;
-      }
-      break;
-
-    case COOL_DONE :
-
-      if (userInputState->state == SHORT_PRESS) {
-        if (heaterState->measuredTemp >= TARGET_PREINFUSION_TEMP) {
-          return coolStartState;
-        } else {
-          return helloState;
-        }
-      }
-      if (userInputState->state == LONG_PRESS) {
-        return helloState;
-      }
-      break;  
-  } 
-
-  if ((millis() - userInputState->lastUserInteractionTimeMillis) > 
-    RETURN_TO_HOME_INACTIVITY_MINUTES * 60 * 1000) {
-        return helloState;
+  if (digitalRead(CHIP_ENABLE_PIN) == LOW) {
+    digitalWrite(CHIP_ENABLE_PIN, HIGH);
   }
 
-  return currentGaggiaState;
-}  
-
-void processOutgoingGaggiaState(GaggiaState currentGaggiaState,  
-                                GaggiaState nextGaggiaState,
-                                HeaterState *heaterState,
-                                ScaleState *scaleState,
-                                DisplayState *displayState,
-                                WaterReservoirState *waterReservoirState,
-                                float nowTimeMillis) {
-
-  // Process Tare Scale
-  if (currentGaggiaState.tareScale == true) {
-    scaleState->tareWeight = scaleState->measuredWeight;
-  }
-
-  // Process Record Weight 
-  if (currentGaggiaState.recordWeight) {
-    scaleState->targetWeight = 
-      (scaleState->measuredWeight - scaleState->tareWeight)*BREW_WEIGHT_TO_BEAN_RATIO; 
-  }
-
-  // this is useful for state metrics...
-  float timeSpentInCurrentStateMillis = millis() - currentGaggiaState.stateEnterTimeMillis;
-  
-
-  if (currentGaggiaState.state == BREWING) {
-    // Just finished brewing.. Need to calculate flow rate...
-
-    // The rate is usually expressed as grams/30seconds
-    float timeSpent30SecondIntervals = timeSpentInCurrentStateMillis/(30 * 1000.0);
-
-    float dispendedWaterWeight =  scaleState->targetWeight;
-
-    publishParticleLog("flowRate", "(" + String(dispendedWaterWeight) + "/" + String(timeSpent30SecondIntervals) + ")");
-
-    scaleState->flowRate = dispendedWaterWeight/timeSpent30SecondIntervals;
-  }
-}
-
-void processIncomingGaggiaState(GaggiaState currentGaggiaState,  
-                                GaggiaState nextGaggiaState,
-                                HeaterState *heaterState,
-                                ScaleState *scaleState,
-                                DisplayState *displayState,
-                                WaterReservoirState *waterReservoirState,
-                                float nowTimeMillis) {
-
-  if (nextGaggiaState.state == PREINFUSION) {
-    // at the moment, this is teh lowest value that produces
-    // appreciable volume.. good for preinfusion
-    dispenseFlowRateState.dutyCycle = 40;
-  }
-
-  if (nextGaggiaState.state == BREWING) {
-    dispenseFlowRateState.dutyCycle = 100;
-  }
-
-  if (nextGaggiaState.state == COOLING) {
-    dispenseFlowRateState.dutyCycle = 100;
-  }
-}
-
-void processCurrentGaggiaState(GaggiaState currentGaggiaState,  
-                               HeaterState *heaterState,
-                               ScaleState *scaleState,
-                               DisplayState *displayState,
-                               WaterReservoirState *waterReservoirState,
-                               float nowTimeMillis) {
-  // 
-  // Process Display
-  //
-  displayState->display1 = updateDisplayLine(currentGaggiaState.display1, 
-                                             1, 
-                                             heaterState, 
-                                             scaleState, 
-                                             displayState->display1);
-
-  displayState->display2 = updateDisplayLine(currentGaggiaState.display2, 
-                                             2, 
-                                             heaterState, 
-                                             scaleState, 
-                                             displayState->display2);
-
-  displayState->display3 = updateDisplayLine(currentGaggiaState.display3, 
-                                             3, 
-                                             heaterState, 
-                                             scaleState,  
-                                             displayState->display3);
-
-  displayState->display4 = updateDisplayLine(currentGaggiaState.display4, 
-                                             4, 
-                                             heaterState, 
-                                             scaleState, 
-                                             displayState->display4);
-
-
-
-  // Process Heaters
-  //
-  // Even though a heater may be 'on' during this state, the control system
-  // for the heater turns it off and on intermittently in an attempt to regulate
-  // the temperature around the target temp.
-  if (currentGaggiaState.brewHeaterOn) {
-    readHeaterState(MAX6675_CS_brew, MAX6675_SO_brew, MAX6675_SCK, heaterState);  
-
-    if (shouldTurnOnHeater(TARGET_BREW_TEMP, nowTimeMillis, heaterState)) {
-      turnHeaterOn();
-    } else {
-      turnHeaterOff();
-    } 
-  }
-  if (currentGaggiaState.steamHeaterOn) {
-    readHeaterState(MAX6675_CS_steam, MAX6675_SO_steam, MAX6675_SCK, heaterState); 
-
-    if (shouldTurnOnHeater(TARGET_STEAM_TEMP, nowTimeMillis, heaterState)) {
-      turnHeaterOn();
-    } else {
-      turnHeaterOff();
-    } 
-  }
-  if (currentGaggiaState.preInfusionHeaterOn) {
-    readHeaterState(MAX6675_CS_brew, MAX6675_SO_brew, MAX6675_SCK, heaterState);  
-
-    if (shouldTurnOnHeater(TARGET_PREINFUSION_TEMP, nowTimeMillis, heaterState)) {
-      turnHeaterOn();
-    } else {
-      turnHeaterOff();
-    } 
-  }
-  if (!currentGaggiaState.brewHeaterOn && !currentGaggiaState.steamHeaterOn && !currentGaggiaState.preInfusionHeaterOn) {
-      turnHeaterOff();
-  }
-
-  // Process Dispense Water 
-  if (currentGaggiaState.dispenseWater) {
-    startDispensingWater();
-
-    if (doesWaterReservoirNeedFilling(WATER_RESERVOIR_SENSOR, waterReservoirState)) {
-      waterReservoirState->isSolenoidOn = true;
-      turnWaterReservoirSolenoidOn();
-    } else {
-      waterReservoirState->isSolenoidOn = false;
-      turnWaterReservoirSolenoidOff();
-    }
-
-  } else {
-    // if we are manually dispensing, we don't want to stop
-    if (!waterReservoirState->manualOverride) {
-      stopDispensingWater();
-      turnWaterReservoirSolenoidOff();
-    }
-
-    // if we are manually filling, we don't want to stop
-    if (!waterReservoirState->manualOverride) {
-      turnWaterReservoirSolenoidOff();
-    }
-  }
-
-  if (currentGaggiaState.cooling) {
-    readHeaterState(MAX6675_CS_brew, MAX6675_SO_brew, MAX6675_SCK, heaterState);  
-  }
-
-  if (currentGaggiaState.measureTemp) {
-    readHeaterState(MAX6675_CS_brew, MAX6675_SO_brew, MAX6675_SCK, heaterState);  
-  }
-}
-
-boolean doesWaterReservoirNeedFilling(int ANALOG_INPUT_PIN, WaterReservoirState *waterReservoirState) {
   int measuredWaterLevel = analogRead(ANALOG_INPUT_PIN);
   
   waterReservoirState->measuredWaterLevel = measuredWaterLevel;
@@ -1286,6 +1274,10 @@ boolean doesWaterReservoirNeedFilling(int ANALOG_INPUT_PIN, WaterReservoirState 
     if (measuredWaterLevel < LOW_WATER_RESEVOIR_LIMIT) {
       return true;
     }
+  }
+
+  if (digitalRead(CHIP_ENABLE_PIN) == HIGH) {
+    digitalWrite(CHIP_ENABLE_PIN, LOW);
   }
 
   return false;
@@ -1388,6 +1380,7 @@ void handleZeroCrossingInterrupt() {
   // then turn it on for the remainder of the cycle  
 
   digitalWrite(DISPENSE_POT, LOW);
+  delayMicroseconds(10);
   
   // We assume 60Hz cycle (1000ms/60 = 16ms per cycle.)
   // If we wait 8ms before turning on, the next cycle will happen immediately
@@ -1395,9 +1388,12 @@ void handleZeroCrossingInterrupt() {
   // If we wait 4ms before turning on, that's half the cycle.. so that's 50%
   // If we wait 0ms before turning on, that's 100% duty cycle.
 
-  int onIntervalMs = 8 - round((8*(dispenseFlowRateState.dutyCycle/100.0)));
+  int offIntervalMs = 8 - round((8*(dispenseFlowRateState.dutyCycle/100.0)));
+
+  // There needs to be a minimal delay between LOW and HIGH for the TRIAC
+  offIntervalMs = max(offIntervalMs, 1);
 
   // 'FromISR' is critical otherwise, the timer hangs the ISR.
-  timer.changePeriodFromISR(onIntervalMs);
+  timer.changePeriodFromISR(offIntervalMs);
   timer.startFromISR();  
 }
