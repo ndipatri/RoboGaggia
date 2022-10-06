@@ -29,6 +29,15 @@ In an attempt to mitigate the above Gaggia short comings, I've implemented the f
 
 This project involves modifying a perfectly safe commercial espresso machine.  These modifications absolutely make your espresso machine less safe.  It involves both water and electricity.  Please proceed at your own risk.  This is a dangerous modification!
 
+These instructions assume you are proficient in handling both DC and AC electrical components.  If you are not, this is not the project for you, sorry!
+
+
+# Parts List
+
+I will explain in detail how each of these are used. Here is a list of all major components needed for this modification:
+
+
+
 
 
   The biggest annoyance is the single-boiler.  You have
