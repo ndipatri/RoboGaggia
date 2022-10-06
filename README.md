@@ -1,6 +1,24 @@
-# roboGaggia
+# roboGaggia - TL;DR
 
-This project is a hardware hack of the amazing [Gaggia Pro](https://www.wholelattelove.com/products/gaggia-classic-pro-espresso-machine-in-cherry-red?gclid=Cj0KCQjw-fmZBhDtARIsAH6H8qj_Ss3SJIp0CvJAVQRKj4xInX0PIXOTgVx_EXvSSFgazGyuVBLtaYUaAsB3EALw_wcB)
+This project is a hardware-hack of the amazing [Gaggia Pro](https://www.wholelattelove.com/products/gaggia-classic-pro-espresso-machine-in-cherry-red?gclid=Cj0KCQjw-fmZBhDtARIsAH6H8qj_Ss3SJIp0CvJAVQRKj4xInX0PIXOTgVx_EXvSSFgazGyuVBLtaYUaAsB3EALw_wcB)
+
+Although it's an amazing machine, the Gaggia requires a number of manual steps to get you from beans to a hot latte:
+
+1. You have to periodically pour water into the top of the Gaggia to refill the water reservoir.  This can be an inconvenience if your Gaggia is under a kitchen cabinet.
+2. After you've loaded the portafilter with coffee grounds and put a cup under the group head, you have to wait until the brew heater achieves the correct temperature before you can click the 'brew' button.
+3. While brewing, you need to remember the weight of your coffee grounds so you know how much to brew. You need to either weigh your resulting coffee using an external scale or approximate the output by counting the seconds of your extraction.
+4. After brewing, you then have to manually switch the 'steam' button and wait for the heater to achieve the steam temperature.
+5. After steaming, if you want to brew again, you have to go through the process of extracting water to cool off the heater - unfortunately, the heater is always on with the stock Gaggia, so cooling off the heeateater takes a while.
+
+Other things to note about the stock Gaggia Pro:
+
+1. The thermostats which measure the brew and steam temperatures employ a simplistic 'Schmitt Trigger' control algorithm which means the target temperature can vary quite a bit.
+2.  
+
+
+
+  The biggest annoyance is the single-boiler.  You have
+
 
 ## Welcome to your project!
 
