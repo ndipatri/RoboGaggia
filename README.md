@@ -1,5 +1,4 @@
-
-
+![Robo Gaggia](media/gaggia1.jpg)
 
 
 
