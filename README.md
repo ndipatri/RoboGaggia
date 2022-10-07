@@ -38,7 +38,9 @@ This project involves modifying a perfectly safe commercial espresso machine.  T
 
 These instructions assume you are proficient in handling both DC and AC electrical components.  If you are not, this is not the project for you, sorry!
 
-Ok, sorry, that's a rather depressing Disclaimer :-(
+Also, I know absolutely NOTHING about proper coffee.  It's quite possible evetything I'm doing here is wrong, so don't yell at me.  Anything I do know, I've learned by watching the awesome coffee videos from [James Hoffman](https://www.youtube.com/channel/UCMb0O2CdPBNi-QqPk5T3gsQ)
+
+
 
 
 # Parts List
