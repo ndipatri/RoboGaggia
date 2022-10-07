@@ -109,5 +109,18 @@ I would start by checking out this repo and building it using the [Visual Studio
 Please be aware that strange things can happen when using the [Particle Console](https://console.particle.io/devices) to control Robo Gaggia.  The exposed functions through the web interface are meant for testing purposes only. For example, I expose the 'startDispensing()' method so you can click the button in console and make the Gaga dispense water.  But this water will be cold and the 'water level sensor' won't be used so it's possible to run the Gaggia dry and possibly damage the water pump.
 
 
+# Wiring Changes for the Gaggia
+
+Ok, so the Gaggia wiring is actually quite brilliant. 
+
+For an AMAZING explanation of how the Gaggia works, from an electrical perspective, please [read this explanation](https://comoricoffee.com/en/gaggia-classic-pro-circuit-diagram-en/) from @comoricoffee.
+
+The biggest change I made is I removed some stuff :-). I removed the 'Brew' and 'Steam' switches and I removed their associated 'lamps'.  None of these are necessary with Rob Gaggia! As part of the simplified wiring, I removed the safety interconnect which would disable the water pump if the steam temperature is enabled.  This is no longer needed as this safety interconnect is done via software now.  The software will NOT brew (turn on the water pump) if the steam temperature has been achieved.
+
+Here is a crude diagram of the changes I made (see where I added the two [High Power Solid State Relay(SSR)](https://www.sparkfun.com/products/13015) and the [AC Dimmer Controller](https://www.amazon.com/gp/product/B072K9P7KH/ref=ppx_yo_dt_b_asin_title_o03_s00?ie=UTF8&psc=1)
+
+![Basic Wiring Changes](media/gaggiaWiring.jpg)
+
+
 
 
