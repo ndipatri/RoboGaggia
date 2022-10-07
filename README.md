@@ -59,8 +59,10 @@ I will explain in detail how each of these are used. Here is a list of all major
 15. [Thermal Fuse](https://www.amazon.com/gp/product/B07K35GYVJ/ref=ppx_yo_dt_b_asin_title_o04_s00?ie=UTF8&psc=1) The Gaggia is protected by a thermal fuse.  If the termperature inside the Gaggia exceeds 184C, this fuse blows and the Gaggia will stop working.  It's good to have an extra one of these :-) [This video](https://www.youtube.com/watch?v=qDc9i3p_1Xo&ab_channel=SebastianDehne) by [Sebastian Dehne](https://www.youtube.com/channel/UCV03WlzvGM_9urZA-7VE8Ww) will describe the technique you can use to replace a thermal fuse.
 16. [Water Level Sensor](https://www.amazon.com/gp/product/B07THDH7Y4/ref=ppx_yo_dt_b_asin_title_o09_s00?ie=UTF8&psc=1) This is used to measure the water level in the water reservoir. The associated 3D STL files include a [Water Sensor Body](/3DPrints/waterSensor.stl), the [Water Sensor Lid](/3DPrints/waterSensorLid.stl) which seals the water sensor in the body, and the [Water Sensor Clip](/3DPrints/waterSensorClip.stl) which you can glue to the sensor body and then clip the whole sensor to the interior of the water reservoir. The software will ensure that the water never goes well below the sensor or above the sensor up to the 3D printed body.  If the water goes above the 3D printed body it could burn out the sensor (the purchase comes with many extra sensors) 
 
+# Other modifications and purchases
 
-These are other modifications I've made to my Gaggia which I've found useful:
+These are other modifications & purchases I've made to my Gaggia which I've found useful:
+
 1. [Bottomless Portafilter](https://www.amazon.com/gp/product/B09G56HMTG/ref=ppx_yo_dt_b_asin_title_o08_s00?ie=UTF8&psc=1) This is useful for observing how espresso is being extracted from your 'puck'
 2. [High Quality Portafilter Basket](https://www.amazon.com/gp/product/B07VK1T79W/ref=ppx_yo_dt_b_asin_title_o07_s00?ie=UTF8&psc=1) 
 3. [Water Filter](https://www.amazon.com/gp/product/B00CX3SYUK/ref=ppx_yo_dt_b_asin_title_o06_s00?ie=UTF8&psc=1) These are designed to be placed inside of your water reservoir.
@@ -76,6 +78,7 @@ Ok, now that you have all the parts, I will tell you how to put them together! S
 
 ![Schematic](media/schematic.png)
 
+## Notes on the Schematic
 
 
 
