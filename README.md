@@ -1,6 +1,9 @@
 ![Robo Gaggia](media/gaggia1.jpg)
 
-[See RoboGaggia In Action!](https://www.youtube.com/watch?v=cBopyQF-BVA&ab_channel=nickdipatri)
+# Rob Gaggia in Action!
+[Video of RoboGaggia!](https://www.youtube.com/watch?v=cBopyQF-BVA&ab_channel=nickdipatri)
+
+[GIF of RoboGaggia extracting](/media/meCoffee.gif)
 
 # roboGaggia - TL;DR
 
@@ -78,13 +81,30 @@ Ok, now that you have all the parts, I will tell you how to put them together! S
 
 ![Schematic](media/schematic.png)
 
+
+# Logic Flow
+
+This diagram isn't 100% accurate as I've made slight modifications, but it gives you the general idea of the user workflow using Robo Gaggia.
+
+
+![State Diagram](media/stateDiagram.png)
+
+
 ## Notes on the Schematic
 
-- Don't mind my little 'e b c' bug diagram at the bottom left.  I've been an electric engineering for decades and I still forget :-)
-- I used a [ProtoBoard](https://www.amazon.com/ElectroCookie-Prototype-Snappable-Electronics-Gold-Plated/dp/B081R45KN8/ref=sr_1_5?crid=3A45X18TUKLGH&keywords=protoboard&qid=1665161488&qu=eyJxc2MiOiI2LjExIiwicXNhIjoiNS43NiIsInFzcCI6IjUuNDMifQ%3D%3D&sprefix=protoboard%2Caps%2C91&sr=8-5) like this to build this circuit.  Then I printed an enclosure for it and attached it to the back of the Gaggia so it's out of the way.
+- Don't mind my little 'e b c' bug diagram at the bottom left.  I've been an electric engineer for decades and I still forget :-)
+- I used a [ProtoBoard](https://www.amazon.com/ElectroCookie-Prototype-Snappable-Electronics-Gold-Plated/dp/B081R45KN8/ref=sr_1_5?crid=3A45X18TUKLGH&keywords=protoboard&qid=1665161488&qu=eyJxc2MiOiI2LjExIiwicXNhIjoiNS43NiIsInFzcCI6IjUuNDMifQ%3D%3D&sprefix=protoboard%2Caps%2C91&sr=8-5) to build this circuit.  Then I printed an enclosure for it and attached it to the back of the Gaggia so it's out of the way.
 - I used [Wire Wrap] and zip ties to protect all of the wires running between the various components.
 - The inside of the Gaggia gets very hot, so any wires that are inside of the Gaggia should have very good insulation or protection.
 
 # The Particle Argon Microcontroller
+
+The Particle Argon is a small microcontroller that combines WiFi and the Arduino platform. For this particular application, once the hardware modifications are made to Gaggia and it's assembled back on the kitchen counter, the WiFi feature is a great way to send updated software to the Gaggia. For example, depending on where exactly you install your water level sensor, you might need to adjust the 'minimum' and 'maximum' water level parameters in the firmware.
+
+I would start by checking out this repo and building it using the [Visual Studio Code](https://code.visualstudio.com/) IDE with the [Particle Workbench](https://docs.particle.io/getting-started/developer-tools/workbench/) extension installed. I've included the [roboGaggia.ino](src/roboGaggia.ino) source file which can be used to program the Argon.  The accompanying [lib directory](/lib) in this repo contains all libraries you need to compile.
+
+Please be aware that strange things can happen when using the [Particle Console](https://console.particle.io/devices) to control Robo Gaggia.  The exposed functions through the web interface are meant for testing purposes only. For example, I expose the 'startDispensing()' method so you can click the button in console and make the Gaga dispense water.  But this water will be cold and the 'water level sensor' won't be used so it's possible to run the Gaggia dry and possibly damage the water pump.
+
+
 
 
