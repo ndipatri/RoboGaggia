@@ -115,7 +115,7 @@ Ok, so the existing Gaggia wiring is actually quite brilliant.
 
 For an AMAZING explanation of how the Gaggia works, from an electrical perspective, please [read this explanation](https://comoricoffee.com/en/gaggia-classic-pro-circuit-diagram-en/) from @comoricoffee. 
 
-The biggest change I made is I removed some stuff :-). I removed the 'Brew' and 'Steam' switches and I removed their associated 'lamps'.  None of these are necessary with Rob Gaggia! As part of the simplified wiring, I removed the safety interconnect which disablea the water pump if the steam temperature is enabled. This is an important safety feature, but it is now implemented in software.  The software will NOT brew (turn on the water pump) if the steam temperature has been achieved.
+The biggest change I made is I removed some stuff :-). I removed the 'Brew' and 'Steam' switches and I removed their associated 'lamps'.  None of these are necessary with Rob Gaggia! As part of the simplified wiring, I removed the safety interconnect which disabled the water pump if the steam temperature is enabled. This is an important safety feature, but it is now implemented in software.  The software will NOT brew (turn on the water pump) if the steam temperature has been achieved.
 
 Here is a crude diagram of the changes I made (see where I added the two [High Power Solid State Relay(SSR)](https://www.sparkfun.com/products/13015) and the [AC Dimmer Controller](https://www.amazon.com/gp/product/B072K9P7KH/ref=ppx_yo_dt_b_asin_title_o03_s00?ie=UTF8&psc=1)
 
