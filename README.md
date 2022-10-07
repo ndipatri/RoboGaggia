@@ -57,7 +57,7 @@ I will explain in detail how each of these are used. Here is a list of all major
 13. [K-Type Thermocouple](https://www.amazon.com/gp/product/B07M9CB99F/ref=ppx_yo_dt_b_asin_title_o02_s00?ie=UTF8&psc=1) (2) and [Thermocouple Controller](https://www.amazon.com/gp/product/B09XVBJRV6/ref=ppx_yo_dt_b_asin_title_o03_s00?ie=UTF8&psc=1) (2) You will be replacing the Gaggia's stock thermostats with these thermocouples.  They are M4 type screws.  [Robert Kujawa](https://www.youtube.com/channel/UCV19OYaRT4ZB_Gn9uQaVgCw) has a [fine video](https://www.youtube.com/watch?v=ZAtsuS6B6xg&t=1218s&ab_channel=robertkujawa) on how to swap out these thermostats.  Ignore most of the video as it describes how to install a commercially available PID, just uset the video to learn how to access those thermostats.  The Argon Microcontroller and software that we will be using will implement both brew and steam PIDs.
 14. [AC Dimmer Controller](https://www.amazon.com/gp/product/B072K9P7KH/ref=ppx_yo_dt_b_asin_title_o03_s00?ie=UTF8&psc=1) This is used to adjust the power delivered to the water pump in order to affect flow control.  At this time, only two different power settings are used. One for pre-infusion and one for brewing. 
 15. [Thermal Fuse](https://www.amazon.com/gp/product/B07K35GYVJ/ref=ppx_yo_dt_b_asin_title_o04_s00?ie=UTF8&psc=1) The Gaggia is protected by a thermal fuse.  If the termperature inside the Gaggia exceeds 184C, this fuse blows and the Gaggia will stop working.  It's good to have an extra one of these :-) [This video](https://www.youtube.com/watch?v=qDc9i3p_1Xo&ab_channel=SebastianDehne) by [Sebastian Dehne](https://www.youtube.com/channel/UCV03WlzvGM_9urZA-7VE8Ww) will describe the technique you can use to replace a thermal fuse.
-16. [Water Level Sensor](https://www.amazon.com/gp/product/B07THDH7Y4/ref=ppx_yo_dt_b_asin_title_o09_s00?ie=UTF8&psc=1) This is used to measure the water level in the water reservoir. The associated 3D STL files include a [Water Sensor Body](/3DPrints/waterSensor.stl), the [Water Sensor Lid](/3DPrints/waterSensorLid.stl) which seals the water sensor in the body, and the [Water Sensor Clip](/3DPrints/waterSensorClip.stl) which you can glue to the sensor body and then clip the whole sensor to the interior of the water reservoir.
+16. [Water Level Sensor](https://www.amazon.com/gp/product/B07THDH7Y4/ref=ppx_yo_dt_b_asin_title_o09_s00?ie=UTF8&psc=1) This is used to measure the water level in the water reservoir. The associated 3D STL files include a [Water Sensor Body](/3DPrints/waterSensor.stl), the [Water Sensor Lid](/3DPrints/waterSensorLid.stl) which seals the water sensor in the body, and the [Water Sensor Clip](/3DPrints/waterSensorClip.stl) which you can glue to the sensor body and then clip the whole sensor to the interior of the water reservoir. The software will ensure that the water never goes well below the sensor or above the sensor up to the 3D printed body.  If the water goes above the 3D printed body it could burn out the sensor (the purchase comes with many extra sensors) 
 
 
 These are other modifications I've made to my Gaggia which I've found useful:
@@ -72,6 +72,10 @@ These are other modifications I've made to my Gaggia which I've found useful:
 
 # Schematic Diagram
 
-Ok, now that you have all the parts, I will tell you how to put them together! Sorry this isn't going to be a highly detailed guide.  Honestly, the less detailed it is, the more assured I am that somebody who might be inexperienced with these types of modifications would maybe choose a different project at first and THEN come back to this. (please come back, eventually).
+Ok, now that you have all the parts, I will tell you how to put them together! Sorry this isn't going to be a highly detailed guide.  Everywhere there's a line, that means you use wire :-)
+
+![Schematic](media/schematic.png)
+
+
 
 
