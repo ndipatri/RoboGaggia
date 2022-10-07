@@ -82,13 +82,6 @@ Ok, now that you have all the parts, I will tell you how to put them together! S
 ![Schematic](media/schematic.png)
 
 
-# Logic Flow
-
-This diagram isn't 100% accurate as I've made slight modifications, but it gives you the general idea of the user workflow using Robo Gaggia.
-
-
-![State Diagram](media/stateDiagram.png)
-
 
 ## Notes on the Schematic
 
@@ -96,6 +89,14 @@ This diagram isn't 100% accurate as I've made slight modifications, but it gives
 - I used a [ProtoBoard](https://www.amazon.com/ElectroCookie-Prototype-Snappable-Electronics-Gold-Plated/dp/B081R45KN8/ref=sr_1_5?crid=3A45X18TUKLGH&keywords=protoboard&qid=1665161488&qu=eyJxc2MiOiI2LjExIiwicXNhIjoiNS43NiIsInFzcCI6IjUuNDMifQ%3D%3D&sprefix=protoboard%2Caps%2C91&sr=8-5) to build this circuit.  Then I printed an enclosure for it and attached it to the back of the Gaggia so it's out of the way.
 - I used [Wire Wrap] and zip ties to protect all of the wires running between the various components.
 - The inside of the Gaggia gets very hot, so any wires that are inside of the Gaggia should have very good insulation or protection.
+
+
+# Logic Flow
+
+This diagram isn't 100% accurate as I've made slight modifications, but it gives you the general idea of the user workflow using Robo Gaggia.
+
+
+![State Diagram](media/stateDiagram.png)
 
 # The Particle Argon Microcontroller
 
