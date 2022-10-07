@@ -1,6 +1,9 @@
 ![Robo Gaggia](media/gaggia1.jpg)
 
-[See RoboGaggia In Action!](https://www.youtube.com/watch?v=cBopyQF-BVA&ab_channel=nickdipatri)
+# Rob Gaggia in Action!
+[Video of RoboGaggia!](https://www.youtube.com/watch?v=cBopyQF-BVA&ab_channel=nickdipatri)
+
+[GIF of RoboGaggia extracting](/media/meCoffee.gif)
 
 # roboGaggia - TL;DR
 
