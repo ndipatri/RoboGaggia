@@ -78,6 +78,16 @@ Ok, now that you have all the parts, I will tell you how to put them together! S
 
 ![Schematic](media/schematic.png)
 
+
+# Logic Flow
+
+This diagram is 100% accurate as I've made slight modifications, but it gives you the general idea of the user flow through Robo Gaggia
+
+
+
+![State Diagram](media/stateDiagram.png)
+
+
 ## Notes on the Schematic
 
 - Don't mind my little 'e b c' bug diagram at the bottom left.  I've been an electric engineering for decades and I still forget :-)
@@ -86,5 +96,10 @@ Ok, now that you have all the parts, I will tell you how to put them together! S
 - The inside of the Gaggia gets very hot, so any wires that are inside of the Gaggia should have very good insulation or protection.
 
 # The Particle Argon Microcontroller
+
+The Particle Argon is a small microcontroller that combines WiFi and the Arduino platform. For this particular application, once the hardware modifications are made to Gaggia and it's assembled back on the kitchen counter, the WiFi feature is a great way to send updated software to the Gaggia. For example, depending on where exactly you install your water level sensor, you might need to adjust the 'minimum' and 'maximum' water level parameters in the firmware.
+
+
+
 
 
