@@ -17,7 +17,7 @@ Although it's an amazing machine, the Gaggia requires a number of manual steps t
 4. After brewing, you then have to manually switch the 'steam' button and wait for the heater to achieve the steam temperature.
 5. After steaming, if you want to brew again, you have to go through the process of extracting water to cool off the heater - the heater is always on with the stock Gaggia, so cooling off the heateater takes a while.
 
-## It would be nice if I could load the Gaggia with fresh ground coffee, push a button, then walk away to attend to other things in my morning routine. When I return, I want my shot done and the machine ready to steam. These modifications do this.
+## The above five steps are rather tedious and time consuming. It would be nice if I could load the Gaggia with fresh ground coffee, push a button, then walk away to attend to other things in my morning routine. When I return, I want my shot done and the machine ready to steam. These modifications do this.
 
 Other things to note about the stock Gaggia Pro:
 
