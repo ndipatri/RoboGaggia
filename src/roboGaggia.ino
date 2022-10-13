@@ -28,6 +28,8 @@ Copyright (c) 2016 SparkFun Electronics
 #include <SerLCD.h>
 #include <Qwiic_Scale_NAU7802_Arduino_Library.h>
 #include <SparkFun_Qwiic_Button.h>
+#include <Adafruit_ADS1X15.h>
+#include <pid.h>
 
 SerialLogHandler logHandler;
 SYSTEM_THREAD(ENABLED);
@@ -68,7 +70,6 @@ SYSTEM_THREAD(ENABLED);
 
 #define HEATER D8
 
-
 // Output - For dispensing water
 // IT IS EXPECTED FOR THIS TO ALSO BE TIED TO THE WATER_SENSOR
 // POWER PIN... AS WE EXPECT TO TAKE WATER LEVEL MEASUREMENTS WHILE
@@ -86,16 +87,10 @@ SYSTEM_THREAD(ENABLED);
 // Constants
 //
 
-// These are constants of proportionality for the three PID 
-// components: current (p), past (i), and future (d)
-int kp = 9.1;   
-int ki = 0.3;   
-int kd = 1.8;
-
-float TARGET_BREW_TEMP = 103; // should be 65
-float TOO_HOT_TO_BREW_TEMP = 110; // should be 80
-float TARGET_STEAM_TEMP = 140; // should be 80
-float TARGET_BEAN_WEIGHT = 22; // grams
+double TARGET_BREW_TEMP = 103; // should be 65
+double TOO_HOT_TO_BREW_TEMP = 110; // should be 80
+double TARGET_STEAM_TEMP = 140; // should be 80
+double TARGET_BEAN_WEIGHT = 22; // grams
 
 // How long the button has to be pressed before it is considered
 // a long press
@@ -139,13 +134,26 @@ int DISPENSE_FLOW_RATE_TOTAL_CYCES = 20;
 // State
 //
 
-struct DispenseFlowRateState {
+struct WaterPumpState {
 
+  double targetPressure = 100; 
+
+  // current pressure
+  double measuredPressure;
+
+  // represents how we are currently driving the pump
   // How much of the time we're dispensing out of our total
   // coherence time.. in percentage
-  volatile int dutyCycle = 100; 
+  double pumpDutyCycle = -1;
 
-} dispenseFlowRateState;
+  // The control system for determining when to turn on
+  // the pump in order to achieve target pressure
+  PID *waterPumpPID;
+
+} waterPumpState;
+// Measures the current pressure in the water pump system
+void readPumpState(WaterPumpState *waterPumpState);
+Adafruit_ADS1015 ads1015;  // the adc for the pressure sensor
 
 
 struct WaterReservoirState {
@@ -186,22 +194,22 @@ struct HeaterState {
   boolean thermocoupleError = false;  
 
   // current temp
+  // this is  updated as we read thermocouple sensor
   double measuredTemp;
-
-  // The difference between measured temperature and set temperature
-  float previousTempError = 0;
-
-  // When last measurement was taken
-  // Used for heater duration calculation
-  float previousSampleTime = millis();
+  
+  // this is updated by the PID controller
+  double heaterDurationMillis;
 
   // Used to track ongoing heat cycles...
   float heaterStarTime = -1;
-  float heaterDurationMillis = -1;
+
+  // The control system for determining when to turn on
+  // the heater in order to achieve target temp
+  PID *heaterPID;
 
 } heaterState;
 void readHeaterState(int CHIP_SELECT_PIN, int SERIAL_OUT_PIN, int SERIAL_CLOCK_PIN, HeaterState *heaterState);
-boolean shouldTurnOnHeater(float targetTemp, float nowTimeMillis, HeaterState *heaterState);
+boolean shouldTurnOnHeater(float nowTimeMillis, HeaterState *heaterState);
 
 
 // Based on the physical button, we derive one of three
@@ -235,6 +243,7 @@ String updateDisplayLine(char *message,
                         HeaterState *heaterState,
                         ScaleState *scaleState,
                         String previousLineDisplayed);
+SerLCD display; // Initialize the library with default I2C address 0x72
 
 
 enum GaggiaStateEnum {
@@ -286,8 +295,6 @@ coolingState,
 coolDoneState,
 currentGaggiaState;
 
-SerLCD display; // Initialize the library with default I2C address 0x72
-
 boolean isInTestMode = false;
 
 // Using all current state, we derive the next state of the system
@@ -295,7 +302,8 @@ GaggiaState getNextGaggiaState(GaggiaState currentGaggiaState,
                                HeaterState *heaterState,
                                ScaleState *scaleState,
                                UserInputState *userInputState,
-                               WaterReservoirState *waterReservoirState);
+                               WaterReservoirState *waterReservoirState,
+                               WaterPumpState *waterPumpState);
 
 // Once we know the state, we affect appropriate change in our
 // system attributes (e.g. temp, display)
@@ -305,6 +313,7 @@ void processCurrentGaggiaState(GaggiaState currentGaggiaState,
                                ScaleState *scaleState,
                                DisplayState *displayState,
                                WaterReservoirState *waterReservoirState,
+                               WaterPumpState *waterPumpState,
                                float nowTimeMillis);
 // Things we do when we leave a state
 void processOutgoingGaggiaState(GaggiaState currentGaggiaState,
@@ -313,6 +322,7 @@ void processOutgoingGaggiaState(GaggiaState currentGaggiaState,
                                 ScaleState *scaleState,
                                 DisplayState *displayState,
                                 WaterReservoirState *waterReservoirState,
+                                WaterPumpState *waterPumpState,
                                 float nowTimeMillis);
 // Things we do when we enter a state
 void processIncomingGaggiaState(GaggiaState currentGaggiaState,
@@ -321,6 +331,7 @@ void processIncomingGaggiaState(GaggiaState currentGaggiaState,
                                 ScaleState *scaleState,
                                 DisplayState *displayState,
                                 WaterReservoirState *waterReservoirState,
+                                WaterPumpState *waterPumpState,
                                 float nowTimeMillis);
 GaggiaState returnToHelloState(ScaleState *scaleState);
 
@@ -329,6 +340,10 @@ void setup() {
   
   // I2C Setup
   Wire.begin();
+
+  ads1015.begin();  // Initialize ads1015 at the default address 0x48
+  // use hte following if x48 is already taken
+  //ads1115.begin(0x49);  // Initialize ads1115 at address 0x49
 
   // LCD Setup
   display.begin(Wire); //Set up the LCD for I2C communication
@@ -375,7 +390,7 @@ void setup() {
   Particle.variable("isDispensingWater",  currentGaggiaState.dispenseWater);
   Particle.variable("isFillingWater",  waterReservoirState.isSolenoidOn);
   Particle.variable("thermocoupleError",  heaterState.thermocoupleError);
-  Particle.variable("dispenseFlowRateDutyCycle", (int*)&dispenseFlowRateState.dutyCycle, INT);
+  Particle.variable("dispenseFlowRateDutyCycle", (int*)&waterPumpState.targetPressure, INT);
   Particle.variable("isInTestMode",  isInTestMode);
   Particle.variable("waterLevel",  readWaterLevel);
 
@@ -399,7 +414,7 @@ void setup() {
   
   // we don't want to heat here in case the unit was turned on and
   // person walked away for 10 hours
-  helloState.brewHeaterOn = false; 
+  helloState.brewHeaterOn = true; 
 
   // we tare here so the weight of the scale itself isn't shown
   // when we are measuring things...
@@ -515,6 +530,7 @@ int setScaleOffset(String factorString) {
   return 0;
 }
 
+boolean first = true;
 void loop() {
   
   float nowTimeMillis = millis();  
@@ -532,9 +548,10 @@ void loop() {
                                                    &heaterState, 
                                                    &scaleState, 
                                                    &userInputState,
-                                                   &waterReservoirState);
+                                                   &waterReservoirState,
+                                                   &waterPumpState);
 
-  if (nextGaggiaState.state != currentGaggiaState.state) {
+  if (first || nextGaggiaState.state != currentGaggiaState.state) {
 
     // Perform actions given current Gaggia state and input ...
     // This step does also mutate current state
@@ -547,6 +564,7 @@ void loop() {
                                &scaleState,
                                &displayState,
                                &waterReservoirState,
+                               &waterPumpState,
                                nowTimeMillis);
   
       // Things we do when we enter a state
@@ -556,6 +574,7 @@ void loop() {
                                &scaleState,
                                &displayState,
                                &waterReservoirState,
+                               &waterPumpState,
                                nowTimeMillis);
   
     nextGaggiaState.stateEnterTimeMillis = millis();
@@ -569,6 +588,7 @@ void loop() {
                             &scaleState,
                             &displayState,
                             &waterReservoirState,
+                            &waterPumpState,
                             nowTimeMillis);
 
   if (isInTestMode) {
@@ -576,6 +596,8 @@ void loop() {
   } else {
     delay(50);
   }
+
+  first = false;
 }
 
 
@@ -585,7 +607,8 @@ GaggiaState getNextGaggiaState(GaggiaState currentGaggiaState,
                                HeaterState *heaterState,
                                ScaleState *scaleState,
                                UserInputState *userInputState,
-                               WaterReservoirState *waterReservoirState ) {
+                               WaterReservoirState *waterReservoirState,
+                               WaterPumpState *waterPumpState) {
 
   switch (currentGaggiaState.state) {
 
@@ -753,20 +776,58 @@ void processIncomingGaggiaState(GaggiaState currentGaggiaState,
                                 ScaleState *scaleState,
                                 DisplayState *displayState,
                                 WaterReservoirState *waterReservoirState,
+                                WaterPumpState *waterPumpState,
                                 float nowTimeMillis) {
 
   if (nextGaggiaState.state == PREINFUSION) {
     // at the moment, this is teh lowest value that produces
     // appreciable volume.. good for preinfusion
-    dispenseFlowRateState.dutyCycle = 40;
+    waterPumpState->targetPressure = 40;
   }
 
   if (nextGaggiaState.state == BREWING) {
-    dispenseFlowRateState.dutyCycle = 100;
+    waterPumpState->targetPressure = 100;
   }
 
   if (nextGaggiaState.state == COOLING) {
-    dispenseFlowRateState.dutyCycle = 100;
+    waterPumpState->targetPressure = 100;
+  }
+
+  if (nextGaggiaState.dispenseWater) {
+    PID waterPumpPID(&waterPumpState->measuredPressure, 
+                     &waterPumpState->pumpDutyCycle, 
+                     &waterPumpState->targetPressure, 
+                     9.1, 0.3, 1.8, PID::DIRECT);
+
+    *waterPumpState->waterPumpPID = waterPumpPID;
+
+    waterPumpPID.SetOutputLimits(0, 100);
+    waterPumpPID.SetMode(PID::AUTOMATIC);
+  
+  }
+
+  if (nextGaggiaState.brewHeaterOn) {
+    PID *thisHeaterPID = new PID(&heaterState->measuredTemp, 
+                                 &heaterState->heaterDurationMillis, 
+                                 &TARGET_BREW_TEMP, 
+                                 9.1, 0.3, 1.8, PID::DIRECT);
+    thisHeaterPID->SetOutputLimits(0, 250);
+    thisHeaterPID->SetMode(PID::AUTOMATIC);
+
+    delete heaterState->heaterPID;
+    heaterState->heaterPID = thisHeaterPID;
+  }
+
+  if (nextGaggiaState.steamHeaterOn) {
+    PID heaterPID(&heaterState->measuredTemp, 
+                  &heaterState->heaterDurationMillis, 
+                  &TARGET_STEAM_TEMP, 
+                  9.1, 0.3, 1.8, PID::DIRECT);
+
+    *heaterState->heaterPID = heaterPID;
+
+    heaterPID.SetOutputLimits(0, 250);
+    heaterPID.SetMode(PID::AUTOMATIC);
   }
 }
 
@@ -777,6 +838,7 @@ void processOutgoingGaggiaState(GaggiaState currentGaggiaState,
                                 ScaleState *scaleState,
                                 DisplayState *displayState,
                                 WaterReservoirState *waterReservoirState,
+                                WaterPumpState *waterPumpState,
                                 float nowTimeMillis) {
 
   // Process Tare Scale
@@ -813,6 +875,7 @@ void processCurrentGaggiaState(GaggiaState currentGaggiaState,
                                ScaleState *scaleState,
                                DisplayState *displayState,
                                WaterReservoirState *waterReservoirState,
+                               WaterPumpState *waterPumpState,
                                float nowTimeMillis) {
   // 
   // Process Display
@@ -851,7 +914,7 @@ void processCurrentGaggiaState(GaggiaState currentGaggiaState,
   if (currentGaggiaState.brewHeaterOn) {
     readHeaterState(MAX6675_CS_brew, MAX6675_SO_brew, MAX6675_SCK, heaterState);  
 
-    if (shouldTurnOnHeater(TARGET_BREW_TEMP, nowTimeMillis, heaterState)) {
+    if (shouldTurnOnHeater(nowTimeMillis, heaterState)) {
       turnHeaterOn();
     } else {
       turnHeaterOff();
@@ -860,7 +923,7 @@ void processCurrentGaggiaState(GaggiaState currentGaggiaState,
   if (currentGaggiaState.steamHeaterOn) {
     readHeaterState(MAX6675_CS_steam, MAX6675_SO_steam, MAX6675_SCK, heaterState); 
 
-    if (shouldTurnOnHeater(TARGET_STEAM_TEMP, nowTimeMillis, heaterState)) {
+    if (shouldTurnOnHeater(nowTimeMillis, heaterState)) {
       turnHeaterOn();
     } else {
       turnHeaterOff();
@@ -872,7 +935,7 @@ void processCurrentGaggiaState(GaggiaState currentGaggiaState,
 
   // Process Dispense Water 
    if (currentGaggiaState.dispenseWater) {
-     startDispensingWater();
+     dispenseWater();
    } else {
     // if we are manually dispensing, we don't want to stop
     if (!waterReservoirState->manualOverride) {
@@ -1000,6 +1063,8 @@ void readHeaterState(int CHIP_SELECT_PIN, int SERIAL_OUT_PIN, int SERIAL_CLOCK_P
 
     // The remaining bits are the number of 0.25 degree (C) counts
     heaterState->measuredTemp = measuredValue*0.25;
+  
+    Log.error("PID", "recorded measuredTemp: " + String(heaterState->measuredTemp));
   }
 }
 
@@ -1018,8 +1083,15 @@ void turnHeaterOff() {
   digitalWrite(HEATER, LOW);
 }
 
-void startDispensingWater() {
+void dispenseWater() {
   publishParticleLog("dispenser", "dispensingOn");
+
+  readPumpState(&waterPumpState);  
+
+  // This triggers the PID to use previous and current
+  // measured values to calculate the current required
+  // dutyCycle...
+  waterPumpState.waterPumpPID->Compute();
 
   // The zero crossings from the incoming AC sinewave will trigger
   // this interrupt handler, which will modulate the power duty cycle to
@@ -1030,6 +1102,12 @@ void startDispensingWater() {
   attachInterrupt(ZERO_CROSS_DISPENSE_POT, handleZeroCrossingInterrupt, RISING, 0);
 
   digitalWrite(DISPENSE_WATER, HIGH);
+}
+
+void readPumpState(WaterPumpState *waterPumpState) {
+  // reading from first channel of the 1015
+  waterPumpState->measuredPressure = ads1015.readADC_SingleEnded(0);
+  publishParticleLog("pump", "measuredPressure: " + String(waterPumpState->measuredPressure));
 }
 
 void stopDispensingWater() {
@@ -1160,8 +1238,7 @@ long filterLowWeight(long weight) {
   }
 }
 
-boolean shouldTurnOnHeater(float targetTemp,
-                           float nowTimeMillis,
+boolean shouldTurnOnHeater(float nowTimeMillis,
                            HeaterState *heaterState) {
                         
   boolean shouldTurnOnHeater = false;
@@ -1181,13 +1258,16 @@ boolean shouldTurnOnHeater(float targetTemp,
   } else {
     // determine if we should be in a heat cycle ...
 
-    heaterState->heaterDurationMillis = 
-      calculateHeaterPulseDurationMillis(heaterState->measuredTemp, 
-                                         targetTemp, 
-                                         &(heaterState->previousTempError), 
-                                         &(heaterState->previousSampleTime));
+    // This triggers the PID to use previous and current
+    // measured values to calculate the current required
+    // heater interval ...
+    // The output of this calculation is a new 'heaterDurationMillis' value.
+    heaterState->heaterDurationMillis = 0;
+    heaterState->heaterPID->Compute();
+
     if (heaterState->heaterDurationMillis > 0) {
-      publishParticleLog("shouldTurnOnHeater", "startCycle..on");
+      publishParticleLog("shouldTurnOnHeater", 
+        "startCycle..on, with duration:" + String(heaterState->heaterDurationMillis));
       heaterState->heaterStarTime = nowTimeMillis;
 
       shouldTurnOnHeater = true;
@@ -1197,45 +1277,6 @@ boolean shouldTurnOnHeater(float targetTemp,
   return shouldTurnOnHeater;
 }
 
-int calculateHeaterPulseDurationMillis(double currentTempC, float targetTempC, float *previousTempError, float *previousSampleTime) {
-
-  float currentTempError = targetTempC - currentTempC;
-
-  // Calculate the P value
-  int PID_p = kp * currentTempError;
-
-  // Calculate the I value in a range on +-3
-  int PID_i = 0;
-  float threshold = 3.0;
-  if(-1*threshold < currentTempError < threshold)
-  {
-    PID_i = PID_i + (ki * currentTempError);
-  }
-
-  //For derivative we need real time to calculate speed change rate
-  float currentSampleTime = millis();                            // actual time read
-  float elapsedTime = (currentSampleTime - *previousSampleTime) / 1000; 
-
-  // Now we can calculate the D value - the derivative or slope.. which is a means
-  // of predicting future value
-  int PID_d = kd*((currentTempError - *previousTempError)/elapsedTime);
-
-  *previousTempError = currentTempError;     //Remember to store the previous error for next loop.
-  *previousSampleTime = currentSampleTime; // for next cycle.. we need to remember previousTime
-  
-  //vFinal total PID value is the sum of P + I + D
-  int currentOutput = PID_p + PID_i + PID_d;
-
-  //We define PWM range between 0 and 255
-  if(currentOutput < 0)
-  {    currentOutput = 0;    }
-  if(currentOutput > 255)  
-  {    currentOutput = 255;  }
-
-  publishParticleLog("calculateHeaterPulse", "pulse:" + String(currentOutput));
-
-  return currentOutput;
-}
 
 boolean doesWaterReservoirNeedFilling(int CHIP_ENABLE_PIN, int ANALOG_INPUT_PIN, WaterReservoirState *waterReservoirState) {
 
@@ -1288,7 +1329,7 @@ int turnOffTestMode(String _na) {
 }
 
 int _startDispensingWater(String _na) {
-    startDispensingWater();
+    dispenseWater();
 
     waterReservoirState.manualOverride = true;
 
@@ -1303,9 +1344,9 @@ int _stopDispensingWater(String _na) {
     return 1;
 }
 
-int setDispenseFlowRateDutyCycle(String _dutyCycle) {
+int setDispenseFlowRateDutyCycle(String _targetPressure) {
 
-    dispenseFlowRateState.dutyCycle = _dutyCycle.toInt();
+    waterPumpState.targetPressure = _targetPressure.toInt();
 
     return 1;
 }
@@ -1370,7 +1411,7 @@ void handleZeroCrossingInterrupt() {
   // If we wait 4ms before turning on, that's half the cycle.. so that's 50%
   // If we wait 0ms before turning on, that's 100% duty cycle.
 
-  int offIntervalMs = 8 - round((8*(dispenseFlowRateState.dutyCycle/100.0)));
+  int offIntervalMs = 8 - round((8*(waterPumpState.targetPressure/100.0)));
 
   // There needs to be a minimal delay between LOW and HIGH for the TRIAC
   offIntervalMs = max(offIntervalMs, 1);
