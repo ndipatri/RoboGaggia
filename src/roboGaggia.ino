@@ -127,6 +127,8 @@ int RETURN_TO_HOME_INACTIVITY_MINUTES = 10;
 // How long we will the portafilter with semi-hot water
 int PREINFUSION_DURATION_SECONDS = 6;
   
+int DONE_BREWING_LINGER_TIME_SECONDS = 5;
+  
 // How many 60Hz cycles we consider in our flow rate
 // So 10 means we count 10 cycles before we reset our count.  We could
 // then desire a 50% duty cycle, which would mean 5 cycles on and 
@@ -197,10 +199,6 @@ struct HeaterState {
   float heaterStarTime = -1;
   float heaterDurationMillis = -1;
 
-  // indicates that a single cup is desired so we can immediately begin
-  // heating for steam after finished brewing
-  boolean singleOn = false;
-
 } heaterState;
 void readHeaterState(int CHIP_SELECT_PIN, int SERIAL_OUT_PIN, int SERIAL_CLOCK_PIN, HeaterState *heaterState);
 boolean shouldTurnOnHeater(float targetTemp, float nowTimeMillis, HeaterState *heaterState);
@@ -241,7 +239,6 @@ String updateDisplayLine(char *message,
 
 enum GaggiaStateEnum {
   HELLO = 0, 
-  CHOOSE_SINGLE = 1, 
   TARE_CUP_1 = 2, 
   MEASURE_BEANS = 3, 
   TARE_CUP_2 = 4, 
@@ -275,7 +272,6 @@ struct GaggiaState {
    float stateEnterTimeMillis = -1;
 } 
 helloState,
-chooseSingleState,
 tareCup1State,
 measureBeansState,
 tareCup2State,
@@ -410,13 +406,6 @@ void setup() {
   helloState.tareScale = true; 
 
 
-  chooseSingleState.state = CHOOSE_SINGLE; 
-  chooseSingleState.display1 =         "Brewing a single    ";
-  chooseSingleState.display2 =         "cup?                ";
-  chooseSingleState.display3 =         "Click for single,   ";
-  chooseSingleState.display4 =         "Hold for many       ";
-  chooseSingleState.brewHeaterOn = true; 
-
   tareCup1State.state = TARE_CUP_1; 
   tareCup1State.display1 =         "Place empty cup     ";
   tareCup1State.display2 =         "on tray.            ";
@@ -468,7 +457,7 @@ void setup() {
   doneBrewingState.display1 =      "Done brewing.       ";
   doneBrewingState.display2 =      "{flowRate}";
   doneBrewingState.display3 =      "Remove cup.         ";
-  doneBrewingState.display4 =      "Click when Ready    ";
+  doneBrewingState.display4 =      "Please wait ...     ";
   doneBrewingState.brewHeaterOn = true; 
   doneBrewingState.fillingReservoir = true;
 
@@ -606,7 +595,7 @@ GaggiaState getNextGaggiaState(GaggiaState currentGaggiaState,
         if (heaterState->measuredTemp >= TARGET_BREW_TEMP) {
           return coolStartState;
         } else {
-          return chooseSingleState;
+          return tareCup1State;
         }
       }
 
@@ -615,19 +604,6 @@ GaggiaState getNextGaggiaState(GaggiaState currentGaggiaState,
       }
       break;
       
-    case CHOOSE_SINGLE :
-
-      if (userInputState->state == SHORT_PRESS) {
-          heaterState->singleOn = true;
-          return tareCup1State;
-      }
-
-      if (userInputState->state == LONG_PRESS) {
-          heaterState->singleOn = false;
-          return tareCup1State;
-      }
-      break;
-
       
     case TARE_CUP_1 :
 
@@ -694,19 +670,13 @@ GaggiaState getNextGaggiaState(GaggiaState currentGaggiaState,
 
     case DONE_BREWING :
 
-      if (heaterState->singleOn) {
-        
-        // So the user can just walk away and when they return, they have 
-        // a brewed cup and they are ready to steam!
+      if ((millis() - currentGaggiaState.stateEnterTimeMillis) > 
+             DONE_BREWING_LINGER_TIME_SECONDS * 1000) {        
         return heatingToSteamState;
+      }
 
-      } else {
-        if (userInputState->state == SHORT_PRESS) {
-          return helloState;
-        }
-        if (userInputState->state == LONG_PRESS) {
-          return helloState;
-        }
+      if (userInputState->state == LONG_PRESS) {
+        return helloState;
       }
       break;
 
