@@ -74,6 +74,10 @@ SYSTEM_THREAD(ENABLED);
 // IT IS EXPECTED FOR THIS TO ALSO BE TIED TO THE WATER_SENSOR
 // POWER PIN... AS WE EXPECT TO TAKE WATER LEVEL MEASUREMENTS WHILE
 // WE ARE DISPENSING WATER
+//
+// Also, since we use the AC_DIMMER (via DISPENSE_POT), merely pulling
+// this DISPENSE_WATER pin high does NOT start dispensing water... the
+// POT also has to be pulled HIGH for that to happen.
 #define DISPENSE_WATER  TX
 
 // 0 - low water mark, ~500 high water mark
@@ -114,8 +118,8 @@ int LOW_WEIGHT_THRESHOLD = 4;
 // These values were imperically derived by measuring these levels
 // while immersing the water sensor.
 // These values need to be recalibrated everytime you replace sensor
-int LOW_WATER_RESEVOIR_LIMIT = 700;
-int HIGH_WATER_RESEVOIR_LIMIT = 800;
+int LOW_WATER_RESEVOIR_LIMIT = 400;
+int HIGH_WATER_RESEVOIR_LIMIT = 600;
 
 int RETURN_TO_HOME_INACTIVITY_MINUTES = 10;
 
@@ -130,20 +134,27 @@ int DONE_BREWING_LINGER_TIME_SECONDS = 5;
 // 5 cycles off
 int DISPENSE_FLOW_RATE_TOTAL_CYCES = 20;
 
+// NJD TODO - Until I get the actual sensor hooked up, i dont know what these absolute
+// values really are...
+double DISPENSING_PSI = 9.0;
+double PRE_INFUSION_PSI = 2.0;
+
 //
 // State
 //
 
 struct WaterPumpState {
 
-  double targetPressure = 100; 
+  double targetPressure = PRE_INFUSION_PSI; 
 
   // current pressure
+  // This is input for the PID
   double measuredPressure;
 
   // represents how we are currently driving the pump
   // How much of the time we're dispensing out of our total
   // coherence time.. in percentage
+  // This is calculated and updated by the PID
   double pumpDutyCycle = -1;
 
   // The control system for determining when to turn on
@@ -153,12 +164,10 @@ struct WaterPumpState {
 } waterPumpState;
 // Measures the current pressure in the water pump system
 void readPumpState(WaterPumpState *waterPumpState);
-Adafruit_ADS1015 ads1015;  // the adc for the pressure sensor
+Adafruit_ADS1115 ads1115;  // the adc for the pressure sensor
 
 
 struct WaterReservoirState {
-
-  boolean manualOverride = false;
 
   int measuredWaterLevel = 0;
 
@@ -189,15 +198,13 @@ NAU7802 myScale; //Create instance of the NAU7802 class
 
 
 struct HeaterState {
-  boolean manualOverride = false;
-
   boolean thermocoupleError = false;  
 
   // current temp
   // this is  updated as we read thermocouple sensor
   double measuredTemp;
   
-  // this is updated by the PID controller
+  // This is calculated and updated by the PID
   double heaterDurationMillis;
 
   // Used to track ongoing heat cycles...
@@ -247,19 +254,20 @@ SerLCD display; // Initialize the library with default I2C address 0x72
 
 
 enum GaggiaStateEnum {
-  HELLO = 0, 
-  TARE_CUP_1 = 2, 
-  MEASURE_BEANS = 3, 
-  TARE_CUP_2 = 4, 
-  HEATING_TO_PREINFUSION = 5, 
-  PREINFUSION = 6, 
-  BREWING = 7, 
-  DONE_BREWING = 8, 
-  HEATING_TO_STEAM = 9, 
-  STEAMING = 10, 
-  COOL_START = 11, 
-  COOLING = 12, 
-  COOL_DONE = 13, 
+  HELLO, 
+  TARE_CUP_1, 
+  MEASURE_BEANS, 
+  TARE_CUP_2, 
+  HEATING, 
+  PREINFUSION, 
+  BREWING, 
+  DONE_BREWING, 
+  HEATING_TO_STEAM, 
+  STEAMING, 
+  COOL_START, 
+  COOLING, 
+  COOL_DONE, 
+  NA
 };
 struct GaggiaState {
    enum GaggiaStateEnum state;   
@@ -272,6 +280,7 @@ struct GaggiaState {
    // WARNING: this cannot be done at the same time (or even in an adjacent state)
    // to dispensing water.
    boolean  fillingReservoir = false;
+
    boolean  brewHeaterOn = false;
    boolean  steamHeaterOn = false;
    boolean  measureTemp = false;
@@ -284,7 +293,7 @@ helloState,
 tareCup1State,
 measureBeansState,
 tareCup2State,
-heatingToPreinfusionState,
+heatingState,
 preinfusionState,
 brewingState,
 doneBrewingState,
@@ -293,9 +302,13 @@ steamingState,
 coolStartState,
 coolingState,
 coolDoneState,
+naState,
 currentGaggiaState;
 
 boolean isInTestMode = false;
+
+// It is possible to manually direct the next station transition
+GaggiaState manualNextGaggiaState = naState;
 
 // Using all current state, we derive the next state of the system
 GaggiaState getNextGaggiaState(GaggiaState currentGaggiaState, 
@@ -341,7 +354,7 @@ void setup() {
   // I2C Setup
   Wire.begin();
 
-  ads1015.begin();  // Initialize ads1015 at the default address 0x48
+  ads1115.begin();  // Initialize ads1015 at the default address 0x48
   // use hte following if x48 is already taken
   //ads1115.begin(0x49);  // Initialize ads1115 at address 0x49
 
@@ -388,21 +401,20 @@ void setup() {
   // // Useful state exposed to Particle web console
   Particle.variable("heaterTempC", heaterState.measuredTemp);
   Particle.variable("isDispensingWater",  currentGaggiaState.dispenseWater);
-  Particle.variable("isFillingWater",  waterReservoirState.isSolenoidOn);
   Particle.variable("thermocoupleError",  heaterState.thermocoupleError);
-  Particle.variable("dispenseFlowRateDutyCycle", (int*)&waterPumpState.targetPressure, INT);
+  Particle.variable("targetPressure", _targetPressure);
   Particle.variable("isInTestMode",  isInTestMode);
-  Particle.variable("waterLevel",  readWaterLevel);
+  Particle.variable("waterLevel",  _readWaterLevel);
+  Particle.variable("currentState", _readCurrentState);
 
-  Particle.function("turnHeaterOn", _turnHeaterOn);
-  Particle.function("turnHeaterOff", _turnHeaterOff);
   Particle.function("turnOnTestMode", turnOnTestMode);
   Particle.function("turnOffTestMode", turnOffTestMode);
-  Particle.function("startDispensingWater", _startDispensingWater);
-  Particle.function("stopDispensingWater", _stopDispensingWater);
-  Particle.function("startWaterFill", _turnWaterReservoirSolenoidOn);
-  Particle.function("stopWaterFill", _turnWaterReservoirSolenoidOff);
-  Particle.function("setDispenseFlowRateDutyCycle", setDispenseFlowRateDutyCycle);
+  Particle.function("setTargetPressure", setTargetPressure);
+
+  Particle.function("setHeatingState", _setHeatingState);
+  Particle.function("setBrewingState", _setBrewingState);
+  Particle.function("setCoolingState", _setCoolingState);
+  Particle.function("setHelloState", _setHelloState);
 
   // Define all possible states of RoboGaggia
   helloState.state = HELLO; 
@@ -410,16 +422,16 @@ void setup() {
   helloState.display2 =            "Clear scale surface.";
   helloState.display3 =            "Click to Brew,      ";
   helloState.display4 =            "Hold for Steam      ";
-  helloState.measureTemp = true;
   
+  helloState.measureTemp = true;
+
   // we don't want to heat here in case the unit was turned on and
   // person walked away for 10 hours
-  helloState.brewHeaterOn = true; 
+  helloState.brewHeaterOn = false; 
 
   // we tare here so the weight of the scale itself isn't shown
   // when we are measuring things...
   helloState.tareScale = true; 
-
 
   tareCup1State.state = TARE_CUP_1; 
   tareCup1State.display1 =         "Place empty cup     ";
@@ -445,12 +457,12 @@ void setup() {
   tareCup2State.tareScale = true; 
   tareCup2State.brewHeaterOn = true; 
 
-  heatingToPreinfusionState.state = HEATING_TO_PREINFUSION; 
-  heatingToPreinfusionState.display1 =    "Heating to brew.    ";
-  heatingToPreinfusionState.display2 =    "Leave cup on tray.  ";
-  heatingToPreinfusionState.display3 =    "{measuredBrewTemp}/{targetBrewTemp}";
-  heatingToPreinfusionState.display4 =    "Please wait ...     ";
-  heatingToPreinfusionState.brewHeaterOn = true; 
+  heatingState.state = HEATING; 
+  heatingState.display1 =    "Heating to brew.    ";
+  heatingState.display2 =    "Leave cup on tray.  ";
+  heatingState.display3 =    "{measuredBrewTemp}/{targetBrewTemp}";
+  heatingState.display4 =    "Please wait ...     ";
+  heatingState.brewHeaterOn = true; 
 
   preinfusionState.state = PREINFUSION; 
   preinfusionState.display1 =          "Infusing coffee.    ";
@@ -465,7 +477,8 @@ void setup() {
   brewingState.display2 =          "{adjustedWeight}/{targetBrewWeight}";
   brewingState.display3 =          "                    ";
   brewingState.display4 =          "Please wait ...     ";
-  brewingState.brewHeaterOn = true; 
+  // NJD PRESSURE
+  //brewingState.brewHeaterOn = true; 
   brewingState.dispenseWater = true; 
 
   doneBrewingState.state = DONE_BREWING; 
@@ -482,7 +495,6 @@ void setup() {
   heatingToSteamState.display3 =   "{flowRate}";
   heatingToSteamState.display4 =   "Please wait ...     ";
   heatingToSteamState.steamHeaterOn = true; 
-  heatingToSteamState.fillingReservoir = true;
 
   steamingState.state = STEAMING; 
   steamingState.display1 =         "Operate steam wand. ";
@@ -490,7 +502,6 @@ void setup() {
   steamingState.display3 =         "{flowRate}";
   steamingState.display4 =         "Click when Done     ";
   steamingState.steamHeaterOn = true; 
-  steamingState.fillingReservoir = true;
 
   coolStartState.state = COOL_START; 
   coolStartState.display1 =        "Too hot to brew,    ";
@@ -511,6 +522,8 @@ void setup() {
   coolDoneState.display2 =         "                    ";
   coolDoneState.display3 =         "                    ";
   coolDoneState.display4 =         "Click when Ready    ";
+
+  naState.state = NA;
 
   currentGaggiaState = helloState;
 
@@ -610,6 +623,13 @@ GaggiaState getNextGaggiaState(GaggiaState currentGaggiaState,
                                WaterReservoirState *waterReservoirState,
                                WaterPumpState *waterPumpState) {
 
+  if (manualNextGaggiaState.state != NA) {
+    GaggiaState nextGaggiaState = manualNextGaggiaState;
+    manualNextGaggiaState = naState;
+
+    return nextGaggiaState;
+  }
+
   switch (currentGaggiaState.state) {
 
     case HELLO :
@@ -652,14 +672,14 @@ GaggiaState getNextGaggiaState(GaggiaState currentGaggiaState,
     case TARE_CUP_2 :
 
       if (userInputState->state == SHORT_PRESS) {
-        return heatingToPreinfusionState;
+        return heatingState;
       }
       if (userInputState->state == LONG_PRESS) {
         return helloState;
       }
       break;
 
-    case HEATING_TO_PREINFUSION :
+    case HEATING :
 
       if (heaterState->measuredTemp >= TARGET_BREW_TEMP) {
         return preinfusionState;
@@ -782,28 +802,34 @@ void processIncomingGaggiaState(GaggiaState currentGaggiaState,
   if (nextGaggiaState.state == PREINFUSION) {
     // at the moment, this is teh lowest value that produces
     // appreciable volume.. good for preinfusion
-    waterPumpState->targetPressure = 40;
+    
+    // this needs to be done before we USE this value below when creating waterPumpPID!
+    waterPumpState->targetPressure = PRE_INFUSION_PSI;
   }
 
   if (nextGaggiaState.state == BREWING) {
-    waterPumpState->targetPressure = 100;
+    // this needs to be done before we USE this value below when creating waterPumpPID!
+    waterPumpState->targetPressure = DISPENSING_PSI;
   }
 
   if (nextGaggiaState.state == COOLING) {
-    waterPumpState->targetPressure = 100;
+    // this needs to be done before we USE this value below when creating waterPumpPID!
+    waterPumpState->targetPressure = DISPENSING_PSI;
   }
 
+  // NOTE: This needs to be done AFTER we've calculated the proper targetPressure for 
+  // current state!
   if (nextGaggiaState.dispenseWater) {
-    PID waterPumpPID(&waterPumpState->measuredPressure, 
-                     &waterPumpState->pumpDutyCycle, 
-                     &waterPumpState->targetPressure, 
-                     9.1, 0.3, 1.8, PID::DIRECT);
+    publishParticleLog("dispense", "Launching Pressure PID");
+    PID *thisWaterPumpPID = new PID(&waterPumpState->measuredPressure, 
+                                    &waterPumpState->pumpDutyCycle, 
+                                    &waterPumpState->targetPressure, 
+                                    9.1, 0.3, 1.8, PID::DIRECT);
+    thisWaterPumpPID->SetOutputLimits(0, 100);
+    thisWaterPumpPID->SetMode(PID::AUTOMATIC);
 
-    *waterPumpState->waterPumpPID = waterPumpPID;
-
-    waterPumpPID.SetOutputLimits(0, 100);
-    waterPumpPID.SetMode(PID::AUTOMATIC);
-  
+    delete waterPumpState->waterPumpPID;
+    waterPumpState->waterPumpPID = thisWaterPumpPID;
   }
 
   if (nextGaggiaState.brewHeaterOn) {
@@ -819,15 +845,15 @@ void processIncomingGaggiaState(GaggiaState currentGaggiaState,
   }
 
   if (nextGaggiaState.steamHeaterOn) {
-    PID heaterPID(&heaterState->measuredTemp, 
-                  &heaterState->heaterDurationMillis, 
-                  &TARGET_STEAM_TEMP, 
-                  9.1, 0.3, 1.8, PID::DIRECT);
+    PID *thisHeaterPID = new PID(&heaterState->measuredTemp, 
+                                 &heaterState->heaterDurationMillis, 
+                                 &TARGET_STEAM_TEMP, 
+                                 9.1, 0.3, 1.8, PID::DIRECT);
+    thisHeaterPID->SetOutputLimits(0, 250);
+    thisHeaterPID->SetMode(PID::AUTOMATIC);
 
-    *heaterState->heaterPID = heaterPID;
-
-    heaterPID.SetOutputLimits(0, 250);
-    heaterPID.SetMode(PID::AUTOMATIC);
+    delete heaterState->heaterPID;
+    heaterState->heaterPID = thisHeaterPID;
   }
 }
 
@@ -934,16 +960,13 @@ void processCurrentGaggiaState(GaggiaState currentGaggiaState,
   }
 
   // Process Dispense Water 
-   if (currentGaggiaState.dispenseWater) {
-     dispenseWater();
-   } else {
-    // if we are manually dispensing, we don't want to stop
-    if (!waterReservoirState->manualOverride) {
-      stopDispensingWater();
-    }
+  if (currentGaggiaState.dispenseWater) {
+    dispenseWater();
+  } else {
+    stopDispensingWater();
   }
 
-   if (currentGaggiaState.fillingReservoir) {
+  if (currentGaggiaState.fillingReservoir) {
 
     if (doesWaterReservoirNeedFilling(DISPENSE_WATER,  WATER_RESERVOIR_SENSOR, waterReservoirState)) {
       waterReservoirState->isSolenoidOn = true;
@@ -953,11 +976,8 @@ void processCurrentGaggiaState(GaggiaState currentGaggiaState,
       turnWaterReservoirSolenoidOff();
     }
 
-   } else {
-    // if we are manually dispensing, we don't want to stop
-    if (!waterReservoirState->manualOverride) {
-      turnWaterReservoirSolenoidOff();
-    }
+  } else {
+    turnWaterReservoirSolenoidOff();
   }
 
   if (currentGaggiaState.measureTemp) {
@@ -1063,8 +1083,6 @@ void readHeaterState(int CHIP_SELECT_PIN, int SERIAL_OUT_PIN, int SERIAL_CLOCK_P
 
     // The remaining bits are the number of 0.25 degree (C) counts
     heaterState->measuredTemp = measuredValue*0.25;
-  
-    Log.error("PID", "recorded measuredTemp: " + String(heaterState->measuredTemp));
   }
 }
 
@@ -1092,6 +1110,7 @@ void dispenseWater() {
   // measured values to calculate the current required
   // dutyCycle...
   waterPumpState.waterPumpPID->Compute();
+  publishParticleLog("dispenser", "pumpDutyCycle: " + String(waterPumpState.pumpDutyCycle));
 
   // The zero crossings from the incoming AC sinewave will trigger
   // this interrupt handler, which will modulate the power duty cycle to
@@ -1106,7 +1125,8 @@ void dispenseWater() {
 
 void readPumpState(WaterPumpState *waterPumpState) {
   // reading from first channel of the 1015
-  waterPumpState->measuredPressure = ads1015.readADC_SingleEnded(0);
+  waterPumpState->measuredPressure = ads1115.readADC_SingleEnded(0);
+  
   publishParticleLog("pump", "measuredPressure: " + String(waterPumpState->measuredPressure));
 }
 
@@ -1328,65 +1348,68 @@ int turnOffTestMode(String _na) {
     return 1;
 }
 
-int _startDispensingWater(String _na) {
-    dispenseWater();
-
-    waterReservoirState.manualOverride = true;
-
-    return 1;
-}
-
-int _stopDispensingWater(String _na) {
-    stopDispensingWater();
-
-    waterReservoirState.manualOverride = false;
-
-    return 1;
-}
-
-int setDispenseFlowRateDutyCycle(String _targetPressure) {
+int setTargetPressure(String _targetPressure) {
 
     waterPumpState.targetPressure = _targetPressure.toInt();
 
     return 1;
 }
 
-int _turnHeaterOn(String _na) {
-    turnHeaterOn();
+int _setBrewingState(String _) {
+  
+  // by jumping to this state, we are bypassing earlier states.. so we need to
+  // fake any data that should have been collected.
+  scaleState.tareWeight = 320;
+  scaleState.targetWeight = 100;
 
-    heaterState.manualOverride = true;
-
-    return 1;
+  manualNextGaggiaState = brewingState;
+  return 1;
 }
 
-int _turnHeaterOff(String _na) {
-    turnHeaterOff();
+int _setHeatingState(String _) {
+  
+  // by jumping to this state, we are bypassing earlier states.. so we need to
+  // fake any data that should have been collected.
+  scaleState.tareWeight = 320;
+  scaleState.targetWeight = 100;
 
-    heaterState.manualOverride = false;
-
-    return 1;
+  manualNextGaggiaState = heatingState;
+  return 1;
 }
 
-int _turnWaterReservoirSolenoidOn(String _na) {
-    turnWaterReservoirSolenoidOn();
-
-    waterReservoirState.manualOverride = true;
-
-    return 1;
+int _setCoolingState(String _) {
+  manualNextGaggiaState = coolingState;
+  return 1;
 }
 
-int _turnWaterReservoirSolenoidOff(String _na) {
-    turnWaterReservoirSolenoidOff();
-
-    waterReservoirState.manualOverride = false;
-
-    return 1;
+int _setHelloState(String _) {
+  manualNextGaggiaState = helloState;
+  return 1;
 }
 
 // Make sure you are dispensing water when you call this! The power from
 // the dispenser is used to power this sensor
-int readWaterLevel() {
-  return analogRead(WATER_RESERVOIR_SENSOR);
+int _readWaterLevel() {
+  
+  if (digitalRead(DISPENSE_WATER) == LOW) {
+    digitalWrite(DISPENSE_WATER, HIGH);
+  }
+
+  int measuredWaterLevel = analogRead(WATER_RESERVOIR_SENSOR);
+
+  if (digitalRead(DISPENSE_WATER) == HIGH) {
+    digitalWrite(DISPENSE_WATER, LOW);
+  }
+
+  return measuredWaterLevel;
+}
+
+String _readCurrentState() {
+  return String(currentGaggiaState.state);
+}
+
+String _targetPressure() {
+  return String(waterPumpState.targetPressure);
 }
 
 // This is an Interrupt Service Routine (ISR) so it cannot take any arguments
@@ -1411,7 +1434,7 @@ void handleZeroCrossingInterrupt() {
   // If we wait 4ms before turning on, that's half the cycle.. so that's 50%
   // If we wait 0ms before turning on, that's 100% duty cycle.
 
-  int offIntervalMs = 8 - round((8*(waterPumpState.targetPressure/100.0)));
+  int offIntervalMs = 8 - round((8*(waterPumpState.pumpDutyCycle/100.0)));
 
   // There needs to be a minimal delay between LOW and HIGH for the TRIAC
   offIntervalMs = max(offIntervalMs, 1);
