@@ -118,8 +118,8 @@ int LOW_WEIGHT_THRESHOLD = 4;
 // These values were imperically derived by measuring these levels
 // while immersing the water sensor.
 // These values need to be recalibrated everytime you replace sensor
-int LOW_WATER_RESEVOIR_LIMIT = 400;
-int HIGH_WATER_RESEVOIR_LIMIT = 600;
+int LOW_WATER_RESEVOIR_LIMIT = 100;
+int HIGH_WATER_RESEVOIR_LIMIT = 300;
 
 int RETURN_TO_HOME_INACTIVITY_MINUTES = 10;
 
