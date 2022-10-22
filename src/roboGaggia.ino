@@ -254,20 +254,20 @@ SerLCD display; // Initialize the library with default I2C address 0x72
 
 
 enum GaggiaStateEnum {
-  HELLO, 
-  TARE_CUP_1, 
-  MEASURE_BEANS, 
-  TARE_CUP_2, 
-  HEATING, 
-  PREINFUSION, 
-  BREWING, 
-  DONE_BREWING, 
-  HEATING_TO_STEAM, 
-  STEAMING, 
-  COOL_START, 
-  COOLING, 
-  COOL_DONE, 
-  NA
+  HELLO = 0, 
+  TARE_CUP_1 = 1, 
+  MEASURE_BEANS = 2,  
+  TARE_CUP_2 = 3, 
+  HEATING = 4, 
+  PREINFUSION = 5, 
+  BREWING = 6, 
+  DONE_BREWING = 7, 
+  HEATING_TO_STEAM = 8, 
+  STEAMING = 9, 
+  COOL_START = 10, 
+  COOLING = 11, 
+  COOL_DONE = 12, 
+  NA = 13
 };
 struct GaggiaState {
    enum GaggiaStateEnum state;   
@@ -309,7 +309,7 @@ currentGaggiaState;
 boolean isInTestMode = false;
 
 // It is possible to manually direct the next station transition
-GaggiaState manualNextGaggiaState = naState;
+GaggiaState manualNextGaggiaState;
 
 // Using all current state, we derive the next state of the system
 GaggiaState getNextGaggiaState(GaggiaState *currentGaggiaState, 
@@ -517,6 +517,7 @@ void setup() {
   naState.state = NA;
 
   currentGaggiaState = helloState;
+  manualNextGaggiaState = naState;
 
   // LCD Setup
   display.begin(Wire); //Set up the LCD for I2C communication
