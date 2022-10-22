@@ -138,7 +138,6 @@ int DISPENSE_FLOW_RATE_TOTAL_CYCES = 20;
 // values really are...
 double DISPENSING_PSI = 9.0;
 double PRE_INFUSION_PSI = 2.0;
-
 double PRESSURE_SENSOR_SCALE_FACTOR = .001;
 int PERSSURE_SENSOR_OFFSET = -1;
 
@@ -148,11 +147,11 @@ int PERSSURE_SENSOR_OFFSET = -1;
 
 struct WaterPumpState {
 
-double targetPressure = PRE_INFUSION_PSI; 
+double targetPressureInBars = PRE_INFUSION_PSI; 
 
   // current pressure
   // This is input for the PID
-  double measuredPressure;
+  double measuredPressureInBars;
 
   // represents how we are currently driving the pump
   // How much of the time we're dispensing out of our total
@@ -252,6 +251,7 @@ String updateDisplayLine(char *message,
                         int line,
                         HeaterState *heaterState,
                         ScaleState *scaleState,
+                        WaterPumpState *waterPumpState,
                         String previousLineDisplayed);
 SerLCD display; // Initialize the library with default I2C address 0x72
 
@@ -398,15 +398,14 @@ void setup() {
   Particle.variable("heaterTempC", heaterState.measuredTemp);
   Particle.variable("isDispensingWater",  currentGaggiaState.dispenseWater);
   Particle.variable("thermocoupleError",  heaterState.thermocoupleError);
-  Particle.variable("targetPressure", _targetPressure);
-  Particle.variable("currentPressure", _measuredPressure);
+  Particle.variable("targetPressureInBars", _targetPressureInBars);
+  Particle.variable("currentPressureInBars", _measuredPressureInBars);
   Particle.variable("isInTestMode",  isInTestMode);
   Particle.variable("waterLevel",  _readWaterLevel);
   Particle.variable("currentState", _readCurrentState);
 
   Particle.function("turnOnTestMode", turnOnTestMode);
   Particle.function("turnOffTestMode", turnOffTestMode);
-  Particle.function("setTargetPressure", setTargetPressure);
 
   Particle.function("setHeatingState", _setHeatingState);
   Particle.function("setBrewingState", _setBrewingState);
@@ -463,7 +462,7 @@ void setup() {
 
   preinfusionState.state = PREINFUSION; 
   preinfusionState.display1 =          "Infusing coffee.    ";
-  preinfusionState.display2 =          "Leave cup on tray.  ";
+  preinfusionState.display2 =          "{measuredBars}/{targetBars}";
   preinfusionState.display3 =          "{measuredBrewTemp}/{targetBrewTemp}";
   preinfusionState.display4 =          "Please wait ...     ";
   preinfusionState.dispenseWater = true; 
@@ -472,7 +471,7 @@ void setup() {
   brewingState.state = BREWING; 
   brewingState.display1 =          "Brewing.            ";
   brewingState.display2 =          "{adjustedWeight}/{targetBrewWeight}";
-  brewingState.display3 =          "                    ";
+  brewingState.display3 =          "{measuredBars}/{targetBars}";
   brewingState.display4 =          "Please wait ...     ";
   brewingState.dispenseWater = true; 
 
@@ -810,17 +809,17 @@ void processIncomingGaggiaState(GaggiaState *currentGaggiaState,
     // appreciable volume.. good for preinfusion
     
     // this needs to be done before we USE this value below when creating waterPumpPID!
-    waterPumpState->targetPressure = PRE_INFUSION_PSI;
+    waterPumpState->targetPressureInBars = PRE_INFUSION_PSI;
   }
 
   if (nextGaggiaState->state == BREWING) {
     // this needs to be done before we USE this value below when creating waterPumpPID!
-    waterPumpState->targetPressure = DISPENSING_PSI;
+    waterPumpState->targetPressureInBars = DISPENSING_PSI;
   }
 
   if (nextGaggiaState->state == COOLING) {
     // this needs to be done before we USE this value below when creating waterPumpPID!
-    waterPumpState->targetPressure = DISPENSING_PSI;
+    waterPumpState->targetPressureInBars = DISPENSING_PSI;
   }
 
   // NOTE: This needs to be done AFTER we've calculated the proper targetPressure for 
@@ -830,11 +829,13 @@ void processIncomingGaggiaState(GaggiaState *currentGaggiaState,
     
     // The reason we do this here is because PID can't change its target value,
     // so we must create a new one when our target pressure changes..
-    PID *thisWaterPumpPID = new PID(&waterPumpState->measuredPressure, 
+    PID *thisWaterPumpPID = new PID(&waterPumpState->measuredPressureInBars, 
                                     &waterPumpState->pumpDutyCycle, 
-                                    &waterPumpState->targetPressure, 
+                                    &waterPumpState->targetPressureInBars, 
                                     9.1, 0.3, 1.8, PID::DIRECT);
-    thisWaterPumpPID->SetOutputLimits(0, 100);
+    
+    // The Gaggia water pump doesn't energize at all below 30 duty cycle.
+    thisWaterPumpPID->SetOutputLimits(30, 100);
     thisWaterPumpPID->SetMode(PID::AUTOMATIC);
 
     delete waterPumpState->waterPumpPID;
@@ -922,24 +923,28 @@ void processCurrentGaggiaState(GaggiaState *currentGaggiaState,
                                              1, 
                                              heaterState, 
                                              scaleState, 
+                                             waterPumpState,
                                              displayState->display1);
 
   displayState->display2 = updateDisplayLine(currentGaggiaState->display2, 
                                              2, 
                                              heaterState, 
                                              scaleState, 
+                                             waterPumpState,
                                              displayState->display2);
 
   displayState->display3 = updateDisplayLine(currentGaggiaState->display3, 
                                              3, 
                                              heaterState, 
                                              scaleState,  
+                                             waterPumpState,
                                              displayState->display3);
 
   displayState->display4 = updateDisplayLine(currentGaggiaState->display4, 
                                              4, 
                                              heaterState, 
                                              scaleState, 
+                                             waterPumpState,
                                              displayState->display4);
 
 
@@ -1139,15 +1144,16 @@ void readPumpState(WaterPumpState *waterPumpState) {
   // reading from first channel of the 1015
 
   // no pressure ~1100
-  int rawPressure = ads1115.readADC_SingleEnded(0);
-  int normalizedPressure = rawPressure*PRESSURE_SENSOR_SCALE_FACTOR + PERSSURE_SENSOR_OFFSET;
+  //int rawPressure = ads1115.readADC_SingleEnded(0);
+  //int normalizedPressureInBars = rawPressure*PRESSURE_SENSOR_SCALE_FACTOR + PERSSURE_SENSOR_OFFSET;
 
-  publishParticleLog("pump", "rawPressure: " + String(rawPressure) + "', normalizedPressure: " + String(normalizedPressure));
+  //publishParticleLog("pump", "rawPressure: " + String(rawPressure) + "', normalizedPressure: " + String(normalizedPressureInBars));
 
-  waterPumpState->measuredPressure = normalizedPressure;
+  //waterPumpState->measuredPressureInBars = normalizedPressureInBars;
 
-  // NJD TODO PRESSURE 
-  //waterPumpState->measuredPressure = 0;
+  // NJD TODO PRESSURE  - this is all we have to switch when we get the pressure sensor installed.
+  // If we say it returns 0, then the pump will run @ 100% duty cycle always. which is ok for now.
+  waterPumpState->measuredPressureInBars = 0;
   
 }
 
@@ -1205,6 +1211,7 @@ String updateDisplayLine(char *message,
                         int line,
                         HeaterState *heaterState,
                         ScaleState *scaleState,
+                        WaterPumpState *waterPumpState,
                         String previousLineDisplayed) {
 
   display.setCursor(0,line-1);
@@ -1246,6 +1253,13 @@ String updateDisplayLine(char *message,
                                                      scaleState->flowRate,
                                                      0,
                                                      " g/30sec");
+            if (lineToDisplay == "") {
+              lineToDisplay = decodeMessageIfNecessary(message,
+                                                       "{measuredBars}/{targetBars}",
+                                                       waterPumpState->measuredPressureInBars,
+                                                       waterPumpState->targetPressureInBars,
+                                                       " bars");
+            }          
           }
         }      
       }
@@ -1369,13 +1383,6 @@ int turnOffTestMode(String _na) {
     return 1;
 }
 
-int setTargetPressure(String _targetPressure) {
-
-    waterPumpState.targetPressure = _targetPressure.toInt();
-
-    return 1;
-}
-
 int _setBrewingState(String _) {
   
   // by jumping to this state, we are bypassing earlier states.. so we need to
@@ -1429,15 +1436,15 @@ String _readCurrentState() {
   return String(currentGaggiaState.state);
 }
 
-String _targetPressure() {
-  return String(waterPumpState.targetPressure);
+String _targetPressureInBars() {
+  return String(waterPumpState.targetPressureInBars);
 }
 
-String _measuredPressure() {
+String _measuredPressureInBars() {
 
   readPumpState(&waterPumpState);  
 
-  return String(waterPumpState.measuredPressure);
+  return String(waterPumpState.measuredPressureInBars);
 }
 
 // This is an Interrupt Service Routine (ISR) so it cannot take any arguments
@@ -1462,6 +1469,10 @@ void handleZeroCrossingInterrupt() {
   // If we wait 4ms before turning on, that's half the cycle.. so that's 50%
   // If we wait 0ms before turning on, that's 100% duty cycle.
 
+  // ok for some reason, only values of 40 and 100 work
+
+  // NOTE: dutyCycle below 30 is kinda useless.. doesn't really energize water
+  // pump
   int offIntervalMs = 8 - round((8*(waterPumpState.pumpDutyCycle/100.0)));
 
   // There needs to be a minimal delay between LOW and HIGH for the TRIAC
