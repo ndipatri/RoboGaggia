@@ -134,7 +134,7 @@ int DONE_BREWING_LINGER_TIME_SECONDS = 5;
 // 5 cycles off
 int DISPENSE_FLOW_RATE_TOTAL_CYCES = 20;
 
-// NJD TODO - Until I get the actual sensor hooked up, i dont know what these absolute
+// NJD TODO PRESSURE - Until I get the actual sensor hooked up, i dont know what these absolute
 // values really are...
 double DISPENSING_PSI = 9.0;
 double PRE_INFUSION_PSI = 2.0;
@@ -145,7 +145,7 @@ double PRE_INFUSION_PSI = 2.0;
 
 struct WaterPumpState {
 
-  double targetPressure = PRE_INFUSION_PSI; 
+double targetPressure = PRE_INFUSION_PSI; 
 
   // current pressure
   // This is input for the PID
@@ -354,18 +354,10 @@ void setup() {
   // I2C Setup
   Wire.begin();
 
-  ads1115.begin();  // Initialize ads1015 at the default address 0x48
+  ads1115.begin();// Initialize ads1015 at the default address 0x48
   // use hte following if x48 is already taken
   //ads1115.begin(0x49);  // Initialize ads1115 at address 0x49
 
-  // LCD Setup
-  display.begin(Wire); //Set up the LCD for I2C communication
-
-  display.setBacklight(255, 255, 255); //Set backlight to bright white
-  display.setContrast(5); //Set contrast. Lower to 0 for higher contrast.
-
-  display.clear(); //Clear the display - this moves the cursor to home position as well
-  
   // Scale check
   if (myScale.begin() == false)
   {
@@ -477,8 +469,6 @@ void setup() {
   brewingState.display2 =          "{adjustedWeight}/{targetBrewWeight}";
   brewingState.display3 =          "                    ";
   brewingState.display4 =          "Please wait ...     ";
-  // NJD PRESSURE
-  //brewingState.brewHeaterOn = true; 
   brewingState.dispenseWater = true; 
 
   doneBrewingState.state = DONE_BREWING; 
@@ -526,6 +516,16 @@ void setup() {
   naState.state = NA;
 
   currentGaggiaState = helloState;
+
+  // LCD Setup
+  display.begin(Wire); //Set up the LCD for I2C communication
+
+  display.setBacklight(255, 255, 255); //Set backlight to bright white
+  display.setContrast(5); //Set contrast. Lower to 0 for higher contrast.
+
+  display.clear(); //Clear the display - this moves the cursor to home position as well
+  display.print("Booting ...");
+
 
   // Wait for a USB serial connection for up to 15 seconds
   waitFor(Serial.isConnected, 15000);
@@ -821,6 +821,9 @@ void processIncomingGaggiaState(GaggiaState currentGaggiaState,
   // current state!
   if (nextGaggiaState.dispenseWater) {
     publishParticleLog("dispense", "Launching Pressure PID");
+    
+    // The reason we do this here is because PID can't change its target value,
+    // so we must create a new one when our target pressure changes..
     PID *thisWaterPumpPID = new PID(&waterPumpState->measuredPressure, 
                                     &waterPumpState->pumpDutyCycle, 
                                     &waterPumpState->targetPressure, 
@@ -833,6 +836,8 @@ void processIncomingGaggiaState(GaggiaState currentGaggiaState,
   }
 
   if (nextGaggiaState.brewHeaterOn) {
+    // The reason we do this here is because PID can't change its target value,
+    // so we must create a new one when our target temperature changes..
     PID *thisHeaterPID = new PID(&heaterState->measuredTemp, 
                                  &heaterState->heaterDurationMillis, 
                                  &TARGET_BREW_TEMP, 
@@ -1125,7 +1130,12 @@ void dispenseWater() {
 
 void readPumpState(WaterPumpState *waterPumpState) {
   // reading from first channel of the 1015
-  waterPumpState->measuredPressure = ads1115.readADC_SingleEnded(0);
+  // NJD TODO PRESSURE
+  //waterPumpState->measuredPressure = ads1115.readADC_SingleEnded(0);
+  // this way, the PID will always be driving the pump at 100
+  // this will break pre-infusion, but we have no feedback and i don't 
+  // want to hack this too much...
+  waterPumpState->measuredPressure = 0;
   
   publishParticleLog("pump", "measuredPressure: " + String(waterPumpState->measuredPressure));
 }
@@ -1185,6 +1195,8 @@ String updateDisplayLine(char *message,
                         HeaterState *heaterState,
                         ScaleState *scaleState,
                         String previousLineDisplayed) {
+
+  publishParticleLog("display", "toDisplay:" + String(message));  
 
   display.setCursor(0,line-1);
   
