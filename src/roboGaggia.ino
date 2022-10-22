@@ -139,6 +139,9 @@ int DISPENSE_FLOW_RATE_TOTAL_CYCES = 20;
 double DISPENSING_PSI = 9.0;
 double PRE_INFUSION_PSI = 2.0;
 
+double PRESSURE_SENSOR_SCALE_FACTOR = .001;
+int PERSSURE_SENSOR_OFFSET = -1;
+
 //
 // State
 //
@@ -396,6 +399,7 @@ void setup() {
   Particle.variable("isDispensingWater",  currentGaggiaState.dispenseWater);
   Particle.variable("thermocoupleError",  heaterState.thermocoupleError);
   Particle.variable("targetPressure", _targetPressure);
+  Particle.variable("currentPressure", _measuredPressure);
   Particle.variable("isInTestMode",  isInTestMode);
   Particle.variable("waterLevel",  _readWaterLevel);
   Particle.variable("currentState", _readCurrentState);
@@ -1133,14 +1137,18 @@ void dispenseWater() {
 
 void readPumpState(WaterPumpState *waterPumpState) {
   // reading from first channel of the 1015
-  // NJD TODO PRESSURE
-  //waterPumpState->measuredPressure = ads1115.readADC_SingleEnded(0);
-  // this way, the PID will always be driving the pump at 100
-  // this will break pre-infusion, but we have no feedback and i don't 
-  // want to hack this too much...
-  waterPumpState->measuredPressure = 0;
+
+  // no pressure ~1100
+  int rawPressure = ads1115.readADC_SingleEnded(0);
+  int normalizedPressure = rawPressure*PRESSURE_SENSOR_SCALE_FACTOR + PERSSURE_SENSOR_OFFSET;
+
+  publishParticleLog("pump", "rawPressure: " + String(rawPressure) + "', normalizedPressure: " + String(normalizedPressure));
+
+  waterPumpState->measuredPressure = normalizedPressure;
+
+  // NJD TODO PRESSURE 
+  //waterPumpState->measuredPressure = 0;
   
-  publishParticleLog("pump", "measuredPressure: " + String(waterPumpState->measuredPressure));
 }
 
 void stopDispensingWater() {
@@ -1423,6 +1431,13 @@ String _readCurrentState() {
 
 String _targetPressure() {
   return String(waterPumpState.targetPressure);
+}
+
+String _measuredPressure() {
+
+  readPumpState(&waterPumpState);  
+
+  return String(waterPumpState.measuredPressure);
 }
 
 // This is an Interrupt Service Routine (ISR) so it cannot take any arguments
