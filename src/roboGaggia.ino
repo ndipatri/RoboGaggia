@@ -303,6 +303,7 @@ coolStartState,
 coolingState,
 coolDoneState,
 naState,
+
 currentGaggiaState;
 
 boolean isInTestMode = false;
@@ -311,7 +312,7 @@ boolean isInTestMode = false;
 GaggiaState manualNextGaggiaState = naState;
 
 // Using all current state, we derive the next state of the system
-GaggiaState getNextGaggiaState(GaggiaState currentGaggiaState, 
+GaggiaState getNextGaggiaState(GaggiaState *currentGaggiaState, 
                                HeaterState *heaterState,
                                ScaleState *scaleState,
                                UserInputState *userInputState,
@@ -321,7 +322,7 @@ GaggiaState getNextGaggiaState(GaggiaState currentGaggiaState,
 // Once we know the state, we affect appropriate change in our
 // system attributes (e.g. temp, display)
 // Things we do while we are in a state 
-void processCurrentGaggiaState(GaggiaState currentGaggiaState,
+void processCurrentGaggiaState(GaggiaState *currentGaggiaState,
                                HeaterState *heaterState,
                                ScaleState *scaleState,
                                DisplayState *displayState,
@@ -329,8 +330,8 @@ void processCurrentGaggiaState(GaggiaState currentGaggiaState,
                                WaterPumpState *waterPumpState,
                                float nowTimeMillis);
 // Things we do when we leave a state
-void processOutgoingGaggiaState(GaggiaState currentGaggiaState,
-                                GaggiaState nextGaggiaState, 
+void processOutgoingGaggiaState(GaggiaState *currentGaggiaState,
+                                GaggiaState *nextGaggiaState, 
                                 HeaterState *heaterState,
                                 ScaleState *scaleState,
                                 DisplayState *displayState,
@@ -338,8 +339,8 @@ void processOutgoingGaggiaState(GaggiaState currentGaggiaState,
                                 WaterPumpState *waterPumpState,
                                 float nowTimeMillis);
 // Things we do when we enter a state
-void processIncomingGaggiaState(GaggiaState currentGaggiaState,
-                                GaggiaState nextGaggiaState, 
+void processIncomingGaggiaState(GaggiaState *currentGaggiaState,
+                                GaggiaState *nextGaggiaState, 
                                 HeaterState *heaterState,
                                 ScaleState *scaleState,
                                 DisplayState *displayState,
@@ -557,7 +558,7 @@ void loop() {
 
   // Determine next Gaggia state based on inputs and current state ...
   // (e.g. move to 'Done Brewing' state once target weight is achieved, etc.)
-  GaggiaState nextGaggiaState = getNextGaggiaState(currentGaggiaState, 
+  GaggiaState nextGaggiaState = getNextGaggiaState(&currentGaggiaState, 
                                                    &heaterState, 
                                                    &scaleState, 
                                                    &userInputState,
@@ -571,8 +572,8 @@ void loop() {
     // (e.g. record weight of beans, tare measuring cup)
 
     // Things we do when we leave a state
-    processOutgoingGaggiaState(currentGaggiaState,
-                               nextGaggiaState,
+    processOutgoingGaggiaState(&currentGaggiaState,
+                               &nextGaggiaState,
                                &heaterState, 
                                &scaleState,
                                &displayState,
@@ -581,8 +582,8 @@ void loop() {
                                nowTimeMillis);
   
       // Things we do when we enter a state
-    processIncomingGaggiaState(currentGaggiaState,
-                               nextGaggiaState,
+    processIncomingGaggiaState(&currentGaggiaState,
+                               &nextGaggiaState,
                                &heaterState, 
                                &scaleState,
                                &displayState,
@@ -596,7 +597,7 @@ void loop() {
   currentGaggiaState = nextGaggiaState;
 
     // Things we do when we are within a state 
-  processCurrentGaggiaState(currentGaggiaState,
+  processCurrentGaggiaState(&currentGaggiaState,
                             &heaterState, 
                             &scaleState,
                             &displayState,
@@ -616,7 +617,7 @@ void loop() {
 
 // State transitions are documented here:
 // https://docs.google.com/drawings/d/1EcaUzklpJn34cYeWsTnApoJhwBhA1Q4EVMr53Kz9T7I/edit?usp=sharing
-GaggiaState getNextGaggiaState(GaggiaState currentGaggiaState, 
+GaggiaState getNextGaggiaState(GaggiaState *currentGaggiaState, 
                                HeaterState *heaterState,
                                ScaleState *scaleState,
                                UserInputState *userInputState,
@@ -630,7 +631,7 @@ GaggiaState getNextGaggiaState(GaggiaState currentGaggiaState,
     return nextGaggiaState;
   }
 
-  switch (currentGaggiaState.state) {
+  switch (currentGaggiaState->state) {
 
     case HELLO :
 
@@ -691,7 +692,7 @@ GaggiaState getNextGaggiaState(GaggiaState currentGaggiaState,
 
     case PREINFUSION :
 
-      if ((millis() - currentGaggiaState.stateEnterTimeMillis) > 
+      if ((millis() - currentGaggiaState->stateEnterTimeMillis) > 
              PREINFUSION_DURATION_SECONDS * 1000) {        
         return brewingState;
       }
@@ -713,7 +714,7 @@ GaggiaState getNextGaggiaState(GaggiaState currentGaggiaState,
 
     case DONE_BREWING :
 
-      if ((millis() - currentGaggiaState.stateEnterTimeMillis) > 
+      if ((millis() - currentGaggiaState->stateEnterTimeMillis) > 
              DONE_BREWING_LINGER_TIME_SECONDS * 1000) {        
         return heatingToSteamState;
       }
@@ -787,11 +788,11 @@ GaggiaState getNextGaggiaState(GaggiaState currentGaggiaState,
         return helloState;
   }
 
-  return currentGaggiaState;
+  return *currentGaggiaState;
 }  
 
-void processIncomingGaggiaState(GaggiaState currentGaggiaState,  
-                                GaggiaState nextGaggiaState,
+void processIncomingGaggiaState(GaggiaState *currentGaggiaState,  
+                                GaggiaState *nextGaggiaState,
                                 HeaterState *heaterState,
                                 ScaleState *scaleState,
                                 DisplayState *displayState,
@@ -799,7 +800,7 @@ void processIncomingGaggiaState(GaggiaState currentGaggiaState,
                                 WaterPumpState *waterPumpState,
                                 float nowTimeMillis) {
 
-  if (nextGaggiaState.state == PREINFUSION) {
+  if (nextGaggiaState->state == PREINFUSION) {
     // at the moment, this is teh lowest value that produces
     // appreciable volume.. good for preinfusion
     
@@ -807,19 +808,19 @@ void processIncomingGaggiaState(GaggiaState currentGaggiaState,
     waterPumpState->targetPressure = PRE_INFUSION_PSI;
   }
 
-  if (nextGaggiaState.state == BREWING) {
+  if (nextGaggiaState->state == BREWING) {
     // this needs to be done before we USE this value below when creating waterPumpPID!
     waterPumpState->targetPressure = DISPENSING_PSI;
   }
 
-  if (nextGaggiaState.state == COOLING) {
+  if (nextGaggiaState->state == COOLING) {
     // this needs to be done before we USE this value below when creating waterPumpPID!
     waterPumpState->targetPressure = DISPENSING_PSI;
   }
 
   // NOTE: This needs to be done AFTER we've calculated the proper targetPressure for 
   // current state!
-  if (nextGaggiaState.dispenseWater) {
+  if (nextGaggiaState->dispenseWater) {
     publishParticleLog("dispense", "Launching Pressure PID");
     
     // The reason we do this here is because PID can't change its target value,
@@ -835,7 +836,7 @@ void processIncomingGaggiaState(GaggiaState currentGaggiaState,
     waterPumpState->waterPumpPID = thisWaterPumpPID;
   }
 
-  if (nextGaggiaState.brewHeaterOn) {
+  if (nextGaggiaState->brewHeaterOn) {
     // The reason we do this here is because PID can't change its target value,
     // so we must create a new one when our target temperature changes..
     PID *thisHeaterPID = new PID(&heaterState->measuredTemp, 
@@ -849,7 +850,7 @@ void processIncomingGaggiaState(GaggiaState currentGaggiaState,
     heaterState->heaterPID = thisHeaterPID;
   }
 
-  if (nextGaggiaState.steamHeaterOn) {
+  if (nextGaggiaState->steamHeaterOn) {
     PID *thisHeaterPID = new PID(&heaterState->measuredTemp, 
                                  &heaterState->heaterDurationMillis, 
                                  &TARGET_STEAM_TEMP, 
@@ -863,8 +864,8 @@ void processIncomingGaggiaState(GaggiaState currentGaggiaState,
 }
 
 
-void processOutgoingGaggiaState(GaggiaState currentGaggiaState,  
-                                GaggiaState nextGaggiaState,
+void processOutgoingGaggiaState(GaggiaState *currentGaggiaState,  
+                                GaggiaState *nextGaggiaState,
                                 HeaterState *heaterState,
                                 ScaleState *scaleState,
                                 DisplayState *displayState,
@@ -873,21 +874,21 @@ void processOutgoingGaggiaState(GaggiaState currentGaggiaState,
                                 float nowTimeMillis) {
 
   // Process Tare Scale
-  if (currentGaggiaState.tareScale == true) {
+  if (currentGaggiaState->tareScale == true) {
     scaleState->tareWeight = scaleState->measuredWeight;
   }
 
   // Process Record Weight 
-  if (currentGaggiaState.recordWeight) {
+  if (currentGaggiaState->recordWeight) {
     scaleState->targetWeight = 
       (scaleState->measuredWeight - scaleState->tareWeight)*BREW_WEIGHT_TO_BEAN_RATIO; 
   }
 
   // this is useful for state metrics...
-  float timeSpentInCurrentStateMillis = millis() - currentGaggiaState.stateEnterTimeMillis;
+  float timeSpentInCurrentStateMillis = millis() - currentGaggiaState->stateEnterTimeMillis;
   
 
-  if (currentGaggiaState.state == BREWING) {
+  if (currentGaggiaState->state == BREWING) {
     // Just finished brewing.. Need to calculate flow rate...
 
     // The rate is usually expressed as grams/30seconds
@@ -901,35 +902,36 @@ void processOutgoingGaggiaState(GaggiaState currentGaggiaState,
   }
 }
 
-void processCurrentGaggiaState(GaggiaState currentGaggiaState,  
+void processCurrentGaggiaState(GaggiaState *currentGaggiaState,  
                                HeaterState *heaterState,
                                ScaleState *scaleState,
                                DisplayState *displayState,
                                WaterReservoirState *waterReservoirState,
                                WaterPumpState *waterPumpState,
                                float nowTimeMillis) {
+
   // 
   // Process Display
   //
-  displayState->display1 = updateDisplayLine(currentGaggiaState.display1, 
+  displayState->display1 = updateDisplayLine(currentGaggiaState->display1, 
                                              1, 
                                              heaterState, 
                                              scaleState, 
                                              displayState->display1);
 
-  displayState->display2 = updateDisplayLine(currentGaggiaState.display2, 
+  displayState->display2 = updateDisplayLine(currentGaggiaState->display2, 
                                              2, 
                                              heaterState, 
                                              scaleState, 
                                              displayState->display2);
 
-  displayState->display3 = updateDisplayLine(currentGaggiaState.display3, 
+  displayState->display3 = updateDisplayLine(currentGaggiaState->display3, 
                                              3, 
                                              heaterState, 
                                              scaleState,  
                                              displayState->display3);
 
-  displayState->display4 = updateDisplayLine(currentGaggiaState.display4, 
+  displayState->display4 = updateDisplayLine(currentGaggiaState->display4, 
                                              4, 
                                              heaterState, 
                                              scaleState, 
@@ -942,7 +944,7 @@ void processCurrentGaggiaState(GaggiaState currentGaggiaState,
   // Even though a heater may be 'on' during this state, the control system
   // for the heater turns it off and on intermittently in an attempt to regulate
   // the temperature around the target temp.
-  if (currentGaggiaState.brewHeaterOn) {
+  if (currentGaggiaState->brewHeaterOn) {
     readHeaterState(MAX6675_CS_brew, MAX6675_SO_brew, MAX6675_SCK, heaterState);  
 
     if (shouldTurnOnHeater(nowTimeMillis, heaterState)) {
@@ -951,7 +953,7 @@ void processCurrentGaggiaState(GaggiaState currentGaggiaState,
       turnHeaterOff();
     } 
   }
-  if (currentGaggiaState.steamHeaterOn) {
+  if (currentGaggiaState->steamHeaterOn) {
     readHeaterState(MAX6675_CS_steam, MAX6675_SO_steam, MAX6675_SCK, heaterState); 
 
     if (shouldTurnOnHeater(nowTimeMillis, heaterState)) {
@@ -960,18 +962,18 @@ void processCurrentGaggiaState(GaggiaState currentGaggiaState,
       turnHeaterOff();
     } 
   }
-  if (!currentGaggiaState.brewHeaterOn && !currentGaggiaState.steamHeaterOn) {
+  if (!currentGaggiaState->brewHeaterOn && !currentGaggiaState->steamHeaterOn) {
       turnHeaterOff();
   }
 
   // Process Dispense Water 
-  if (currentGaggiaState.dispenseWater) {
+  if (currentGaggiaState->dispenseWater) {
     dispenseWater();
   } else {
     stopDispensingWater();
   }
 
-  if (currentGaggiaState.fillingReservoir) {
+  if (currentGaggiaState->fillingReservoir) {
 
     if (doesWaterReservoirNeedFilling(DISPENSE_WATER,  WATER_RESERVOIR_SENSOR, waterReservoirState)) {
       waterReservoirState->isSolenoidOn = true;
@@ -985,7 +987,7 @@ void processCurrentGaggiaState(GaggiaState currentGaggiaState,
     turnWaterReservoirSolenoidOff();
   }
 
-  if (currentGaggiaState.measureTemp) {
+  if (currentGaggiaState->measureTemp) {
     readHeaterState(MAX6675_CS_brew, MAX6675_SO_brew, MAX6675_SCK, heaterState);  
   }
 }
@@ -1195,8 +1197,6 @@ String updateDisplayLine(char *message,
                         HeaterState *heaterState,
                         ScaleState *scaleState,
                         String previousLineDisplayed) {
-
-  publishParticleLog("display", "toDisplay:" + String(message));  
 
   display.setCursor(0,line-1);
   
