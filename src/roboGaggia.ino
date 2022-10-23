@@ -414,7 +414,7 @@ void setup() {
 
   // Define all possible states of RoboGaggia
   helloState.state = HELLO; 
-  helloState.display1 =            "Hello.              ";
+  helloState.display1 =            "Hi.                 ";
   helloState.display2 =            "Clear scale surface.";
   helloState.display3 =            "Click to Brew,      ";
   helloState.display4 =            "Hold for Steam      ";
@@ -529,7 +529,7 @@ void setup() {
   display.setContrast(5); //Set contrast. Lower to 0 for higher contrast.
 
   display.clear(); //Clear the display - this moves the cursor to home position as well
-  display.print("Booting ...");
+  display.print("Joining network ...");
 
 
   // Wait for a USB serial connection for up to 15 seconds
