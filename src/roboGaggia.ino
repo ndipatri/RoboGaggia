@@ -840,6 +840,8 @@ void processIncomingGaggiaState(GaggiaState *currentGaggiaState,
                                     9.1, 0.3, 1.8, PID::DIRECT);
     
     // The Gaggia water pump doesn't energize at all below 30 duty cycle.
+    // This number range is the 'dutyCycle' of the power we are sending to the water
+    // pump.
     thisWaterPumpPID->SetOutputLimits(30, 100);
     thisWaterPumpPID->SetMode(PID::AUTOMATIC);
 
@@ -854,7 +856,9 @@ void processIncomingGaggiaState(GaggiaState *currentGaggiaState,
                                  &heaterState->heaterDurationMillis, 
                                  &TARGET_BREW_TEMP, 
                                  9.1, 0.3, 1.8, PID::DIRECT);
-    thisHeaterPID->SetOutputLimits(0, 250);
+    // The heater is either on or off, there's no need making this more complicated..
+    // So the PID either turns the heater on or off.
+    thisHeaterPID->SetOutputLimits(0, 1);
     thisHeaterPID->SetMode(PID::AUTOMATIC);
 
     delete heaterState->heaterPID;
@@ -1301,42 +1305,14 @@ long filterLowWeight(long weight) {
 boolean shouldTurnOnHeater(float nowTimeMillis,
                            HeaterState *heaterState) {
                         
-  boolean shouldTurnOnHeater = false;
+  heaterState->heaterPID->Compute();
 
-  if (heaterState->heaterStarTime > 0 ) {
-    // we're in a heat cycle....
-
-    if ((nowTimeMillis - heaterState->heaterStarTime) > heaterState->heaterDurationMillis) {
-      // done this heat cycle!
-
-      heaterState->heaterStarTime = -1;
-      publishParticleLog("shouldTurnOnHeater", "doneCycle..off");
-      shouldTurnOnHeater = false;
-    } else {
-      shouldTurnOnHeater = true;
-    }
+  if (heaterState->heaterDurationMillis > 0 ) {
+    return true;
   } else {
-    // determine if we should be in a heat cycle ...
-
-    // This triggers the PID to use previous and current
-    // measured values to calculate the current required
-    // heater interval ...
-    // The output of this calculation is a new 'heaterDurationMillis' value.
-    heaterState->heaterDurationMillis = 0;
-    heaterState->heaterPID->Compute();
-
-    if (heaterState->heaterDurationMillis > 0) {
-      publishParticleLog("shouldTurnOnHeater", 
-        "startCycle..on, with duration:" + String(heaterState->heaterDurationMillis));
-      heaterState->heaterStarTime = nowTimeMillis;
-
-      shouldTurnOnHeater = true;
-    }
+    return false;
   }
-
-  return shouldTurnOnHeater;
 }
-
 
 boolean doesWaterReservoirNeedFilling(int CHIP_ENABLE_PIN, int ANALOG_INPUT_PIN, WaterReservoirState *waterReservoirState) {
 
