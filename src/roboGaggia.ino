@@ -138,8 +138,11 @@ int DISPENSE_FLOW_RATE_TOTAL_CYCES = 20;
 // values really are...
 double DISPENSING_PSI = 9.0;
 double PRE_INFUSION_PSI = 2.0;
-double PRESSURE_SENSOR_SCALE_FACTOR = .001;
-int PERSSURE_SENSOR_OFFSET = -1;
+// see https://docs.google.com/spreadsheets/d/1_15rEy-WI82vABUwQZRAxucncsh84hbYKb2WIA9cnOU/edit?usp=sharing
+// as shown in shart above, the following values were derived by hooking up a bicycle pump w/ guage to the
+// pressure sensor and measuring a series of values vs bar pressure. 
+double PRESSURE_SENSOR_SCALE_FACTOR = 1658.0;
+int PRESSURE_SENSOR_OFFSET = 2470; 
 
 //
 // State
@@ -396,8 +399,10 @@ void setup() {
 
   // // Useful state exposed to Particle web console
   Particle.variable("heaterTempC", heaterState.measuredTemp);
+  Particle.variable("targetBrewTempC", TARGET_BREW_TEMP);
   Particle.variable("isDispensingWater",  currentGaggiaState.dispenseWater);
   Particle.variable("thermocoupleError",  heaterState.thermocoupleError);
+  Particle.variable("heaterDurationMillis",  heaterState.heaterDurationMillis);
   Particle.variable("targetPressureInBars", _targetPressureInBars);
   Particle.variable("currentPressureInBars", _measuredPressureInBars);
   Particle.variable("isInTestMode",  isInTestMode);
@@ -440,7 +445,7 @@ void setup() {
   measureBeansState.state = MEASURE_BEANS; 
   measureBeansState.display1 =     "Add beans to cup.   ";
   measureBeansState.display2 =     "{adjustedWeight}/{targetBeanWeight}";
-  measureBeansState.display3 =     "                    ";
+  measureBeansState.display3 =     "{measuredBrewTemp}/{targetBrewTemp}";
   measureBeansState.display4 =     "Click when Ready    ";
   measureBeansState.recordWeight = true; 
   measureBeansState.brewHeaterOn = true; 
@@ -1144,16 +1149,16 @@ void readPumpState(WaterPumpState *waterPumpState) {
   // reading from first channel of the 1015
 
   // no pressure ~1100
-  //int rawPressure = ads1115.readADC_SingleEnded(0);
-  //int normalizedPressureInBars = rawPressure*PRESSURE_SENSOR_SCALE_FACTOR + PERSSURE_SENSOR_OFFSET;
+  int rawPressure = ads1115.readADC_SingleEnded(0);
+  int normalizedPressureInBars = (rawPressure-PRESSURE_SENSOR_OFFSET)/PRESSURE_SENSOR_SCALE_FACTOR;
 
-  //publishParticleLog("pump", "rawPressure: " + String(rawPressure) + "', normalizedPressure: " + String(normalizedPressureInBars));
+  publishParticleLog("pump", "rawPressure: " + String(rawPressure) + "', normalizedPressure: " + String(normalizedPressureInBars));
 
-  //waterPumpState->measuredPressureInBars = normalizedPressureInBars;
+  waterPumpState->measuredPressureInBars = normalizedPressureInBars;
 
   // NJD TODO PRESSURE  - this is all we have to switch when we get the pressure sensor installed.
   // If we say it returns 0, then the pump will run @ 100% duty cycle always. which is ok for now.
-  waterPumpState->measuredPressureInBars = 0;
+  //waterPumpState->measuredPressureInBars = 0;
   
 }
 
