@@ -118,8 +118,8 @@ int LOW_WEIGHT_THRESHOLD = 4;
 // These values were imperically derived by measuring these levels
 // while immersing the water sensor.
 // These values need to be recalibrated everytime you replace sensor
-int LOW_WATER_RESEVOIR_LIMIT = 100;
-int HIGH_WATER_RESEVOIR_LIMIT = 300;
+int LOW_WATER_RESEVOIR_LIMIT = 300;
+int HIGH_WATER_RESEVOIR_LIMIT = 400;
 
 int RETURN_TO_HOME_INACTIVITY_MINUTES = 10;
 
@@ -441,6 +441,7 @@ void setup() {
   tareCup1State.display4 =         "Click when Ready    ";
   tareCup1State.tareScale = true; 
   tareCup1State.brewHeaterOn = true; 
+  tareCup1State.fillingReservoir = true;
 
   measureBeansState.state = MEASURE_BEANS; 
   measureBeansState.display1 =     "Add beans to cup.   ";
@@ -507,6 +508,7 @@ void setup() {
   coolStartState.display2 =        "Need to run water.  ";
   coolStartState.display3 =        "Place cup on tray.  ";
   coolStartState.display4 =        "Click when Ready    ";
+  coolStartState.fillingReservoir = true;
 
   coolingState.state = COOLING; 
   coolingState.display1 =          "Dispensing to cool  ";
@@ -1153,17 +1155,13 @@ void readPumpState(WaterPumpState *waterPumpState) {
   // reading from first channel of the 1015
 
   // no pressure ~1100
-  int rawPressure = ads1115.readADC_SingleEnded(0);
+  //int rawPressure = ads1115.readADC_SingleEnded(0);
+  int rawPressure = 0;
   int normalizedPressureInBars = (rawPressure-PRESSURE_SENSOR_OFFSET)/PRESSURE_SENSOR_SCALE_FACTOR;
 
   publishParticleLog("pump", "rawPressure: " + String(rawPressure) + "', normalizedPressure: " + String(normalizedPressureInBars));
 
   waterPumpState->measuredPressureInBars = normalizedPressureInBars;
-
-  // NJD TODO PRESSURE  - this is all we have to switch when we get the pressure sensor installed.
-  // If we say it returns 0, then the pump will run @ 100% duty cycle always. which is ok for now.
-  //waterPumpState->measuredPressureInBars = 0;
-  
 }
 
 void stopDispensingWater() {
