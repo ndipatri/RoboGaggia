@@ -113,14 +113,6 @@ double SCALE_OFFSET = 47;
 // Below which we consider weight to be 0
 int LOW_WEIGHT_THRESHOLD = 4;
 
-// This is for implementing a schmitt trigger control system for
-// water reservoir sensor
-// These values were imperically derived by measuring these levels
-// while immersing the water sensor.
-// These values need to be recalibrated everytime you replace sensor
-int LOW_WATER_RESEVOIR_LIMIT = 300;
-int HIGH_WATER_RESEVOIR_LIMIT = 400;
-
 int RETURN_TO_HOME_INACTIVITY_MINUTES = 10;
 
 // How long we will the portafilter with semi-hot water
@@ -174,7 +166,8 @@ Adafruit_ADS1115 ads1115;  // the adc for the pressure sensor
 
 struct WaterReservoirState {
 
-  int measuredWaterLevel = 0;
+  // 1 means air, 0 means water
+  int airDetectionValue = 0;
 
   boolean isSolenoidOn = false;
 
@@ -210,7 +203,7 @@ struct HeaterState {
   double measuredTemp;
   
   // This is calculated and updated by the PID
-  double heaterDurationMillis;
+  double heaterShouldBeOn;
 
   // Used to track ongoing heat cycles...
   float heaterStarTime = -1;
@@ -402,11 +395,11 @@ void setup() {
   Particle.variable("targetBrewTempC", TARGET_BREW_TEMP);
   Particle.variable("isDispensingWater",  currentGaggiaState.dispenseWater);
   Particle.variable("thermocoupleError",  heaterState.thermocoupleError);
-  Particle.variable("heaterDurationMillis",  heaterState.heaterDurationMillis);
+  Particle.variable("heaterShouldBeOn",  heaterState.heaterShouldBeOn);
   Particle.variable("targetPressureInBars", _targetPressureInBars);
   Particle.variable("currentPressureInBars", _measuredPressureInBars);
   Particle.variable("isInTestMode",  isInTestMode);
-  Particle.variable("waterLevel",  _readWaterLevel);
+  Particle.variable("airDetection",  _readAirDetection);
   Particle.variable("currentState", _readCurrentState);
 
   Particle.function("turnOnTestMode", turnOnTestMode);
@@ -810,35 +803,31 @@ void processIncomingGaggiaState(GaggiaState *currentGaggiaState,
                                 WaterReservoirState *waterReservoirState,
                                 WaterPumpState *waterPumpState,
                                 float nowTimeMillis) {
-
-  if (nextGaggiaState->state == PREINFUSION) {
-    // at the moment, this is teh lowest value that produces
-    // appreciable volume.. good for preinfusion
-    
-    // this needs to be done before we USE this value below when creating waterPumpPID!
-    waterPumpState->targetPressureInBars = PRE_INFUSION_PSI;
-  }
-
-  if (nextGaggiaState->state == BREWING) {
-    // this needs to be done before we USE this value below when creating waterPumpPID!
-    waterPumpState->targetPressureInBars = DISPENSING_PSI;
-  }
-
-  if (nextGaggiaState->state == COOLING) {
-    // this needs to be done before we USE this value below when creating waterPumpPID!
-    waterPumpState->targetPressureInBars = DISPENSING_PSI;
-  }
-
   // NOTE: This needs to be done AFTER we've calculated the proper targetPressure for 
   // current state!
   if (nextGaggiaState->dispenseWater) {
     publishParticleLog("dispense", "Launching Pressure PID");
     
+
+    if (nextGaggiaState->state == PREINFUSION) {
+      // at the moment, this is teh lowest value that produces
+      // appreciable volume.. good for preinfusion
+      waterPumpState->targetPressureInBars = PRE_INFUSION_PSI;
+    }
+
+    if (nextGaggiaState->state == BREWING) {
+      waterPumpState->targetPressureInBars = DISPENSING_PSI;
+    }
+
+    if (nextGaggiaState->state == COOLING) {
+      waterPumpState->targetPressureInBars = DISPENSING_PSI;
+    }
+    
     // The reason we do this here is because PID can't change its target value,
     // so we must create a new one when our target pressure changes..
-    PID *thisWaterPumpPID = new PID(&waterPumpState->measuredPressureInBars, 
-                                    &waterPumpState->pumpDutyCycle, 
-                                    &waterPumpState->targetPressureInBars, 
+    PID *thisWaterPumpPID = new PID(&waterPumpState->measuredPressureInBars,  // input
+                                    &waterPumpState->pumpDutyCycle,  // output
+                                    &waterPumpState->targetPressureInBars,  // target
                                     9.1, 0.3, 1.8, PID::DIRECT);
     
     // The Gaggia water pump doesn't energize at all below 30 duty cycle.
@@ -855,7 +844,7 @@ void processIncomingGaggiaState(GaggiaState *currentGaggiaState,
     // The reason we do this here is because PID can't change its target value,
     // so we must create a new one when our target temperature changes..
     PID *thisHeaterPID = new PID(&heaterState->measuredTemp, 
-                                 &heaterState->heaterDurationMillis, 
+                                 &heaterState->heaterShouldBeOn, 
                                  &TARGET_BREW_TEMP, 
                                  9.1, 0.3, 1.8, PID::DIRECT);
     // The heater is either on or off, there's no need making this more complicated..
@@ -869,10 +858,12 @@ void processIncomingGaggiaState(GaggiaState *currentGaggiaState,
 
   if (nextGaggiaState->steamHeaterOn) {
     PID *thisHeaterPID = new PID(&heaterState->measuredTemp, 
-                                 &heaterState->heaterDurationMillis, 
+                                 &heaterState->heaterShouldBeOn, 
                                  &TARGET_STEAM_TEMP, 
                                  9.1, 0.3, 1.8, PID::DIRECT);
-    thisHeaterPID->SetOutputLimits(0, 250);
+    // The heater is either on or off, there's no need making this more complicated..
+    // So the PID either turns the heater on or off.
+    thisHeaterPID->SetOutputLimits(0, 1);
     thisHeaterPID->SetMode(PID::AUTOMATIC);
 
     delete heaterState->heaterPID;
@@ -1136,7 +1127,7 @@ void dispenseWater() {
 
   // This triggers the PID to use previous and current
   // measured values to calculate the current required
-  // dutyCycle...
+  // dutyCycle of the water pump
   waterPumpState.waterPumpPID->Compute();
   publishParticleLog("dispenser", "pumpDutyCycle: " + String(waterPumpState.pumpDutyCycle));
 
@@ -1155,8 +1146,7 @@ void readPumpState(WaterPumpState *waterPumpState) {
   // reading from first channel of the 1015
 
   // no pressure ~1100
-  //int rawPressure = ads1115.readADC_SingleEnded(0);
-  int rawPressure = 0;
+  int rawPressure = ads1115.readADC_SingleEnded(0);
   int normalizedPressureInBars = (rawPressure-PRESSURE_SENSOR_OFFSET)/PRESSURE_SENSOR_SCALE_FACTOR;
 
   publishParticleLog("pump", "rawPressure: " + String(rawPressure) + "', normalizedPressure: " + String(normalizedPressureInBars));
@@ -1305,7 +1295,7 @@ boolean shouldTurnOnHeater(float nowTimeMillis,
                         
   heaterState->heaterPID->Compute();
 
-  if (heaterState->heaterDurationMillis > 0 ) {
+  if (heaterState->heaterShouldBeOn > 0 ) {
     return true;
   } else {
     return false;
@@ -1318,26 +1308,21 @@ boolean doesWaterReservoirNeedFilling(int CHIP_ENABLE_PIN, int ANALOG_INPUT_PIN,
     digitalWrite(CHIP_ENABLE_PIN, HIGH);
   }
 
-  int measuredWaterLevel = analogRead(ANALOG_INPUT_PIN);
+  // Using the Optomax Digital Liquid sensor, 
+  // 1 means air, 0 means liquid.
+  int airDetectionValue = analogRead(ANALOG_INPUT_PIN);
   
-  waterReservoirState->measuredWaterLevel = measuredWaterLevel;
-
-  // Schmitt Trigger
-  if (waterReservoirState->isSolenoidOn) {
-    if (measuredWaterLevel < HIGH_WATER_RESEVOIR_LIMIT) {
-      return true;
-    }
-  } else {
-    if (measuredWaterLevel < LOW_WATER_RESEVOIR_LIMIT) {
-      return true;
-    }
-  }
+  waterReservoirState->airDetectionValue = airDetectionValue;
 
   if (digitalRead(CHIP_ENABLE_PIN) == HIGH) {
     digitalWrite(CHIP_ENABLE_PIN, LOW);
   }
 
-  return false;
+  if (airDetectionValue > 0) {
+    return true;
+  } else {
+    return false;
+  }
 }
 
 void publishParticleLog(String group, String message) {
@@ -1394,21 +1379,20 @@ int _setHelloState(String _) {
   return 1;
 }
 
-// Make sure you are dispensing water when you call this! The power from
-// the dispenser is used to power this sensor
-int _readWaterLevel() {
+int _readAirDetection() {
   
+  // this signal drives power for the water detector
   if (digitalRead(DISPENSE_WATER) == LOW) {
     digitalWrite(DISPENSE_WATER, HIGH);
   }
 
-  int measuredWaterLevel = analogRead(WATER_RESERVOIR_SENSOR);
+  int airDetectionValue = analogRead(WATER_RESERVOIR_SENSOR);
 
   if (digitalRead(DISPENSE_WATER) == HIGH) {
     digitalWrite(DISPENSE_WATER, LOW);
   }
 
-  return measuredWaterLevel;
+  return airDetectionValue;
 }
 
 String _readCurrentState() {
