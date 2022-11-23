@@ -71,16 +71,15 @@ SYSTEM_THREAD(ENABLED);
 #define HEATER D8
 
 // Output - For dispensing water
-// IT IS EXPECTED FOR THIS TO ALSO BE TIED TO THE WATER_SENSOR
-// POWER PIN... AS WE EXPECT TO TAKE WATER LEVEL MEASUREMENTS WHILE
-// WE ARE DISPENSING WATER
 //
 // Also, since we use the AC_DIMMER (via DISPENSE_POT), merely pulling
 // this DISPENSE_WATER pin high does NOT start dispensing water... the
 // POT also has to be pulled HIGH for that to happen.
 #define DISPENSE_WATER  TX
 
-// 0 - low water mark, ~500 high water mark
+// 1 - air , 0 - water
+// This sensor draws max 2.5mA so it can be directly powered by 3.3v on
+// Argon
 #define WATER_RESERVOIR_SENSOR  A1
 
 // send high to turn on solenoid
@@ -126,10 +125,10 @@ int DONE_BREWING_LINGER_TIME_SECONDS = 5;
 // 5 cycles off
 int DISPENSE_FLOW_RATE_TOTAL_CYCES = 20;
 
-// NJD TODO PRESSURE - Until I get the actual sensor hooked up, i dont know what these absolute
-// values really are...
-double DISPENSING_PSI = 9.0;
-double PRE_INFUSION_PSI = 2.0;
+// The Gaggia currently has a 6bar spring in its 
+// OPV (over pressure valve)
+double DISPENSING_BAR = 6.0;
+double PRE_INFUSION_BAR = 2.0;
 // see https://docs.google.com/spreadsheets/d/1_15rEy-WI82vABUwQZRAxucncsh84hbYKb2WIA9cnOU/edit?usp=sharing
 // as shown in shart above, the following values were derived by hooking up a bicycle pump w/ guage to the
 // pressure sensor and measuring a series of values vs bar pressure. 
@@ -142,7 +141,7 @@ int PRESSURE_SENSOR_OFFSET = 2470;
 
 struct WaterPumpState {
 
-double targetPressureInBars = PRE_INFUSION_PSI; 
+double targetPressureInBars = PRE_INFUSION_BAR; 
 
   // current pressure
   // This is input for the PID
@@ -166,13 +165,10 @@ Adafruit_ADS1115 ads1115;  // the adc for the pressure sensor
 
 struct WaterReservoirState {
 
-  // 1 means air, 0 means water
-  int airDetectionValue = 0;
-
   boolean isSolenoidOn = false;
 
 } waterReservoirState;
-boolean doesWaterReservoirNeedFilling(int CHIP_ENABLE_PIN, int ANALOG_INPUT_PIN, WaterReservoirState *waterReservoirState);
+boolean doesWaterReservoirNeedFilling();
 
 
 struct ScaleState {
@@ -386,9 +382,10 @@ void setup() {
 
   // water dispenser
   pinMode(DISPENSE_WATER, OUTPUT);
-
   pinMode(WATER_RESERVOIR_SOLENOID, OUTPUT);
 
+  // water reservoir sensor
+  pinMode(WATER_RESERVOIR_SENSOR, INPUT);
 
   // // Useful state exposed to Particle web console
   Particle.variable("heaterTempC", heaterState.measuredTemp);
@@ -399,7 +396,7 @@ void setup() {
   Particle.variable("targetPressureInBars", _targetPressureInBars);
   Particle.variable("currentPressureInBars", _measuredPressureInBars);
   Particle.variable("isInTestMode",  isInTestMode);
-  Particle.variable("airDetection",  _readAirDetection);
+  Particle.variable("doesWaterNeedFilling",  doesWaterReservoirNeedFilling);
   Particle.variable("currentState", _readCurrentState);
 
   Particle.function("turnOnTestMode", turnOnTestMode);
@@ -812,15 +809,15 @@ void processIncomingGaggiaState(GaggiaState *currentGaggiaState,
     if (nextGaggiaState->state == PREINFUSION) {
       // at the moment, this is teh lowest value that produces
       // appreciable volume.. good for preinfusion
-      waterPumpState->targetPressureInBars = PRE_INFUSION_PSI;
+      waterPumpState->targetPressureInBars = PRE_INFUSION_BAR;
     }
 
     if (nextGaggiaState->state == BREWING) {
-      waterPumpState->targetPressureInBars = DISPENSING_PSI;
+      waterPumpState->targetPressureInBars = DISPENSING_BAR;
     }
 
     if (nextGaggiaState->state == COOLING) {
-      waterPumpState->targetPressureInBars = DISPENSING_PSI;
+      waterPumpState->targetPressureInBars = DISPENSING_BAR;
     }
     
     // The reason we do this here is because PID can't change its target value,
@@ -987,7 +984,7 @@ void processCurrentGaggiaState(GaggiaState *currentGaggiaState,
 
   if (currentGaggiaState->fillingReservoir) {
 
-    if (doesWaterReservoirNeedFilling(DISPENSE_WATER,  WATER_RESERVOIR_SENSOR, waterReservoirState)) {
+    if (doesWaterReservoirNeedFilling()) {
       waterReservoirState->isSolenoidOn = true;
       turnWaterReservoirSolenoidOn();
     } else {
@@ -1302,29 +1299,6 @@ boolean shouldTurnOnHeater(float nowTimeMillis,
   }
 }
 
-boolean doesWaterReservoirNeedFilling(int CHIP_ENABLE_PIN, int ANALOG_INPUT_PIN, WaterReservoirState *waterReservoirState) {
-
-  if (digitalRead(CHIP_ENABLE_PIN) == LOW) {
-    digitalWrite(CHIP_ENABLE_PIN, HIGH);
-  }
-
-  // Using the Optomax Digital Liquid sensor, 
-  // 1 means air, 0 means liquid.
-  int airDetectionValue = analogRead(ANALOG_INPUT_PIN);
-  
-  waterReservoirState->airDetectionValue = airDetectionValue;
-
-  if (digitalRead(CHIP_ENABLE_PIN) == HIGH) {
-    digitalWrite(CHIP_ENABLE_PIN, LOW);
-  }
-
-  if (airDetectionValue > 0) {
-    return true;
-  } else {
-    return false;
-  }
-}
-
 void publishParticleLog(String group, String message) {
     if (PLATFORM_ID == PLATFORM_ARGON && isInTestMode) {
         Particle.publish(group, message, 60, PUBLIC);
@@ -1379,20 +1353,15 @@ int _setHelloState(String _) {
   return 1;
 }
 
-int _readAirDetection() {
+boolean doesWaterReservoirNeedFilling() {
   
-  // this signal drives power for the water detector
-  if (digitalRead(DISPENSE_WATER) == LOW) {
-    digitalWrite(DISPENSE_WATER, HIGH);
+  int needFilling = digitalRead(WATER_RESERVOIR_SENSOR);
+
+  if (needFilling == HIGH) {
+    return true;
+  } else {
+    return false;
   }
-
-  int airDetectionValue = analogRead(WATER_RESERVOIR_SENSOR);
-
-  if (digitalRead(DISPENSE_WATER) == HIGH) {
-    digitalWrite(DISPENSE_WATER, LOW);
-  }
-
-  return airDetectionValue;
 }
 
 String _readCurrentState() {
