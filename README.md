@@ -39,9 +39,9 @@ In an attempt to mitigate the above Gaggia short comings, I've implemented the f
 
 This project involves modifying a perfectly safe commercial espresso machine.  These modifications absolutely make your espresso machine less safe.  It involves both water and electricity.  Please proceed at your own risk.  This is a dangerous modification! If you don't do it right, people will die over a cup of coffee! 
 
-These instructions assume you are proficient in handling both DC and AC electrical components.  If you are not, this is not the project for you, sorry!
+These instructions assume you are proficient in handling both DC and AC electrical components and plumbing.  If you are not, this is not the project for you at this time, sorry!  Learn with other projects and then come back to this one :-)
 
-Also, I know absolutely NOTHING about proper coffee.  It's quite possible evetything I'm doing here is wrong, so don't yell at me.  Anything I do know, I've learned by watching the awesome coffee videos from [James Hoffman](https://www.youtube.com/channel/UCMb0O2CdPBNi-QqPk5T3gsQ)
+Also, I know absolutely NOTHING about proper coffee.  It's quite possible everything I'm doing here is wrong, so don't yell at me.  Anything I do know, I've learned by watching the awesome coffee videos from [James Hoffman](https://www.youtube.com/channel/UCMb0O2CdPBNi-QqPk5T3gsQ)
 
 
 
@@ -124,6 +124,29 @@ The biggest change I made is I removed some stuff :-). I removed the 'Brew' and 
 Here is a crude diagram of the changes I made (see where I added the two [High Power Solid State Relay(SSR)](https://www.sparkfun.com/products/13015) and the [AC Dimmer Controller](https://www.amazon.com/gp/product/B072K9P7KH/ref=ppx_yo_dt_b_asin_title_o03_s00?ie=UTF8&psc=1)
 
 ![Basic Wiring Changes](media/gaggiaWiring.jpg)
+
+
+# Additional Notes
+
+## Calibrating Sensors
+
+Both the [Water Pressure Sensor](https://www.aliexpress.us/item/2255800570317172.html?spm=a2g0o.order_list.0.0.21ef1802Ig0OM9&gatewayAdapt=glo2usa&_randl_shipto=US) and the [500g Mini Load Cell](https://www.sparkfun.com/products/14728) are transducer sensors: they convert some form of energy to an eletrical signal. As a result, both of these devices needed to be calibrated.
+
+Calibration is what allows us to assign a given sensor output voltage level to a useful measured value (e.g. bars of pressure or grams of weight).
+
+Luckily, the above relationship can be expressed as a mathematical [Linear Equation](https://en.wikipedia.org/wiki/Linear_equation)).
+
+For example, we can determine the current measured water pressure, in atmospheric 'bars', of the water pressure sensor by applying its output voltage to the following equation:
+
+measured bars = m(measured voltage) + b
+
+The calibration step involves determining what constants 'm' and 'b' are for a know set of input and output values.  Once we know these constants, we can use them to calculate any output pressure for any input voltage.
+
+I took 8 data points by attaching a bicycle pump to the pressure sensor using [this NPT pressure fitting](https://www.amazon.com/gp/product/B001PLI4BA/ref=ppx_yo_dt_b_asin_title_o06_s00?ie=UTF8&psc=1).  Using [this helpful guide](https://blog.golayer.io/google-sheets/how-to-find-slope-in-google-sheets) written by [Hady Elhady](https://blog.golayer.io/author/Hady-ElHady), I imported these 8 data points into Google Sheets and calculate both 'm' and 'b'.  [This diagram](media/pressureCalibration.png)) demonstrates my results for the Water Pressure Sensor.
+
+I did this same process for both the water pressure sensor and the scale and the resulting 'm' and 'b' values are already in the code.  These values will probably work fine if the same sensors are used.
+
+
 
 
 
