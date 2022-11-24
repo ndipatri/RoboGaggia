@@ -134,17 +134,17 @@ Both the [Water Pressure Sensor](https://www.aliexpress.us/item/2255800570317172
 
 Calibration is what allows us to assign a given sensor output voltage level to a useful measured value (e.g. bars of pressure or grams of weight).
 
-Luckily, the above relationship can be expressed as a mathematical [Linear Equation](https://en.wikipedia.org/wiki/Linear_equation)).
+Luckily, the above relationship can be expressed as a mathematical [Linear Equation](https://en.wikipedia.org/wiki/Linear_equation).
 
 For example, we can determine the current measured water pressure, in atmospheric 'bars', of the water pressure sensor by applying its output voltage to the following equation:
 
-measured bars = m(measured voltage) + b
+measured bars = **m**(output voltage) + **b**
 
-The calibration step involves determining what constants 'm' and 'b' are for a know set of input and output values.  Once we know these constants, we can use them to calculate any output pressure for any input voltage.
+The calibration step involves determining what constants **m** and **b** are for a know set of input and output values.  Once we know these constants, we can use them to calculate any output pressure for any input voltage.
 
-I took 8 data points by attaching a bicycle pump to the pressure sensor using [this NPT pressure fitting](https://www.amazon.com/gp/product/B001PLI4BA/ref=ppx_yo_dt_b_asin_title_o06_s00?ie=UTF8&psc=1).  Using [this helpful guide](https://blog.golayer.io/google-sheets/how-to-find-slope-in-google-sheets) written by [Hady Elhady](https://blog.golayer.io/author/Hady-ElHady), I imported these 8 data points into Google Sheets and calculate both 'm' and 'b'.  [This diagram](media/pressureCalibration.png)) demonstrates my results for the Water Pressure Sensor.
+I took 8 data points by attaching a bicycle pump to the pressure sensor using [this NPT pressure fitting](https://www.amazon.com/gp/product/B001PLI4BA/ref=ppx_yo_dt_b_asin_title_o06_s00?ie=UTF8&psc=1).  Using [this helpful guide](https://blog.golayer.io/google-sheets/how-to-find-slope-in-google-sheets) written by [Hady Elhady](https://blog.golayer.io/author/Hady-ElHady), I imported these 8 data points into Google Sheets and calculate both **m** and **b**.  [This diagram](media/pressureCalibration.png)) demonstrates my results for the Water Pressure Sensor.
 
-I did this same process for both the water pressure sensor and the scale and the resulting 'm' and 'b' values are already in the code.  These values will probably work fine if the same sensors are used.
+I did this same process for both the water pressure sensor and the scale and the resulting **m** and **b** values are already in the code.  These values will probably work fine if the same sensors are used.
 
 
 
