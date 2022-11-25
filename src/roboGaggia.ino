@@ -127,8 +127,8 @@ int DISPENSE_FLOW_RATE_TOTAL_CYCES = 20;
 
 // The Gaggia currently has a 6bar spring in its 
 // OPV (over pressure valve)
-double DISPENSING_BAR = 6.0;
-double PRE_INFUSION_BAR = 2.0;
+double DISPENSING_BAR = 5.0;
+double PRE_INFUSION_BAR = 1.0;
 // see https://docs.google.com/spreadsheets/d/1_15rEy-WI82vABUwQZRAxucncsh84hbYKb2WIA9cnOU/edit?usp=sharing
 // as shown in shart above, the following values were derived by hooking up a bicycle pump w/ guage to the
 // pressure sensor and measuring a series of values vs bar pressure. 
@@ -262,6 +262,11 @@ enum GaggiaStateEnum {
   COOL_START = 10, 
   COOLING = 11, 
   COOL_DONE = 12, 
+  CLEAN_LOAD_1 = 13, 
+  CLEAN_CYCLE_1 = 14, 
+  CLEAN_LOAD_2 = 15, 
+  CLEAN_CYCLE_2 = 16, 
+  CLEAN_DONE = 17, 
   NA = 13
 };
 struct GaggiaState {
@@ -281,6 +286,7 @@ struct GaggiaState {
    boolean  measureTemp = false;
    boolean  tareScale = false;
    boolean  dispenseWater = false;
+   boolean  preinfuse = false;
    boolean  recordWeight = false;
    float stateEnterTimeMillis = -1;
 } 
@@ -297,6 +303,11 @@ steamingState,
 coolStartState,
 coolingState,
 coolDoneState,
+cleanLoad1State,
+cleanCycle1State,
+cleanLoad2State,
+cleanCycle2State,
+cleanDoneState,
 naState,
 
 currentGaggiaState;
@@ -343,6 +354,7 @@ void processIncomingGaggiaState(GaggiaState *currentGaggiaState,
                                 WaterPumpState *waterPumpState,
                                 float nowTimeMillis);
 GaggiaState returnToHelloState(ScaleState *scaleState);
+float timeSpentInCurrentStateMillis(GaggiaState *currentGaggiaState);
 
 // setup() runs once, when the device is first turned on.
 void setup() {
@@ -404,6 +416,7 @@ void setup() {
 
   Particle.function("setHeatingState", _setHeatingState);
   Particle.function("setBrewingState", _setBrewingState);
+  Particle.function("setPreInfusionState", _setPreInfusionState);
   Particle.function("setCoolingState", _setCoolingState);
   Particle.function("setHelloState", _setHelloState);
 
@@ -412,7 +425,7 @@ void setup() {
   helloState.display1 =            "Hi.                 ";
   helloState.display2 =            "Clear scale surface.";
   helloState.display3 =            "Click to Brew,      ";
-  helloState.display4 =            "Hold for Steam      ";
+  helloState.display4 =            "Hold to Clean       ";
   
   helloState.measureTemp = true;
 
@@ -461,7 +474,7 @@ void setup() {
   preinfusionState.display2 =          "{measuredBars}/{targetBars}";
   preinfusionState.display3 =          "{measuredBrewTemp}/{targetBrewTemp}";
   preinfusionState.display4 =          "Please wait ...     ";
-  preinfusionState.dispenseWater = true; 
+  preinfusionState.preinfuse = true; 
   preinfusionState.brewHeaterOn = true; 
 
   brewingState.state = BREWING; 
@@ -513,6 +526,36 @@ void setup() {
   coolDoneState.display2 =         "                    ";
   coolDoneState.display3 =         "                    ";
   coolDoneState.display4 =         "Click when Ready    ";
+
+  cleanLoad1State.state = CLEAN_LOAD_1;
+  cleanLoad1State.display1 =            "Load back-flush     ";
+  cleanLoad1State.display2 =            "portafilter with    ";
+  cleanLoad1State.display3 =            "3g of Cafiza.       ";
+  cleanLoad1State.display4 =            "Click when Ready    ";
+
+  cleanCycle1State.state = CLEAN_CYCLE_1;
+  cleanCycle1State.display1 =            "Backflushing        ";
+  cleanCycle1State.display2 =            "with cleaner.       ";
+  cleanCycle1State.display3 =            "                    ";
+  cleanCycle1State.display4 =            "Please wait ...     ";
+
+  cleanLoad2State.state = CLEAN_LOAD_2;
+  cleanLoad2State.display1 =            "Clean out back-flush";
+  cleanLoad2State.display2 =            "portafilter.        ";
+  cleanLoad2State.display3 =            "                    ";
+  cleanLoad2State.display4 =            "Click when Ready    ";
+
+  cleanCycle2State.state = CLEAN_CYCLE_2;
+  cleanCycle2State.display1 =            "Backflushing        ";
+  cleanCycle2State.display2 =            "with water.         ";
+  cleanCycle2State.display3 =            "                    ";
+  cleanCycle2State.display4 =            "Please wait ...     ";
+
+  cleanDoneState.state = CLEAN_DONE;
+  cleanDoneState.display1 =            "Replace normal      ";
+  cleanDoneState.display2 =            "portafilter.        ";
+  cleanDoneState.display3 =            "                    ";
+  cleanDoneState.display4 =            "Click when Done     ";
 
   naState.state = NA;
 
@@ -645,7 +688,7 @@ GaggiaState getNextGaggiaState(GaggiaState *currentGaggiaState,
       }
 
       if (userInputState->state == LONG_PRESS) {
-        return heatingToSteamState;
+        return cleanLoad1State;
       }
       break;
       
@@ -782,6 +825,62 @@ GaggiaState getNextGaggiaState(GaggiaState *currentGaggiaState,
         return helloState;
       }
       break;  
+  
+    case CLEAN_LOAD_1 :
+
+      if (userInputState->state == SHORT_PRESS) {
+        return cleanCycle1State;
+      }
+     
+      if (userInputState->state == LONG_PRESS) {
+        return helloState;
+      }
+      break;
+
+    case CLEAN_CYCLE_1 :
+
+      if (userInputState->state == SHORT_PRESS) {
+        return cleanLoad2State;
+      }
+     
+      if (userInputState->state == LONG_PRESS) {
+        return helloState;
+      }
+      break;
+
+    case CLEAN_LOAD_2 :
+
+      if (userInputState->state == SHORT_PRESS) {
+        return cleanCycle2State;
+      }
+     
+      if (userInputState->state == LONG_PRESS) {
+        return helloState;
+      }
+      break;
+
+    case CLEAN_CYCLE_2 :
+
+      if (userInputState->state == SHORT_PRESS) {
+        return cleanDoneState;
+      }
+     
+      if (userInputState->state == LONG_PRESS) {
+        return helloState;
+      }
+      break;
+  
+      case CLEAN_DONE :
+
+      if (userInputState->state == SHORT_PRESS) {
+        return helloState;
+      }
+     
+      if (userInputState->state == LONG_PRESS) {
+        return helloState;
+      }
+      break;
+  
   } 
 
   if ((millis() - userInputState->lastUserInteractionTimeMillis) > 
@@ -800,17 +899,8 @@ void processIncomingGaggiaState(GaggiaState *currentGaggiaState,
                                 WaterReservoirState *waterReservoirState,
                                 WaterPumpState *waterPumpState,
                                 float nowTimeMillis) {
-  // NOTE: This needs to be done AFTER we've calculated the proper targetPressure for 
-  // current state!
   if (nextGaggiaState->dispenseWater) {
     publishParticleLog("dispense", "Launching Pressure PID");
-    
-
-    if (nextGaggiaState->state == PREINFUSION) {
-      // at the moment, this is teh lowest value that produces
-      // appreciable volume.. good for preinfusion
-      waterPumpState->targetPressureInBars = PRE_INFUSION_BAR;
-    }
 
     if (nextGaggiaState->state == BREWING) {
       waterPumpState->targetPressureInBars = DISPENSING_BAR;
@@ -831,6 +921,33 @@ void processIncomingGaggiaState(GaggiaState *currentGaggiaState,
     // This number range is the 'dutyCycle' of the power we are sending to the water
     // pump.
     thisWaterPumpPID->SetOutputLimits(30, 100);
+    thisWaterPumpPID->SetMode(PID::AUTOMATIC);
+
+    delete waterPumpState->waterPumpPID;
+    waterPumpState->waterPumpPID = thisWaterPumpPID;
+  }
+
+  if (nextGaggiaState->preinfuse) {
+    publishParticleLog("dispense", "Preinfusion!");
+
+    waterPumpState->targetPressureInBars = PRE_INFUSION_BAR;
+    
+    // The reason we do this here is because PID can't change its target value,
+    // so we must create a new one when our target pressure changes..
+    PID *thisWaterPumpPID = new PID(&waterPumpState->measuredPressureInBars,  // input
+                                    &waterPumpState->pumpDutyCycle,  // output
+                                    &waterPumpState->targetPressureInBars,  // target
+                                    9.1, 0.3, 1.8, PID::DIRECT);
+    
+    // The Gaggia water pump doesn't energize at all below 30 duty cycle.
+    // This number range is the 'dutyCycle' of the power we are sending to the water
+    // pump.
+    //
+    // For preinfusion, we only allow 30% duty cycle. When the puck is dry, it provides little
+    // backpressure and so teh PID will immediately ramp up to max duty cycle, which is NOT
+    // want we want for preinfusion.... This is a silly way to use the PID, in general, but works
+    // only for preinfusion.
+    thisWaterPumpPID->SetOutputLimits(30, 30);
     thisWaterPumpPID->SetMode(PID::AUTOMATIC);
 
     delete waterPumpState->waterPumpPID;
@@ -889,15 +1006,11 @@ void processOutgoingGaggiaState(GaggiaState *currentGaggiaState,
       (scaleState->measuredWeight - scaleState->tareWeight)*BREW_WEIGHT_TO_BEAN_RATIO; 
   }
 
-  // this is useful for state metrics...
-  float timeSpentInCurrentStateMillis = millis() - currentGaggiaState->stateEnterTimeMillis;
-  
-
   if (currentGaggiaState->state == BREWING) {
     // Just finished brewing.. Need to calculate flow rate...
 
     // The rate is usually expressed as grams/30seconds
-    float timeSpent30SecondIntervals = timeSpentInCurrentStateMillis/(30 * 1000.0);
+    float timeSpent30SecondIntervals = timeSpentInCurrentStateMillis(currentGaggiaState)/(30 * 1000.0);
 
     float dispendedWaterWeight =  scaleState->targetWeight;
 
@@ -945,7 +1058,6 @@ void processCurrentGaggiaState(GaggiaState *currentGaggiaState,
                                              scaleState, 
                                              waterPumpState,
                                              displayState->display4);
-
 
 
   // Process Heaters
@@ -1019,6 +1131,10 @@ void readScaleState(NAU7802 myScale, ScaleState *scaleState) {
 
 boolean isButtonPressedRightNow() {
   return userButton.isPressed();
+}
+
+float timeSpentInCurrentStateMillis(GaggiaState *currentGaggiaState) {
+  return millis() - currentGaggiaState->stateEnterTimeMillis;
 }
 
 void readUserInputState(boolean isButtonPressedRightNow, float nowTimeMillis, UserInputState *userInputState) {
@@ -1146,7 +1262,7 @@ void readPumpState(WaterPumpState *waterPumpState) {
   int rawPressure = ads1115.readADC_SingleEnded(0);
   int normalizedPressureInBars = (rawPressure-PRESSURE_SENSOR_OFFSET)/PRESSURE_SENSOR_SCALE_FACTOR;
 
-  publishParticleLog("pump", "rawPressure: " + String(rawPressure) + "', normalizedPressure: " + String(normalizedPressureInBars));
+  publishParticleLog("pump", "dutyCycle: " + String(waterPumpState->pumpDutyCycle) + "', normalizedPressure: " + String(normalizedPressureInBars));
 
   waterPumpState->measuredPressureInBars = normalizedPressureInBars;
 }
@@ -1329,6 +1445,17 @@ int _setBrewingState(String _) {
   scaleState.targetWeight = 100;
 
   manualNextGaggiaState = brewingState;
+  return 1;
+}
+
+int _setPreInfusionState(String _) {
+  
+  // by jumping to this state, we are bypassing earlier states.. so we need to
+  // fake any data that should have been collected.
+  scaleState.tareWeight = 320;
+  scaleState.targetWeight = 100;
+
+  manualNextGaggiaState = preinfusionState;
   return 1;
 }
 
