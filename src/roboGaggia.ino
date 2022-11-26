@@ -135,7 +135,11 @@ double PRE_INFUSION_BAR = 1.0;
 double PRESSURE_SENSOR_SCALE_FACTOR = 1658.0;
 int PRESSURE_SENSOR_OFFSET = 2470; 
 
-int NUMBER_OF_CLEAN_CYCLES = 10; // (5 on and  off based on https://youtu.be/lfJgabTJ-bM?t=38)
+int MIN_PUMP_DUTY_CYCLE = 30;
+int MAX_PUMP_DUTY_CYCLE = 100;
+
+
+int NUMBER_OF_CLEAN_CYCLES = 10; // (5 on and off based on https://youtu.be/lfJgabTJ-bM?t=38)
 int SECONDS_PER_CLEAN_CYCLE = 10; 
 
 //
@@ -291,7 +295,6 @@ struct GaggiaState {
    boolean  tareScale = false;
    boolean  dispenseWater = false;
    boolean  recordWeight = false;
-   boolean  cleaning = false;
 
    float stateEnterTimeMillis = -1;
    
@@ -300,7 +303,7 @@ struct GaggiaState {
    float stopTimeMillis = -1;
 
    // An arbitrary counter that can be used
-   int counter = 0;
+   int counter = -1;
 } 
 helloState,
 tareCup1State,
@@ -556,11 +559,12 @@ void setup() {
   cleanCycle1State.state = CLEAN_CYCLE_1;
   cleanCycle1State.display1 =            "Backflushing        ";
   cleanCycle1State.display2 =            "with cleaner.       ";
-  cleanCycle1State.display3 =            "                    ";
+  cleanCycle1State.display3 =            "{measuredBars}/{targetBars}";
   cleanCycle1State.display4 =            "Please wait ...     ";
   cleanCycle1State.brewHeaterOn = true; 
-  cleanCycle1State.fillingReservoir = true; 
-  cleanCycle1State.cleaning = true; 
+  cleanCycle1State.dispenseWater = true; 
+  // trying to fill reservoir during clean seemed to cause problems..
+  // not sure why
 
   cleanLoad3State.state = CLEAN_LOAD_3;
   cleanLoad3State.display1 =            "Clean out back-flush";
@@ -571,11 +575,12 @@ void setup() {
   cleanCycle2State.state = CLEAN_CYCLE_2;
   cleanCycle2State.display1 =            "Backflushing        ";
   cleanCycle2State.display2 =            "with water.         ";
-  cleanCycle2State.display3 =            "                    ";
+  cleanCycle2State.display3 =            "{measuredBars}/{targetBars}";
   cleanCycle2State.display4 =            "Please wait ...     ";
   cleanCycle2State.brewHeaterOn = true; 
-  cleanCycle2State.fillingReservoir = true; 
-  cleanCycle2State.cleaning = true; 
+  cleanCycle2State.dispenseWater = true; 
+  // trying to fill reservoir during clean seemed to cause problems..
+  // not sure why
 
   cleanDoneState.state = CLEAN_DONE;
   cleanDoneState.display1 =            "Replace normal      ";
@@ -937,7 +942,7 @@ void processIncomingGaggiaState(GaggiaState *currentGaggiaState,
                                 WaterPumpState *waterPumpState,
                                 float nowTimeMillis) {
 
-  if (nextGaggiaState->dispenseWater || nextGaggiaState->cleaning) {
+  if (nextGaggiaState->dispenseWater) {
     publishParticleLog("dispense", "Launching Pressure PID");
 
     if (nextGaggiaState->state == PREINFUSION) {
@@ -957,21 +962,21 @@ void processIncomingGaggiaState(GaggiaState *currentGaggiaState,
     PID *thisWaterPumpPID = new PID(&waterPumpState->measuredPressureInBars,  // input
                                     &waterPumpState->pumpDutyCycle,  // output
                                     &waterPumpState->targetPressureInBars,  // target
-                                    9.1, 0.3, 1.8, PID::DIRECT);
+                                    4.0, 0.3, 1.8, PID::DIRECT);
     
     // The Gaggia water pump doesn't energize at all below 30 duty cycle.
     // This number range is the 'dutyCycle' of the power we are sending to the water
     // pump.
 
-    double maxOutput = 100;
+    double maxOutput = MAX_PUMP_DUTY_CYCLE;
     // For preinfusion, we hold dutyCycle at 30%. When the puck is dry, it provides little
     // backpressure and so the PID will immediately ramp up to max duty cycle, which is NOT
     // want we want for preinfusion.... This is a silly way to use the PID, in general, but works
     // only for preinfusion.    
     if (nextGaggiaState->state == PREINFUSION) {
-      maxOutput = 30;
+      maxOutput = MIN_PUMP_DUTY_CYCLE;
     }
-    thisWaterPumpPID->SetOutputLimits(30, maxOutput);
+    thisWaterPumpPID->SetOutputLimits(MIN_PUMP_DUTY_CYCLE, maxOutput);
     thisWaterPumpPID->SetMode(PID::AUTOMATIC);
 
     delete waterPumpState->waterPumpPID;
@@ -984,7 +989,7 @@ void processIncomingGaggiaState(GaggiaState *currentGaggiaState,
     PID *thisHeaterPID = new PID(&heaterState->measuredTemp, 
                                  &heaterState->heaterShouldBeOn, 
                                  &TARGET_BREW_TEMP, 
-                                 9.1, 0.3, 1.8, PID::DIRECT);
+                                 4.0, 0.3, 1.8, PID::DIRECT);
     // The heater is either on or off, there's no need making this more complicated..
     // So the PID either turns the heater on or off.
     thisHeaterPID->SetOutputLimits(0, 1);
@@ -998,7 +1003,7 @@ void processIncomingGaggiaState(GaggiaState *currentGaggiaState,
     PID *thisHeaterPID = new PID(&heaterState->measuredTemp, 
                                  &heaterState->heaterShouldBeOn, 
                                  &TARGET_STEAM_TEMP, 
-                                 9.1, 0.3, 1.8, PID::DIRECT);
+                                 4.0, 0.3, 1.8, PID::DIRECT);
     // The heater is either on or off, there's no need making this more complicated..
     // So the PID either turns the heater on or off.
     thisHeaterPID->SetOutputLimits(0, 1);
@@ -1045,7 +1050,7 @@ void processOutgoingGaggiaState(GaggiaState *currentGaggiaState,
 
   // Things we always reset when leaving a state...
   currentGaggiaState->stopTimeMillis = -1;
-  currentGaggiaState->counter = 0;
+  currentGaggiaState->counter = -1;
 }
 
 void processCurrentGaggiaState(GaggiaState *currentGaggiaState,  
@@ -1133,33 +1138,38 @@ void processCurrentGaggiaState(GaggiaState *currentGaggiaState,
     readHeaterState(MAX6675_CS_brew, MAX6675_SO_brew, MAX6675_SCK, heaterState);  
   }
 
-
-  // Process Dispense Water 
   if (currentGaggiaState->dispenseWater) {
-    dispenseWater();
+    if (currentGaggiaState->state == CLEAN_CYCLE_1 || currentGaggiaState->state == CLEAN_CYCLE_2) {
+      // whether or not we dispense water depends on where we are in the clean cycle...      
+
+      if (currentGaggiaState->counter % 2 == 0) { // 0, and even counts 0, 2, 4...
+        // we dispense water.. this fills portafilter with pressured hot water...
+        dispenseWater();
+      } else { // odd counts 1,3,5...
+        // we stop dispensing water .. this backfushes hot water through group head...
+        stopDispensingWater();
+      }
+  
+      // when we first enter state, stopTimeMillis is -1, so this condition is true
+      if (nowTimeMillis > currentGaggiaState->stopTimeMillis) {
+                
+        // when we first enter this state, counter is -1, so it gets bumped to 0.
+        currentGaggiaState->counter = currentGaggiaState->counter + 1; 
+        
+        // start new cleaning cycle
+        double timeMultiplier = 1;
+        if (currentGaggiaState->counter % 2 != 0) {
+          // odd, or off, cycles should be shorter
+          timeMultiplier = .2;
+        }
+        currentGaggiaState->stopTimeMillis = nowTimeMillis + SECONDS_PER_CLEAN_CYCLE*timeMultiplier*1000;
+      }
+    } else {
+      // normal dispense state
+      dispenseWater();
+    }
   } else {
     stopDispensingWater();
-  }
-
-  if (currentGaggiaState->cleaning) {
-
-    float stopTimeMillis = currentGaggiaState->stopTimeMillis;
-    int cleanCycleCounter = currentGaggiaState->counter;
-  
-    if (cleanCycleCounter % 2 < 1) {  // even number
-      // we dispense water on even.. this fills portafilter with pressured hot water...
-      dispenseWater();
-    } else {
-      // we stop dispensing water on odd.. this backfushes hot water through group head...
-      stopDispensingWater();
-    }
-  
-    if (stopTimeMillis < 0 || nowTimeMillis > stopTimeMillis) {
-
-      // start new cleaning cycle
-      currentGaggiaState->counter = cleanCycleCounter+1; 
-      currentGaggiaState->stopTimeMillis = nowTimeMillis + SECONDS_PER_CLEAN_CYCLE*1000; 
-    }
   }
 }
 
