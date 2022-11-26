@@ -139,8 +139,8 @@ int MIN_PUMP_DUTY_CYCLE = 30;
 int MAX_PUMP_DUTY_CYCLE = 100;
 
 
-int NUMBER_OF_CLEAN_CYCLES = 10; // (5 on and off based on https://youtu.be/lfJgabTJ-bM?t=38)
-int SECONDS_PER_CLEAN_CYCLE = 10; 
+int NUMBER_OF_CLEAN_CYCLES = 20; // (10 on and off based on https://youtu.be/lfJgabTJ-bM?t=38)
+int SECONDS_PER_CLEAN_CYCLE = 4; 
 
 //
 // State
@@ -239,22 +239,6 @@ void readUserInputState(boolean isButtonPressedRightNow, float nowTimeMillis, Us
 QwiicButton userButton;
 
 
-struct DisplayState {
-  String display1;
-  String display2;
-  String display3;
-  String display4;
-
-} displayState;
-String updateDisplayLine(char *message, 
-                        int line,
-                        HeaterState *heaterState,
-                        ScaleState *scaleState,
-                        WaterPumpState *waterPumpState,
-                        String previousLineDisplayed);
-SerLCD display; // Initialize the library with default I2C address 0x72
-
-
 enum GaggiaStateEnum {
   HELLO = 0, 
   TARE_CUP_1 = 1, 
@@ -304,6 +288,7 @@ struct GaggiaState {
 
    // An arbitrary counter that can be used
    int counter = -1;
+   int targetCounter = -1;
 } 
 helloState,
 tareCup1State,
@@ -327,6 +312,25 @@ cleanDoneState,
 naState,
 
 currentGaggiaState;
+
+
+struct DisplayState {
+  String display1;
+  String display2;
+  String display3;
+  String display4;
+
+} displayState;
+String updateDisplayLine(char *message, 
+                        int line,
+                        GaggiaState *gaggiaState,
+                        HeaterState *heaterState,
+                        ScaleState *scaleState,
+                        WaterPumpState *waterPumpState,
+                        String previousLineDisplayed);
+SerLCD display; // Initialize the library with default I2C address 0x72
+
+
 
 boolean isInTestMode = false;
 
@@ -545,7 +549,7 @@ void setup() {
   coolDoneState.display4 =         "Click when Ready    ";
 
   cleanLoad1State.state = CLEAN_LOAD_1;
-  cleanLoad1State.display1 =            "Load back-flush     ";
+  cleanLoad1State.display1 =            "Load backflush      ";
   cleanLoad1State.display2 =            "portafilter with    ";
   cleanLoad1State.display3 =            "3g of Cafiza.       ";
   cleanLoad1State.display4 =            "Click when Ready    ";
@@ -559,7 +563,7 @@ void setup() {
   cleanCycle1State.state = CLEAN_CYCLE_1;
   cleanCycle1State.display1 =            "Backflushing        ";
   cleanCycle1State.display2 =            "with cleaner.       ";
-  cleanCycle1State.display3 =            "{measuredBars}/{targetBars}";
+  cleanCycle1State.display3 =            "{currentPass}/{targetPass}";
   cleanCycle1State.display4 =            "Please wait ...     ";
   cleanCycle1State.brewHeaterOn = true; 
   cleanCycle1State.dispenseWater = true; 
@@ -567,7 +571,7 @@ void setup() {
   // not sure why
 
   cleanLoad3State.state = CLEAN_LOAD_3;
-  cleanLoad3State.display1 =            "Clean out back-flush";
+  cleanLoad3State.display1 =            "Clean out backflush ";
   cleanLoad3State.display2 =            "portafilter.        ";
   cleanLoad3State.display3 =            "                    ";
   cleanLoad3State.display4 =            "Click when Ready    ";
@@ -575,7 +579,7 @@ void setup() {
   cleanCycle2State.state = CLEAN_CYCLE_2;
   cleanCycle2State.display1 =            "Backflushing        ";
   cleanCycle2State.display2 =            "with water.         ";
-  cleanCycle2State.display3 =            "{measuredBars}/{targetBars}";
+  cleanCycle2State.display3 =            "{currentPass}/{targetPass}";
   cleanCycle2State.display4 =            "Please wait ...     ";
   cleanCycle2State.brewHeaterOn = true; 
   cleanCycle2State.dispenseWater = true; 
@@ -881,7 +885,7 @@ GaggiaState getNextGaggiaState(GaggiaState *currentGaggiaState,
 
     case CLEAN_CYCLE_1 :
 
-      if (currentGaggiaState->counter == NUMBER_OF_CLEAN_CYCLES) {
+      if (currentGaggiaState->counter == currentGaggiaState->targetCounter-1) {
         return cleanLoad3State;
       }
      
@@ -903,7 +907,7 @@ GaggiaState getNextGaggiaState(GaggiaState *currentGaggiaState,
 
     case CLEAN_CYCLE_2 :
 
-      if (currentGaggiaState->counter == NUMBER_OF_CLEAN_CYCLES) {
+      if (currentGaggiaState->counter == currentGaggiaState->targetCounter-1) {
         return cleanDoneState;
       }
      
@@ -1066,6 +1070,7 @@ void processCurrentGaggiaState(GaggiaState *currentGaggiaState,
   //
   displayState->display1 = updateDisplayLine(currentGaggiaState->display1, 
                                              1, 
+                                             currentGaggiaState,
                                              heaterState, 
                                              scaleState, 
                                              waterPumpState,
@@ -1073,6 +1078,7 @@ void processCurrentGaggiaState(GaggiaState *currentGaggiaState,
 
   displayState->display2 = updateDisplayLine(currentGaggiaState->display2, 
                                              2, 
+                                             currentGaggiaState,
                                              heaterState, 
                                              scaleState, 
                                              waterPumpState,
@@ -1080,6 +1086,7 @@ void processCurrentGaggiaState(GaggiaState *currentGaggiaState,
 
   displayState->display3 = updateDisplayLine(currentGaggiaState->display3, 
                                              3, 
+                                             currentGaggiaState,
                                              heaterState, 
                                              scaleState,  
                                              waterPumpState,
@@ -1087,6 +1094,7 @@ void processCurrentGaggiaState(GaggiaState *currentGaggiaState,
 
   displayState->display4 = updateDisplayLine(currentGaggiaState->display4, 
                                              4, 
+                                             currentGaggiaState,
                                              heaterState, 
                                              scaleState, 
                                              waterPumpState,
@@ -1141,6 +1149,8 @@ void processCurrentGaggiaState(GaggiaState *currentGaggiaState,
   if (currentGaggiaState->dispenseWater) {
     if (currentGaggiaState->state == CLEAN_CYCLE_1 || currentGaggiaState->state == CLEAN_CYCLE_2) {
       // whether or not we dispense water depends on where we are in the clean cycle...      
+
+      currentGaggiaState->targetCounter = NUMBER_OF_CLEAN_CYCLES;
 
       if (currentGaggiaState->counter % 2 == 0) { // 0, and even counts 0, 2, 4...
         // we dispense water.. this fills portafilter with pressured hot water...
@@ -1381,6 +1391,7 @@ String decodeMessageIfNecessary(char* _message,
 // line starts at 1
 String updateDisplayLine(char *message, 
                         int line,
+                        GaggiaState *gaggiaState,
                         HeaterState *heaterState,
                         ScaleState *scaleState,
                         WaterPumpState *waterPumpState,
@@ -1431,6 +1442,15 @@ String updateDisplayLine(char *message,
                                                        waterPumpState->measuredPressureInBars,
                                                        waterPumpState->targetPressureInBars,
                                                        " bars");
+              if (lineToDisplay == "") {
+                // One count consists of both the clean and rest... so we only have
+                // targetCounter/2 total clean passes.
+                lineToDisplay = decodeMessageIfNecessary(message,
+                                                       "{currentPass}/{targetPass}",
+                                                       (gaggiaState->counter/2)+1,
+                                                       (gaggiaState->targetCounter)/2,
+                                                       " pass");
+              }   
             }          
           }
         }      
