@@ -31,8 +31,9 @@ In an attempt to mitigate the above Gaggia short comings, I've implemented the f
 3. PID pressure controller that implements Pre-Infusion and a fixed Flow Profile 
 4. Auto-Fill water reservoir
 5. Auto-Shutoff
-5. Microcontroller-based automated brew process that eliminates the need for the Brew or Steam buttons.
-6. Cool-down feature to assist in cooling down the heater for brewing.
+6. Microcontroller-based automated brew process that eliminates the need for the Brew or Steam buttons.
+7. Cool-down feature to assist in cooling down the heater for brewing.
+8. Clean feature which automates much of the rather tedious process of backflushing the Gaggia's grouphead with Cafiza cleaner.
 
 
 # Disclaimer
