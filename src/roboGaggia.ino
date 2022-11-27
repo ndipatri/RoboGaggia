@@ -115,7 +115,7 @@ int LOW_WEIGHT_THRESHOLD = 4;
 int RETURN_TO_HOME_INACTIVITY_MINUTES = 10;
 
 // How long we will the portafilter with semi-hot water
-int PREINFUSION_DURATION_SECONDS = 10;
+int PREINFUSION_DURATION_SECONDS = 5;
   
 int DONE_BREWING_LINGER_TIME_SECONDS = 5;
   
@@ -127,8 +127,17 @@ int DISPENSE_FLOW_RATE_TOTAL_CYCES = 20;
 
 // The Gaggia currently has a 6bar spring in its 
 // OPV (over pressure valve)
+// For some reason, i can't get reading above 4 most times.. so keeping it at 5 for now.
 double DISPENSING_BAR = 5.0;
 double PRE_INFUSION_BAR = 1.0;
+
+// These were emperically derived.  They are highly dependent on the actual system , but should now work
+// for any RoboGaggia.
+// see https://en.wikipedia.org/wiki/PID_controller#Loop_tuning
+double PID_kP = 20.0;
+double PID_kI = 5.0;
+double PID_kD = 2.0;
+
 // see https://docs.google.com/spreadsheets/d/1_15rEy-WI82vABUwQZRAxucncsh84hbYKb2WIA9cnOU/edit?usp=sharing
 // as shown in shart above, the following values were derived by hooking up a bicycle pump w/ guage to the
 // pressure sensor and measuring a series of values vs bar pressure. 
@@ -137,7 +146,6 @@ int PRESSURE_SENSOR_OFFSET = 2470;
 
 int MIN_PUMP_DUTY_CYCLE = 30;
 int MAX_PUMP_DUTY_CYCLE = 100;
-
 
 int NUMBER_OF_CLEAN_CYCLES = 20; // (10 on and off based on https://youtu.be/lfJgabTJ-bM?t=38)
 int SECONDS_PER_CLEAN_CYCLE = 4; 
@@ -422,14 +430,16 @@ void setup() {
   // // Useful state exposed to Particle web console
   Particle.variable("heaterTempC", heaterState.measuredTemp);
   Particle.variable("targetBrewTempC", TARGET_BREW_TEMP);
-  Particle.variable("isDispensingWater",  currentGaggiaState.dispenseWater);
   Particle.variable("thermocoupleError",  heaterState.thermocoupleError);
-  Particle.variable("heaterShouldBeOn",  heaterState.heaterShouldBeOn);
   Particle.variable("targetPressureInBars", _targetPressureInBars);
-  Particle.variable("currentPressureInBars", _measuredPressureInBars);
   Particle.variable("isInTestMode",  isInTestMode);
   Particle.variable("doesWaterNeedFilling",  doesWaterReservoirNeedFilling);
   Particle.variable("currentState", _readCurrentState);
+  Particle.variable("PID_kP", PID_kP);
+  Particle.variable("PID_kI", PID_kI);
+  Particle.variable("PID_kD", PID_kD);
+  Particle.variable("DispensingBar", DISPENSING_BAR);
+  Particle.variable("PreInfusionBar", PRE_INFUSION_BAR);
 
   Particle.function("turnOnTestMode", turnOnTestMode);
   Particle.function("turnOffTestMode", turnOffTestMode);
@@ -439,6 +449,13 @@ void setup() {
   Particle.function("setPreInfusionState", _setPreInfusionState);
   Particle.function("setCoolingState", _setCoolingState);
   Particle.function("setHelloState", _setHelloState);
+
+  Particle.function("set_kP", _setPID_kP);
+  Particle.function("set_kI", _setPID_kI);
+  Particle.function("set_kD", _setPID_kD);
+
+  Particle.function("setDispensingBar", _setDispensingBar);
+  Particle.function("setPreInfusionBar", _setPreInfusionBar);
 
   // Define all possible states of RoboGaggia
   helloState.state = HELLO; 
@@ -501,7 +518,7 @@ void setup() {
   brewingState.display1 =          "Brewing.            ";
   brewingState.display2 =          "{adjustedWeight}/{targetBrewWeight}";
   brewingState.display3 =          "{measuredBars}/{targetBars}";
-  brewingState.display4 =          "Please wait ...     ";
+  brewingState.display4 =          "{pumpDutyCycle}/{maxDutyCycle}";
   brewingState.brewHeaterOn = true; 
   brewingState.dispenseWater = true; 
 
@@ -685,7 +702,7 @@ void loop() {
                             nowTimeMillis);
 
   if (isInTestMode) {
-    delay(5000);
+    delay(2000);
   } else {
     delay(50);
   }
@@ -966,7 +983,7 @@ void processIncomingGaggiaState(GaggiaState *currentGaggiaState,
     PID *thisWaterPumpPID = new PID(&waterPumpState->measuredPressureInBars,  // input
                                     &waterPumpState->pumpDutyCycle,  // output
                                     &waterPumpState->targetPressureInBars,  // target
-                                    4.0, 0.3, 1.8, PID::DIRECT);
+                                    PID_kP, PID_kI, PID_kD, PID::DIRECT);
     
     // The Gaggia water pump doesn't energize at all below 30 duty cycle.
     // This number range is the 'dutyCycle' of the power we are sending to the water
@@ -993,7 +1010,7 @@ void processIncomingGaggiaState(GaggiaState *currentGaggiaState,
     PID *thisHeaterPID = new PID(&heaterState->measuredTemp, 
                                  &heaterState->heaterShouldBeOn, 
                                  &TARGET_BREW_TEMP, 
-                                 4.0, 0.3, 1.8, PID::DIRECT);
+                                 PID_kP, PID_kI, PID_kD, PID::DIRECT);
     // The heater is either on or off, there's no need making this more complicated..
     // So the PID either turns the heater on or off.
     thisHeaterPID->SetOutputLimits(0, 1);
@@ -1007,7 +1024,7 @@ void processIncomingGaggiaState(GaggiaState *currentGaggiaState,
     PID *thisHeaterPID = new PID(&heaterState->measuredTemp, 
                                  &heaterState->heaterShouldBeOn, 
                                  &TARGET_STEAM_TEMP, 
-                                 4.0, 0.3, 1.8, PID::DIRECT);
+                                 PID_kP, PID_kI, PID_kD, PID::DIRECT);
     // The heater is either on or off, there's no need making this more complicated..
     // So the PID either turns the heater on or off.
     thisHeaterPID->SetOutputLimits(0, 1);
@@ -1313,6 +1330,8 @@ void dispenseWater() {
   // This triggers the PID to use previous and current
   // measured values to calculate the current required
   // dutyCycle of the water pump
+  // By default, it will update output values every 200ms, regardless
+  // of how often we call Compute()
   waterPumpState.waterPumpPID->Compute();
   publishParticleLog("dispenser", "pumpDutyCycle: " + String(waterPumpState.pumpDutyCycle));
 
@@ -1450,6 +1469,15 @@ String updateDisplayLine(char *message,
                                                        (gaggiaState->counter/2)+1,
                                                        (gaggiaState->targetCounter)/2,
                                                        " pass");
+                if (lineToDisplay == "") {
+                  // One count consists of both the clean and rest... so we only have
+                  // targetCounter/2 total clean passes.
+                  lineToDisplay = decodeMessageIfNecessary(message,
+                                                       "{pumpDutyCycle}/{maxDutyCycle}",
+                                                       waterPumpState->pumpDutyCycle,
+                                                       MAX_PUMP_DUTY_CYCLE,
+                                                       " %");
+                }  
               }   
             }          
           }
@@ -1488,6 +1516,8 @@ long filterLowWeight(long weight) {
 boolean shouldTurnOnHeater(float nowTimeMillis,
                            HeaterState *heaterState) {
                         
+  // By default, it will update output values every 200ms, regardless
+  // of how often we call Compute()
   heaterState->heaterPID->Compute();
 
   if (heaterState->heaterShouldBeOn > 0 ) {
@@ -1559,6 +1589,41 @@ int _setCoolingState(String _) {
 
 int _setHelloState(String _) {
   manualNextGaggiaState = helloState;
+  return 1;
+}
+
+int _setPID_kP(String _PID_kP) {
+  
+  PID_kP = _PID_kP.toFloat();
+
+  return 1;
+}
+
+int _setPID_kI(String _PID_kI) {
+  
+  PID_kI = _PID_kI.toFloat();
+
+  return 1;
+}
+
+int _setPID_kD(String _PID_kD) {
+  
+  PID_kD = _PID_kD.toFloat();
+
+  return 1;
+}
+
+int _setDispensingBar(String _dispensingBar) {
+  
+  DISPENSING_BAR = _dispensingBar.toFloat();
+
+  return 1;
+}
+
+int _setPreInfusionBar(String _preInfusionBar) {
+  
+  DISPENSING_BAR = _preInfusionBar.toFloat();
+
   return 1;
 }
 
