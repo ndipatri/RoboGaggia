@@ -165,3 +165,6 @@ Note that if the portafiter is not filled with coffee, it will not supply 'backp
 
 In the interest of simplicity, the heater PID uses the same tuning values as the water pressure PID.  The heater temp is a slow-moving system and is therefore not as sensitive to these values.
 
+[This PID Tuning GIF](media/PID_animation.gif) demonstrates the tradeoffs of these three tuning parameters with respect to system 'overshoot', 'oscillation', and responsiveness.
+
+

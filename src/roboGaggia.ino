@@ -30,6 +30,34 @@ Copyright (c) 2016 SparkFun Electronics
 #include <SparkFun_Qwiic_Button.h>
 #include <Adafruit_ADS1X15.h>
 #include <pid.h>
+#include <Adafruit_IO_Client.h>
+#include "Adafruit_MQTT.h"
+#include "Adafruit_MQTT_SPARK.h"
+
+// This can be retrieved from https://io.adafruit.com/ndipatri/profile
+// (or if you aren't ndipatri, you can create an account for free)
+
+// If you check in this code WITH this KEY defined, it will be detected by IO.Adafruit
+// and the WILL DISABLE THIS KEY!!!  So please delete value below before checking in!
+// ***************** !!!!!!!!!!!!!! **********
+#define AIO_KEY         "aio_XmSy92vYjddoZhQ4f19ztFc8Qm6r" // Adafruit IO AIO Key
+#define AIO_SERVER      "io.adafruit.com"
+#define AIO_SERVERPORT  1883                   // use 8883 for SSL
+String AIO_USERNAME     = "ndipatri";
+// ***************** !!!!!!!!!!!!!! **********
+
+TCPClient client; // TCP Client used by Adafruit IO library
+
+Adafruit_MQTT_SPARK mqtt(&client, AIO_SERVER, AIO_SERVERPORT, AIO_USERNAME, AIO_KEY);
+
+String mqttOccupancyTopicName = AIO_USERNAME + "/feeds/occupancy"; 
+Adafruit_MQTT_Publish occupancyMQTTTopic = Adafruit_MQTT_Publish(&mqtt,  mqttOccupancyTopicName);
+
+String mqttRechargeTopicName = AIO_USERNAME + "/feeds/recharge"; 
+Adafruit_MQTT_Publish rechargeMQTTTopic = Adafruit_MQTT_Publish(&mqtt,  mqttRechargeTopicName);
+
+Adafruit_MQTT_Subscribe errors = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME + "/errors");
+Adafruit_MQTT_Subscribe throttle = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME + "/throttle");
 
 SerialLogHandler logHandler;
 SYSTEM_THREAD(ENABLED);
