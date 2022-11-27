@@ -128,7 +128,7 @@ int DISPENSE_FLOW_RATE_TOTAL_CYCES = 20;
 // The Gaggia currently has a 6bar spring in its 
 // OPV (over pressure valve)
 // For some reason, i can't get reading above 4 most times.. so keeping it at 5 for now.
-double DISPENSING_BAR = 5.0;
+double DISPENSING_BAR = 6.0;
 double PRE_INFUSION_BAR = 1.0;
 
 // These were emperically derived.  They are highly dependent on the actual system , but should now work
@@ -580,8 +580,8 @@ void setup() {
   cleanCycle1State.state = CLEAN_CYCLE_1;
   cleanCycle1State.display1 =            "Backflushing        ";
   cleanCycle1State.display2 =            "with cleaner.       ";
-  cleanCycle1State.display3 =            "{currentPass}/{targetPass}";
-  cleanCycle1State.display4 =            "Please wait ...     ";
+  cleanCycle1State.display3 =            "{measuredBars}/{targetBars}";
+  cleanCycle1State.display4 =            "{currentPass}/{targetPass}";
   cleanCycle1State.brewHeaterOn = true; 
   cleanCycle1State.dispenseWater = true; 
   // trying to fill reservoir during clean seemed to cause problems..
@@ -596,8 +596,8 @@ void setup() {
   cleanCycle2State.state = CLEAN_CYCLE_2;
   cleanCycle2State.display1 =            "Backflushing        ";
   cleanCycle2State.display2 =            "with water.         ";
-  cleanCycle2State.display3 =            "{currentPass}/{targetPass}";
-  cleanCycle2State.display4 =            "Please wait ...     ";
+  cleanCycle2State.display3 =            "{measuredBars}/{targetBars}";
+  cleanCycle2State.display4 =            "{currentPass}/{targetPass}";
   cleanCycle2State.brewHeaterOn = true; 
   cleanCycle2State.dispenseWater = true; 
   // trying to fill reservoir during clean seemed to cause problems..

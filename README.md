@@ -149,6 +149,19 @@ I did this same process for both the water pressure sensor and the scale and the
 
 Acknowledgement: [SparkFun](https://learn.sparkfun.com/) provides great documentation on all of their products and the [Hookup Guide](https://learn.sparkfun.com/tutorials/qwiic-scale-hookup-guide?_ga=2.199132015.1304669420.1658346670-1742331242.1658055114) for their [500g Mini Load Cell](https://www.sparkfun.com/products/14728) was very helpful in understanding how to calibrate sensors.
 
+## Calibrating the PID
 
+"A proportional–integral–derivative controller (PID controller or three-term controller) is a control loop mechanism employing feedback that is widely used in industrial control systems and a variety of other applications requiring continuously modulated control." (https://en.wikipedia.org/wiki/PID_controller)
 
+RoboGaggia uses a PID for both controlling the heater temperature and the brew water pressure.
+
+The input variable to the water pressure PID is the water pressure sensor (in bars) and the output variable is the water pump duty cycle (in percentage).  The higher the duty cycle, the higher the pressure.
+
+The PID not only compares the target water pressure to the current measured water pressure, it also considers previous values (integral) and future values (derivative).  The present (P), historical (I), and future (D) values are all scaled by an associated 'scale' factor (K). We, therefore, have Kp, Ki, and Kd constants that need to be 'tuned' for a given mechanical system.
+
+I've followed [these general guidelines](https://en.wikipedia.org/wiki/PID_controller#Manual_tuning) for PID Tuning to come up with the values for RoboGaggia.  These should work for any RoboGaggia.
+
+Note that if the portafiter is not filled with coffee, it will not supply 'backpressure' and so the PID will run at a constant 100% duty cycle.  So you need to either use a backflush portafilter or loaded portafilter when performing PID tuning.
+
+In the interest of simplicity, the heater PID uses the same tuning values as the water pressure PID.  The heater temp is a slow-moving system and is therefore not as sensitive to these values.
 
