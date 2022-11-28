@@ -28,12 +28,13 @@ In an attempt to mitigate the above Gaggia short comings, I've implemented the f
 
 1. Integrated scale that fits in the drip tray
 2. Dual PID temperature controllers
-3. PID pressure controller that implements Pre-Infusion and a fixed Flow Profile 
-4. Auto-Fill water reservoir
-5. Auto-Shutoff
-6. Microcontroller-based automated brew process that eliminates the need for the Brew or Steam buttons.
-7. Cool-down feature to assist in cooling down the heater for brewing.
-8. Clean feature which automates much of the rather tedious process of backflushing the Gaggia's grouphead with Cafiza cleaner.
+3. PID pressure controller that implements Pre-Infusion and a fixed Flow Profile.  
+4. Live flow telemetry sent to Adafruit.IO for flow analytics
+5. Auto-Fill water reservoir
+6. Auto-Shutoff
+7. Microcontroller-based automated brew process that eliminates the need for the Brew or Steam buttons.
+8. Cool-down feature to assist in cooling down the heater for brewing.
+9. Clean feature which automates much of the rather tedious process of backflushing the Gaggia's grouphead with Cafiza cleaner.
 
 
 # Disclaimer
@@ -167,4 +168,16 @@ In the interest of simplicity, the heater PID uses the same tuning values as the
 
 [This PID Tuning GIF](media/PID_animation.gif) demonstrates the tradeoffs of these three tuning parameters with respect to system 'overshoot', 'oscillation', and responsiveness.
 
+## Live Flow Telemetry
 
+If the 'TELEMETRY_FEATURE' is enabled (it is NOT, by default), RoboGaggia will attempt to post live flow telemetry data to Adafruit.IO. 
+
+In order to use this feature, you will need to go to Adafruit.IO and create an account.  You can then [update the code with your username and an 'API KEY'](https://github.com/ndipatri/roboGaggia/blob/main/src/roboGaggia.ino#L409).
+
+The columns for the posted data are:
+
+'telemetryVersion, state, measuredWeight, targetWeight, measuredPressure, targetPressure, dutyCycleOfWaterPump'
+
+The 'preInfusion' state indicates the beginning of a new brew cycle.  The target pressure is 1 bar during preInfusion and it lasts for 5 seconds.  This is to saturate the puck so it accepts higher pressures better without tunneling. 
+
+The 'brewing' state indicates active brewing. A new telemetry value is posted every 500ms. 

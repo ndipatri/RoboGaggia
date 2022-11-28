@@ -95,7 +95,7 @@ Copyright (c) 2016 SparkFun Electronics
 // FEATURE FLAGS 
 // *************
 
-boolean TELEMETRY_ENABLED = true;
+boolean TELEMETRY_ENABLED = false;
 
 double TARGET_BREW_TEMP = 103; // should be 65
 double TOO_HOT_TO_BREW_TEMP = 110; // should be 80
