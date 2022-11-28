@@ -38,10 +38,10 @@ Copyright (c) 2016 SparkFun Electronics
 // (or if you aren't ndipatri, you can create an account for free)
 
 // If you check in this code WITH this KEY defined, it will be detected by IO.Adafruit
-// and the WILL DISABLE THIS KEY!!!  So please delete value below before checking in!
+// and IT WILL BE DISABLED !!!  So please delete value below before checking in!
 // ***************** !!!!!!!!!!!!!! **********
-#define AIO_KEY         "aio_XmSy92vYjddoZhQ4f19ztFc8Qm6r" // Adafruit IO AIO Key
-#define AIO_SERVER      "io.adafruit.com"
+#define AIO_KEY         "xxx" // Adafruit IO AIO Key
+#define xxx      "io.adafruit.com"
 #define AIO_SERVERPORT  1883                   // use 8883 for SSL
 String AIO_USERNAME     = "ndipatri";
 // ***************** !!!!!!!!!!!!!! **********
@@ -50,11 +50,8 @@ TCPClient client; // TCP Client used by Adafruit IO library
 
 Adafruit_MQTT_SPARK mqtt(&client, AIO_SERVER, AIO_SERVERPORT, AIO_USERNAME, AIO_KEY);
 
-String mqttOccupancyTopicName = AIO_USERNAME + "/feeds/occupancy"; 
-Adafruit_MQTT_Publish occupancyMQTTTopic = Adafruit_MQTT_Publish(&mqtt,  mqttOccupancyTopicName);
-
-String mqttRechargeTopicName = AIO_USERNAME + "/feeds/recharge"; 
-Adafruit_MQTT_Publish rechargeMQTTTopic = Adafruit_MQTT_Publish(&mqtt,  mqttRechargeTopicName);
+String mqttRoboGaggiaTelemetryTopicName = AIO_USERNAME + "/feeds/roboGaggiaTelemetry"; 
+Adafruit_MQTT_Publish mqttRoboGaggiaTelemetryTopic = Adafruit_MQTT_Publish(&mqtt,  mqttRoboGaggiaTelemetryTopicName);
 
 Adafruit_MQTT_Subscribe errors = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME + "/errors");
 Adafruit_MQTT_Subscribe throttle = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME + "/throttle");
@@ -178,6 +175,8 @@ int MAX_PUMP_DUTY_CYCLE = 100;
 int NUMBER_OF_CLEAN_CYCLES = 20; // (10 on and off based on https://youtu.be/lfJgabTJ-bM?t=38)
 int SECONDS_PER_CLEAN_CYCLE = 4; 
 
+int TELEMETRY_PERIOD_MILLIS = 500; 
+
 //
 // State
 //
@@ -277,9 +276,9 @@ QwiicButton userButton;
 
 enum GaggiaStateEnum {
   HELLO = 0, 
-  TARE_CUP_1 = 1, 
+  TARE_CUP_BEFORE_MEASURE = 1, 
   MEASURE_BEANS = 2,  
-  TARE_CUP_2 = 3, 
+  TARE_CUP_AFTER_MEASURE = 3, 
   HEATING = 4, 
   PREINFUSION = 5, 
   BREWING = 6, 
@@ -289,11 +288,11 @@ enum GaggiaStateEnum {
   COOL_START = 10, 
   COOLING = 11, 
   COOL_DONE = 12, 
-  CLEAN_LOAD_1 = 13, 
-  CLEAN_LOAD_2 = 14, 
-  CLEAN_CYCLE_1 = 15, 
-  CLEAN_LOAD_3 = 16, 
-  CLEAN_CYCLE_2 = 17, 
+  CLEAN_INSTRUCTION_1 = 13, 
+  CLEAN_INSTRUCTION_2 = 14, 
+  CLEAN_SOAP = 15, 
+  CLEAN_INSTRUCTION_3 = 16, 
+  CLEAN_RINSE = 17, 
   CLEAN_DONE = 18, 
   NA = 19
 };
@@ -325,6 +324,8 @@ struct GaggiaState {
    // An arbitrary counter that can be used
    int counter = -1;
    int targetCounter = -1;
+
+   float nextTelemetryMillis = -1;
 } 
 helloState,
 tareCup1State,
@@ -411,6 +412,13 @@ void processIncomingGaggiaState(GaggiaState *currentGaggiaState,
                                 float nowTimeMillis);
 GaggiaState returnToHelloState(ScaleState *scaleState);
 float timeSpentInCurrentStateMillis(GaggiaState *currentGaggiaState);
+void sendTelemetryIfNecessary(float nowTimeMillis,
+                              GaggiaState *gaggiaState,
+                              HeaterState *heaterState,
+                              ScaleState *scaleState,
+                              WaterReservoirState *waterReservoirState,
+                              WaterPumpState *waterPumpState); 
+char* getStateName(GaggiaStateEnum stateEnum);
 
 // setup() runs once, when the device is first turned on.
 void setup() {
@@ -502,7 +510,7 @@ void setup() {
   // when we are measuring things...
   helloState.tareScale = true; 
 
-  tareCup1State.state = TARE_CUP_1; 
+  tareCup1State.state = TARE_CUP_BEFORE_MEASURE; 
   tareCup1State.display1 =         "Place empty cup     ";
   tareCup1State.display2 =         "on tray.            ";
   tareCup1State.display3 =         "{measuredWeight}";
@@ -519,7 +527,7 @@ void setup() {
   measureBeansState.recordWeight = true; 
   measureBeansState.brewHeaterOn = true; 
 
-  tareCup2State.state = TARE_CUP_2; 
+  tareCup2State.state = TARE_CUP_AFTER_MEASURE; 
   tareCup2State.display1 =         "Grind & load beans, ";
   tareCup2State.display2 =         "Place empty cup     ";
   tareCup2State.display3 =         "back on tray.       ";
@@ -593,19 +601,19 @@ void setup() {
   coolDoneState.display3 =         "                    ";
   coolDoneState.display4 =         "Click when Ready    ";
 
-  cleanLoad1State.state = CLEAN_LOAD_1;
+  cleanLoad1State.state = CLEAN_INSTRUCTION_1;
   cleanLoad1State.display1 =            "Load backflush      ";
   cleanLoad1State.display2 =            "portafilter with    ";
   cleanLoad1State.display3 =            "3g of Cafiza.       ";
   cleanLoad1State.display4 =            "Click when Ready    ";
 
-  cleanLoad2State.state = CLEAN_LOAD_2;
+  cleanLoad2State.state = CLEAN_INSTRUCTION_2;
   cleanLoad2State.display1 =            "Remove scale        ";
   cleanLoad2State.display2 =            "from the drain pan. ";
   cleanLoad2State.display3 =            "                    ";
   cleanLoad2State.display4 =            "Click when Ready    ";
 
-  cleanCycle1State.state = CLEAN_CYCLE_1;
+  cleanCycle1State.state = CLEAN_SOAP;
   cleanCycle1State.display1 =            "Backflushing        ";
   cleanCycle1State.display2 =            "with cleaner.       ";
   cleanCycle1State.display3 =            "{measuredBars}/{targetBars}";
@@ -615,13 +623,13 @@ void setup() {
   // trying to fill reservoir during clean seemed to cause problems..
   // not sure why
 
-  cleanLoad3State.state = CLEAN_LOAD_3;
+  cleanLoad3State.state = CLEAN_INSTRUCTION_3;
   cleanLoad3State.display1 =            "Clean out backflush ";
   cleanLoad3State.display2 =            "portafilter.        ";
   cleanLoad3State.display3 =            "                    ";
   cleanLoad3State.display4 =            "Click when Ready    ";
 
-  cleanCycle2State.state = CLEAN_CYCLE_2;
+  cleanCycle2State.state = CLEAN_RINSE;
   cleanCycle2State.display1 =            "Backflushing        ";
   cleanCycle2State.display2 =            "with water.         ";
   cleanCycle2State.display3 =            "{measuredBars}/{targetBars}";
@@ -666,6 +674,33 @@ int setScaleOffset(String factorString) {
   SCALE_OFFSET = atoi(factorString);
   
   return 0;
+}
+
+char* getStateName(GaggiaStateEnum stateEnum) {
+   switch (stateEnum) {
+    case HELLO: return "hello";
+    case TARE_CUP_BEFORE_MEASURE: return "tareCupBeforeMeasure";
+    case MEASURE_BEANS: return "measureBeans";
+    case TARE_CUP_AFTER_MEASURE: return "tareCupAfterMeasure";
+    case HEATING: return "heating";
+    case PREINFUSION: return "preInfusion";
+    case BREWING: return "brewing";
+    case DONE_BREWING: return "doneBrewing";
+    case HEATING_TO_STEAM: return "heatingToSteam";
+    case STEAMING: return "steaming";
+    case COOL_START: return "coolStart";
+    case COOLING: return "cooling";
+    case COOL_DONE: return "coolDone";
+    case CLEAN_INSTRUCTION_1: return "cleanInst1";
+    case CLEAN_INSTRUCTION_2: return "cleanInst2";
+    case CLEAN_SOAP: return "cleanSoap";
+    case CLEAN_INSTRUCTION_3: return "cleanInst3";
+    case CLEAN_RINSE: return "cleanRinse";
+    case CLEAN_DONE: return "cleanDone";
+    case NA: return "na";
+   }
+
+   return "na";
 }
 
 boolean first = true;
@@ -729,6 +764,13 @@ void loop() {
                             &waterPumpState,
                             nowTimeMillis);
 
+  sendTelemetryIfNecessary(nowTimeMillis,
+                           &currentGaggiaState,
+                           &heaterState,
+                           &scaleState,
+                           &waterReservoirState,
+                           &waterPumpState);
+  
   if (isInTestMode) {
     delay(2000);
   } else {
@@ -773,7 +815,7 @@ GaggiaState getNextGaggiaState(GaggiaState *currentGaggiaState,
       break;
       
       
-    case TARE_CUP_1 :
+    case TARE_CUP_BEFORE_MEASURE :
 
       if (userInputState->state == SHORT_PRESS) {
         return measureBeansState;
@@ -794,7 +836,7 @@ GaggiaState getNextGaggiaState(GaggiaState *currentGaggiaState,
       }
       break;  
 
-    case TARE_CUP_2 :
+    case TARE_CUP_AFTER_MEASURE :
 
       if (userInputState->state == SHORT_PRESS) {
         return heatingState;
@@ -906,7 +948,7 @@ GaggiaState getNextGaggiaState(GaggiaState *currentGaggiaState,
       }
       break;  
   
-    case CLEAN_LOAD_1 :
+    case CLEAN_INSTRUCTION_1 :
 
       if (userInputState->state == SHORT_PRESS) {
         return cleanLoad2State;
@@ -917,7 +959,7 @@ GaggiaState getNextGaggiaState(GaggiaState *currentGaggiaState,
       }
       break;
 
-    case CLEAN_LOAD_2 :
+    case CLEAN_INSTRUCTION_2 :
 
       if (userInputState->state == SHORT_PRESS) {
         return cleanCycle1State;
@@ -928,7 +970,7 @@ GaggiaState getNextGaggiaState(GaggiaState *currentGaggiaState,
       }
       break;
 
-    case CLEAN_CYCLE_1 :
+    case CLEAN_SOAP :
 
       if (currentGaggiaState->counter == currentGaggiaState->targetCounter-1) {
         return cleanLoad3State;
@@ -939,7 +981,7 @@ GaggiaState getNextGaggiaState(GaggiaState *currentGaggiaState,
       }
       break;
 
-    case CLEAN_LOAD_3 :
+    case CLEAN_INSTRUCTION_3 :
 
       if (userInputState->state == SHORT_PRESS) {
         return cleanCycle2State;
@@ -950,7 +992,7 @@ GaggiaState getNextGaggiaState(GaggiaState *currentGaggiaState,
       }
       break;
 
-    case CLEAN_CYCLE_2 :
+    case CLEAN_RINSE :
 
       if (currentGaggiaState->counter == currentGaggiaState->targetCounter-1) {
         return cleanDoneState;
@@ -991,6 +1033,12 @@ void processIncomingGaggiaState(GaggiaState *currentGaggiaState,
                                 WaterPumpState *waterPumpState,
                                 float nowTimeMillis) {
 
+  if (currentGaggiaState->state == HELLO) {
+        // telemetry is NOT available while in hello state
+        // recall the system returns to hello after 15 minutes of inactivity.
+        MQTTDisconnect();
+  }
+
   if (nextGaggiaState->dispenseWater) {
     publishParticleLog("dispense", "Launching Pressure PID");
 
@@ -1000,8 +1048,8 @@ void processIncomingGaggiaState(GaggiaState *currentGaggiaState,
 
     if (nextGaggiaState->state == BREWING ||
         nextGaggiaState->state == COOLING ||
-        nextGaggiaState->state == CLEAN_CYCLE_1 ||
-        nextGaggiaState->state == CLEAN_CYCLE_2
+        nextGaggiaState->state == CLEAN_SOAP ||
+        nextGaggiaState->state == CLEAN_RINSE
     ) {
       waterPumpState->targetPressureInBars = DISPENSING_BAR;
     }
@@ -1026,6 +1074,7 @@ void processIncomingGaggiaState(GaggiaState *currentGaggiaState,
       maxOutput = MIN_PUMP_DUTY_CYCLE;
     }
     thisWaterPumpPID->SetOutputLimits(MIN_PUMP_DUTY_CYCLE, maxOutput);
+    thisWaterPumpPID->SetSampleTime(500);
     thisWaterPumpPID->SetMode(PID::AUTOMATIC);
 
     delete waterPumpState->waterPumpPID;
@@ -1043,6 +1092,7 @@ void processIncomingGaggiaState(GaggiaState *currentGaggiaState,
     // So the PID either turns the heater on or off.
     thisHeaterPID->SetOutputLimits(0, 1);
     thisHeaterPID->SetMode(PID::AUTOMATIC);
+    thisHeaterPID->SetSampleTime(500);
 
     delete heaterState->heaterPID;
     heaterState->heaterPID = thisHeaterPID;
@@ -1057,6 +1107,8 @@ void processIncomingGaggiaState(GaggiaState *currentGaggiaState,
     // So the PID either turns the heater on or off.
     thisHeaterPID->SetOutputLimits(0, 1);
     thisHeaterPID->SetMode(PID::AUTOMATIC);
+    thisHeaterPID->SetSampleTime(500);
+
 
     delete heaterState->heaterPID;
     heaterState->heaterPID = thisHeaterPID;
@@ -1072,6 +1124,24 @@ void processOutgoingGaggiaState(GaggiaState *currentGaggiaState,
                                 WaterReservoirState *waterReservoirState,
                                 WaterPumpState *waterPumpState,
                                 float nowTimeMillis) {
+
+  if (currentGaggiaState->state == HELLO) {
+        // we want telemetry to be available for all non-rest states...
+        // recall the system returns to hello after 15 minutes of inactivity.
+        MQTTConnect();
+  }
+
+  // Good time to pick up any MQTT erors...
+  // this is our 'wait for incoming subscription packets' busy subloop
+  // try to spend your time here
+  Adafruit_MQTT_Subscribe *subscription;
+  while ((subscription = mqtt.readSubscription(3000))) {
+    if(subscription == &errors) {
+      publishParticleLog("mqtt", "Error: (" + String((char *)errors.lastread) + ").");
+    } else if(subscription == &throttle) {
+      publishParticleLog("mqtt", "Throttle: (" + String((char *)throttle.lastread) + ").");
+    }
+  }
 
   // Process Tare Scale
   if (currentGaggiaState->tareScale == true) {
@@ -1097,9 +1167,18 @@ void processOutgoingGaggiaState(GaggiaState *currentGaggiaState,
     scaleState->flowRate = dispendedWaterWeight/timeSpent30SecondIntervals;
   }
 
+  // This gives our current state one last chance to log any telemetry.
+  sendTelemetryIfNecessary(nowTimeMillis,
+                           currentGaggiaState,
+                           heaterState,
+                           scaleState,
+                           waterReservoirState,
+                           waterPumpState);
+
   // Things we always reset when leaving a state...
   currentGaggiaState->stopTimeMillis = -1;
   currentGaggiaState->counter = -1;
+  currentGaggiaState->nextTelemetryMillis = -1;
 }
 
 void processCurrentGaggiaState(GaggiaState *currentGaggiaState,  
@@ -1192,7 +1271,7 @@ void processCurrentGaggiaState(GaggiaState *currentGaggiaState,
   }
 
   if (currentGaggiaState->dispenseWater) {
-    if (currentGaggiaState->state == CLEAN_CYCLE_1 || currentGaggiaState->state == CLEAN_CYCLE_2) {
+    if (currentGaggiaState->state == CLEAN_SOAP || currentGaggiaState->state == CLEAN_RINSE) {
       // whether or not we dispense water depends on where we are in the clean cycle...      
 
       currentGaggiaState->targetCounter = NUMBER_OF_CLEAN_CYCLES;
@@ -1227,7 +1306,6 @@ void processCurrentGaggiaState(GaggiaState *currentGaggiaState,
     stopDispensingWater();
   }
 }
-
 
 
 void readScaleState(NAU7802 myScale, ScaleState *scaleState) {
@@ -1715,4 +1793,58 @@ void handleZeroCrossingInterrupt() {
   // 'FromISR' is critical otherwise, the timer hangs the ISR.
   timer.changePeriodFromISR(offIntervalMs);
   timer.startFromISR();  
+}
+
+void sendTelemetryIfNecessary(float nowTimeMillis,
+                              GaggiaState *gaggiaState,
+                              HeaterState *heaterState,
+                              ScaleState *scaleState,
+                              WaterReservoirState *waterReservoirState,
+                              WaterPumpState *waterPumpState) {
+  if (gaggiaState->state == BREWING || gaggiaState->state == PREINFUSION) {
+    if (nowTimeMillis > gaggiaState->nextTelemetryMillis) {
+
+      sendMessageToCloud(
+        String("v1.1, ") + // telemetery version
+        String(getStateName(gaggiaState->state)) + String(", ") + // state name
+        String(scaleState->measuredWeight - scaleState->tareWeight) + String(", ") + // extracted liquid weight in grams
+        String(scaleState->targetWeight) + String(", ") + // target liquid weight in grams 
+        String(waterPumpState->measuredPressureInBars) + String(", ") +  // measured pressure in bars 
+        String(waterPumpState->targetPressureInBars) + String(", ") + // target pressure in bars 
+        String(waterPumpState->pumpDutyCycle) + String(", ")  // pump duty cycle 
+      , &mqttRoboGaggiaTelemetryTopic);
+
+
+      gaggiaState->nextTelemetryMillis = nowTimeMillis + TELEMETRY_PERIOD_MILLIS;
+    }
+  }
+}
+
+void sendMessageToCloud(const char* message, Adafruit_MQTT_Publish* topic) {
+
+    if (topic->publish(message)) {
+        publishParticleLog("mqtt", "Message SUCCESS (" + String(message) + ").");
+    } else {
+        publishParticleLog("mqtt", "Message FAIL (" + String(message) + ").");
+    }
+}
+
+
+void MQTTConnect() {
+    int8_t ret;
+
+    // Stop if already connected.
+    if (mqtt.connected()) {
+        return;
+    }
+
+    while ((ret = mqtt.connect()) != 0) { // connect will return 0 for connected
+        publishParticleLog("mqtt", "Retrying MQTT connect from error: " + String(mqtt.connectErrorString(ret)));
+        mqtt.disconnect();
+        delay(5000);  // wait 5 seconds
+    }
+}
+
+void MQTTDisconnect() {
+    mqtt.disconnect();
 }
