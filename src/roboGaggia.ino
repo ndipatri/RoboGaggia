@@ -34,14 +34,22 @@ Copyright (c) 2016 SparkFun Electronics
 #include "Adafruit_MQTT.h"
 #include "Adafruit_MQTT_SPARK.h"
 
+
+// *************
+// FEATURE FLAGS 
+// *************
+
+boolean TELEMETRY_ENABLED = true;
+
+
 // This can be retrieved from https://io.adafruit.com/ndipatri/profile
 // (or if you aren't ndipatri, you can create an account for free)
 
 // If you check in this code WITH this KEY defined, it will be detected by IO.Adafruit
 // and IT WILL BE DISABLED !!!  So please delete value below before checking in!
 // ***************** !!!!!!!!!!!!!! **********
-#define AIO_KEY         "xxx" // Adafruit IO AIO Key
-#define xxx      "io.adafruit.com"
+#define AIO_KEY         "XXX" // Adafruit IO AIO Key
+#define AIO_SERVER      "io.adafruit.com"
 #define AIO_SERVERPORT  1883                   // use 8883 for SSL
 String AIO_USERNAME     = "ndipatri";
 // ***************** !!!!!!!!!!!!!! **********
@@ -155,6 +163,7 @@ int DISPENSE_FLOW_RATE_TOTAL_CYCES = 20;
 // For some reason, i can't get reading above 4 most times.. so keeping it at 5 for now.
 double DISPENSING_BAR = 6.0;
 double PRE_INFUSION_BAR = 1.0;
+double BACKFLUSH_BAR = 4.0;
 
 // These were emperically derived.  They are highly dependent on the actual system , but should now work
 // for any RoboGaggia.
@@ -1033,7 +1042,7 @@ void processIncomingGaggiaState(GaggiaState *currentGaggiaState,
                                 WaterPumpState *waterPumpState,
                                 float nowTimeMillis) {
 
-  if (currentGaggiaState->state == HELLO) {
+  if (TELEMETRY_ENABLED && currentGaggiaState->state == HELLO) {
         // telemetry is NOT available while in hello state
         // recall the system returns to hello after 15 minutes of inactivity.
         MQTTDisconnect();
@@ -1047,11 +1056,13 @@ void processIncomingGaggiaState(GaggiaState *currentGaggiaState,
     }
 
     if (nextGaggiaState->state == BREWING ||
-        nextGaggiaState->state == COOLING ||
-        nextGaggiaState->state == CLEAN_SOAP ||
-        nextGaggiaState->state == CLEAN_RINSE
-    ) {
+        nextGaggiaState->state == COOLING) {
       waterPumpState->targetPressureInBars = DISPENSING_BAR;
+    }
+
+    if (nextGaggiaState->state == CLEAN_SOAP ||
+        nextGaggiaState->state == CLEAN_RINSE) {
+      waterPumpState->targetPressureInBars = BACKFLUSH_BAR;
     }
     
     // The reason we do this here is because PID can't change its target value,
@@ -1125,7 +1136,7 @@ void processOutgoingGaggiaState(GaggiaState *currentGaggiaState,
                                 WaterPumpState *waterPumpState,
                                 float nowTimeMillis) {
 
-  if (currentGaggiaState->state == HELLO) {
+  if (TELEMETRY_ENABLED && currentGaggiaState->state == HELLO) {
         // we want telemetry to be available for all non-rest states...
         // recall the system returns to hello after 15 minutes of inactivity.
         MQTTConnect();
@@ -1134,14 +1145,16 @@ void processOutgoingGaggiaState(GaggiaState *currentGaggiaState,
   // Good time to pick up any MQTT erors...
   // this is our 'wait for incoming subscription packets' busy subloop
   // try to spend your time here
-  Adafruit_MQTT_Subscribe *subscription;
-  while ((subscription = mqtt.readSubscription(3000))) {
-    if(subscription == &errors) {
-      publishParticleLog("mqtt", "Error: (" + String((char *)errors.lastread) + ").");
-    } else if(subscription == &throttle) {
-      publishParticleLog("mqtt", "Throttle: (" + String((char *)throttle.lastread) + ").");
-    }
-  }
+  //
+  // NJD - this seems to take too long,. ignoring for now...
+  // Adafruit_MQTT_Subscribe *subscription;
+  // while ((subscription = mqtt.readSubscription(3000))) {
+  //   if(subscription == &errors) {
+  //     publishParticleLog("mqtt", "Error: (" + String((char *)errors.lastread) + ").");
+  //   } else if(subscription == &throttle) {
+  //     publishParticleLog("mqtt", "Throttle: (" + String((char *)throttle.lastread) + ").");
+  //   }
+  // }
 
   // Process Tare Scale
   if (currentGaggiaState->tareScale == true) {
@@ -1821,12 +1834,13 @@ void sendTelemetryIfNecessary(float nowTimeMillis,
 }
 
 void sendMessageToCloud(const char* message, Adafruit_MQTT_Publish* topic) {
-
+  if (TELEMETRY_ENABLED) {
     if (topic->publish(message)) {
         publishParticleLog("mqtt", "Message SUCCESS (" + String(message) + ").");
     } else {
         publishParticleLog("mqtt", "Message FAIL (" + String(message) + ").");
     }
+  }
 }
 
 
@@ -1841,7 +1855,7 @@ void MQTTConnect() {
     while ((ret = mqtt.connect()) != 0) { // connect will return 0 for connected
         publishParticleLog("mqtt", "Retrying MQTT connect from error: " + String(mqtt.connectErrorString(ret)));
         mqtt.disconnect();
-        delay(5000);  // wait 5 seconds
+        delay(1000);  // wait 5 seconds
     }
 }
 
