@@ -1845,7 +1845,10 @@ void MQTTConnect() {
 
     // Note that reconnecting more than 20 times per minute will cause a temporary ban
     // on account
-    mqtt.connect();
+    int result = mqtt.connect();
+    if (result != 0) {
+      publishParticleLog("mqtt", "MQTT connect error: " + String(mqtt.connectErrorString(ret)));
+    }
 
     // give up for now...
     // while ((ret = mqtt.connect()) != 0) { // connect will return 0 for connected
