@@ -35,38 +35,6 @@ Copyright (c) 2016 SparkFun Electronics
 #include "Adafruit_MQTT_SPARK.h"
 
 
-// *************
-// FEATURE FLAGS 
-// *************
-
-boolean TELEMETRY_ENABLED = true;
-
-
-// This can be retrieved from https://io.adafruit.com/ndipatri/profile
-// (or if you aren't ndipatri, you can create an account for free)
-
-// If you check in this code WITH this KEY defined, it will be detected by IO.Adafruit
-// and IT WILL BE DISABLED !!!  So please delete value below before checking in!
-// ***************** !!!!!!!!!!!!!! **********
-#define AIO_KEY         "XXX" // Adafruit IO AIO Key
-#define AIO_SERVER      "io.adafruit.com"
-#define AIO_SERVERPORT  1883                   // use 8883 for SSL
-String AIO_USERNAME     = "ndipatri";
-// ***************** !!!!!!!!!!!!!! **********
-
-TCPClient client; // TCP Client used by Adafruit IO library
-
-Adafruit_MQTT_SPARK mqtt(&client, AIO_SERVER, AIO_SERVERPORT, AIO_USERNAME, AIO_KEY);
-
-String mqttRoboGaggiaTelemetryTopicName = AIO_USERNAME + "/feeds/roboGaggiaTelemetry"; 
-Adafruit_MQTT_Publish mqttRoboGaggiaTelemetryTopic = Adafruit_MQTT_Publish(&mqtt,  mqttRoboGaggiaTelemetryTopicName);
-
-Adafruit_MQTT_Subscribe errors = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME + "/errors");
-Adafruit_MQTT_Subscribe throttle = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME + "/throttle");
-
-SerialLogHandler logHandler;
-SYSTEM_THREAD(ENABLED);
-
 //
 // PIN Definitions
 //
@@ -122,6 +90,12 @@ SYSTEM_THREAD(ENABLED);
 //
 // Constants
 //
+
+// *************
+// FEATURE FLAGS 
+// *************
+
+boolean TELEMETRY_ENABLED = true;
 
 double TARGET_BREW_TEMP = 103; // should be 65
 double TOO_HOT_TO_BREW_TEMP = 110; // should be 80
@@ -428,6 +402,29 @@ void sendTelemetryIfNecessary(float nowTimeMillis,
                               WaterReservoirState *waterReservoirState,
                               WaterPumpState *waterPumpState); 
 char* getStateName(GaggiaStateEnum stateEnum);
+
+// If you check in this code WITH this KEY defined, it will be detected by IO.Adafruit
+// and IT WILL BE DISABLED !!!  So please delete value below before checking in!
+// ***************** !!!!!!!!!!!!!! **********
+#define AIO_KEY         "XXX" // Adafruit IO AIO Key
+#define AIO_SERVER      "io.adafruit.com"
+#define AIO_SERVERPORT  1883                   // use 8883 for SSL
+String AIO_USERNAME     = "ndipatri";
+// ***************** !!!!!!!!!!!!!! **********
+
+TCPClient client; // TCP Client used by Adafruit IO library
+
+Adafruit_MQTT_SPARK mqtt(&client, AIO_SERVER, AIO_SERVERPORT, AIO_USERNAME, AIO_KEY);
+
+String mqttRoboGaggiaTelemetryTopicName = AIO_USERNAME + "/feeds/roboGaggiaTelemetry"; 
+Adafruit_MQTT_Publish mqttRoboGaggiaTelemetryTopic = Adafruit_MQTT_Publish(&mqtt,  mqttRoboGaggiaTelemetryTopicName);
+
+Adafruit_MQTT_Subscribe errors = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME + "/errors");
+Adafruit_MQTT_Subscribe throttle = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME + "/throttle");
+
+SerialLogHandler logHandler;
+SYSTEM_THREAD(ENABLED);
+
 
 // setup() runs once, when the device is first turned on.
 void setup() {
@@ -1041,13 +1038,6 @@ void processIncomingGaggiaState(GaggiaState *currentGaggiaState,
                                 WaterReservoirState *waterReservoirState,
                                 WaterPumpState *waterPumpState,
                                 float nowTimeMillis) {
-
-  if (TELEMETRY_ENABLED && currentGaggiaState->state == HELLO) {
-        // telemetry is NOT available while in hello state
-        // recall the system returns to hello after 15 minutes of inactivity.
-        MQTTDisconnect();
-  }
-
   if (nextGaggiaState->dispenseWater) {
     publishParticleLog("dispense", "Launching Pressure PID");
 
@@ -1135,12 +1125,6 @@ void processOutgoingGaggiaState(GaggiaState *currentGaggiaState,
                                 WaterReservoirState *waterReservoirState,
                                 WaterPumpState *waterPumpState,
                                 float nowTimeMillis) {
-
-  if (TELEMETRY_ENABLED && currentGaggiaState->state == HELLO) {
-        // we want telemetry to be available for all non-rest states...
-        // recall the system returns to hello after 15 minutes of inactivity.
-        MQTTConnect();
-  }
 
   // Good time to pick up any MQTT erors...
   // this is our 'wait for incoming subscription packets' busy subloop
@@ -1814,6 +1798,13 @@ void sendTelemetryIfNecessary(float nowTimeMillis,
                               ScaleState *scaleState,
                               WaterReservoirState *waterReservoirState,
                               WaterPumpState *waterPumpState) {
+
+  if (TELEMETRY_ENABLED) {
+        // we want telemetry to be available for all non-rest states...
+        // recall the system returns to hello after 15 minutes of inactivity.
+        MQTTConnect();
+  }
+
   if (gaggiaState->state == BREWING || gaggiaState->state == PREINFUSION) {
     if (nowTimeMillis > gaggiaState->nextTelemetryMillis) {
 
@@ -1852,11 +1843,16 @@ void MQTTConnect() {
         return;
     }
 
-    while ((ret = mqtt.connect()) != 0) { // connect will return 0 for connected
-        publishParticleLog("mqtt", "Retrying MQTT connect from error: " + String(mqtt.connectErrorString(ret)));
-        mqtt.disconnect();
-        delay(1000);  // wait 5 seconds
-    }
+    // Note that reconnecting more than 20 times per minute will cause a temporary ban
+    // on account
+    mqtt.connect();
+
+    // give up for now...
+    // while ((ret = mqtt.connect()) != 0) { // connect will return 0 for connected
+    //     publishParticleLog("mqtt", "Retrying MQTT connect from error: " + String(mqtt.connectErrorString(ret)));
+    //     mqtt.disconnect();
+    //     delay(250); 
+    // }
 }
 
 void MQTTDisconnect() {
