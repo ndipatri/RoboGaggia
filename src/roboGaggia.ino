@@ -86,6 +86,9 @@ Copyright (c) 2016 SparkFun Electronics
 // send high to turn on solenoid
 #define WATER_RESERVOIR_SOLENOID  RX 
 
+#define SCALE_SAMPLE_SIZE 15 
+#define LOOP_INTERVAL_MILLIS 50 
+
 
 //
 // Constants
@@ -95,7 +98,7 @@ Copyright (c) 2016 SparkFun Electronics
 // FEATURE FLAGS 
 // *************
 
-boolean TELEMETRY_ENABLED = true;
+boolean TELEMETRY_ENABLED = false;
 
 double TARGET_BREW_TEMP = 103; // should be 65
 double TOO_HOT_TO_BREW_TEMP = 110; // should be 80
@@ -117,7 +120,7 @@ double SCALE_FACTOR = 3137;
 double SCALE_OFFSET = 47;
 
 // Below which we consider weight to be 0
-int LOW_WEIGHT_THRESHOLD = 4;
+int LOW_WEIGHT_THRESHOLD = 0;
 
 int RETURN_TO_HOME_INACTIVITY_MINUTES = 10;
 
@@ -201,6 +204,10 @@ boolean doesWaterReservoirNeedFilling();
 
 
 struct ScaleState {
+
+  // The current weight measurement is a sliding average
+  float avgWeights[SCALE_SAMPLE_SIZE];
+  byte avgWeightIndex = 0;
 
   long measuredWeight = 0;
 
@@ -421,7 +428,7 @@ void sendMessageToCloud(const char* message, Adafruit_MQTT_Publish* topic, Netwo
 // If you check in this code WITH this KEY defined, it will be detected by IO.Adafruit
 // and IT WILL BE DISABLED !!!  So please delete value below before checking in!
 // ***************** !!!!!!!!!!!!!! **********
-#define AIO_KEY         "aio_bdCH33im3qRvtTGA1HYAgbVCkKZ4" // Adafruit IO AIO Key
+#define AIO_KEY         "xxx" // Adafruit IO AIO Key
 #define AIO_SERVER      "io.adafruit.com"
 #define AIO_SERVERPORT  1883                   // use 8883 for SSL
 String AIO_USERNAME     = "ndipatri";
@@ -746,9 +753,6 @@ void loop() {
   
   float nowTimeMillis = millis();  
 
-  // First we read all inputs... even if these inputs aren't always needed for
-  // our given state.. it's easier to just do it here as it costs very little.
-
   readScaleState(myScale, &scaleState);
   
   readUserInputState(isButtonPressedRightNow(), nowTimeMillis, &userInputState);
@@ -822,7 +826,7 @@ void loop() {
   if (isInTestMode) {
     delay(2000);
   } else {
-    delay(50);
+    delay(LOOP_INTERVAL_MILLIS);
   }
 
   first = false;
@@ -870,6 +874,7 @@ GaggiaState getNextGaggiaState(GaggiaState *currentGaggiaState,
 
     case HELLO :
 
+      // We have to give the scale long enough to tare proper weight
       if (userInputState->state == SHORT_PRESS) {
         if (heaterState->measuredTemp >= TARGET_BREW_TEMP * 1.20) {
           return coolStartState;
@@ -1206,7 +1211,7 @@ void processOutgoingGaggiaState(GaggiaState *currentGaggiaState,
   // }
 
   // Process Tare Scale
-  if (currentGaggiaState->tareScale == true) {
+  if (currentGaggiaState->tareScale) {
     scaleState->tareWeight = scaleState->measuredWeight;
   }
 
@@ -1408,9 +1413,18 @@ void readScaleState(NAU7802 myScale, ScaleState *scaleState) {
 
     float scaledReading = ((reading * SCALE_FACTOR) - SCALE_OFFSET)/10000000.0;
 
+    // This is a rotating buffer
+    scaleState->avgWeights[scaleState->avgWeightIndex++] = scaledReading;
+    if(scaleState->avgWeightIndex == SCALE_SAMPLE_SIZE) scaleState->avgWeightIndex = 0;
+
+    float avgWeight = 0;
+    for (int index = 0 ; index < SCALE_SAMPLE_SIZE ; index++)
+      avgWeight += scaleState->avgWeights[index];
+    avgWeight /= SCALE_SAMPLE_SIZE;
+
     //Log.error("scaledReading: " + String(scaledReading));
 
-    scaleState->measuredWeight = scaledReading;
+    scaleState->measuredWeight = avgWeight;
   }
 }
 
