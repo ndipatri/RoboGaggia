@@ -95,7 +95,7 @@ Copyright (c) 2016 SparkFun Electronics
 // FEATURE FLAGS 
 // *************
 
-boolean TELEMETRY_ENABLED = false;
+boolean TELEMETRY_ENABLED = true;
 
 double TARGET_BREW_TEMP = 103; // should be 65
 double TOO_HOT_TO_BREW_TEMP = 110; // should be 80
@@ -187,6 +187,10 @@ double targetPressureInBars = PRE_INFUSION_BAR;
 void readPumpState(WaterPumpState *waterPumpState);
 Adafruit_ADS1115 ads1115;  // the adc for the pressure sensor
 
+struct NetworkState {
+  boolean connected = false;
+} networkState;
+
 
 struct WaterReservoirState {
 
@@ -277,7 +281,9 @@ enum GaggiaStateEnum {
   CLEAN_INSTRUCTION_3 = 16, 
   CLEAN_RINSE = 17, 
   CLEAN_DONE = 18, 
-  NA = 19
+  IGNORING_NETWORK = 19, 
+  JOINING_NETWORK = 20, 
+  NA = 22  // indicates developer is NOT explicitly setting a test state through web interface
 };
 struct GaggiaState {
    enum GaggiaStateEnum state;   
@@ -329,6 +335,8 @@ cleanCycle1State,
 cleanLoad3State,
 cleanCycle2State,
 cleanDoneState,
+joiningNetwork,
+ignoringNetwork,
 naState,
 
 currentGaggiaState;
@@ -347,6 +355,7 @@ String updateDisplayLine(char *message,
                         HeaterState *heaterState,
                         ScaleState *scaleState,
                         WaterPumpState *waterPumpState,
+                        NetworkState *networkState,
                         String previousLineDisplayed);
 SerLCD display; // Initialize the library with default I2C address 0x72
 
@@ -363,7 +372,8 @@ GaggiaState getNextGaggiaState(GaggiaState *currentGaggiaState,
                                ScaleState *scaleState,
                                UserInputState *userInputState,
                                WaterReservoirState *waterReservoirState,
-                               WaterPumpState *waterPumpState);
+                               WaterPumpState *waterPumpState,
+                               NetworkState *networkState);
 
 // Once we know the state, we affect appropriate change in our
 // system attributes (e.g. temp, display)
@@ -374,6 +384,7 @@ void processCurrentGaggiaState(GaggiaState *currentGaggiaState,
                                DisplayState *displayState,
                                WaterReservoirState *waterReservoirState,
                                WaterPumpState *waterPumpState,
+                               NetworkState *networkState,
                                float nowTimeMillis);
 // Things we do when we leave a state
 void processOutgoingGaggiaState(GaggiaState *currentGaggiaState,
@@ -383,6 +394,7 @@ void processOutgoingGaggiaState(GaggiaState *currentGaggiaState,
                                 DisplayState *displayState,
                                 WaterReservoirState *waterReservoirState,
                                 WaterPumpState *waterPumpState,
+                                NetworkState *networkState,
                                 float nowTimeMillis);
 // Things we do when we enter a state
 void processIncomingGaggiaState(GaggiaState *currentGaggiaState,
@@ -392,6 +404,7 @@ void processIncomingGaggiaState(GaggiaState *currentGaggiaState,
                                 DisplayState *displayState,
                                 WaterReservoirState *waterReservoirState,
                                 WaterPumpState *waterPumpState,
+                                NetworkState *networkState,
                                 float nowTimeMillis);
 GaggiaState returnToHelloState(ScaleState *scaleState);
 float timeSpentInCurrentStateMillis(GaggiaState *currentGaggiaState);
@@ -400,13 +413,15 @@ void sendTelemetryIfNecessary(float nowTimeMillis,
                               HeaterState *heaterState,
                               ScaleState *scaleState,
                               WaterReservoirState *waterReservoirState,
-                              WaterPumpState *waterPumpState); 
+                              WaterPumpState *waterPumpState,
+                              NetworkState *networkState); 
 char* getStateName(GaggiaStateEnum stateEnum);
+void sendMessageToCloud(const char* message, Adafruit_MQTT_Publish* topic, NetworkState *networkState);
 
 // If you check in this code WITH this KEY defined, it will be detected by IO.Adafruit
 // and IT WILL BE DISABLED !!!  So please delete value below before checking in!
 // ***************** !!!!!!!!!!!!!! **********
-#define AIO_KEY         "XXX" // Adafruit IO AIO Key
+#define AIO_KEY         "aio_bdCH33im3qRvtTGA1HYAgbVCkKZ4" // Adafruit IO AIO Key
 #define AIO_SERVER      "io.adafruit.com"
 #define AIO_SERVERPORT  1883                   // use 8883 for SSL
 String AIO_USERNAME     = "ndipatri";
@@ -425,6 +440,11 @@ Adafruit_MQTT_Subscribe throttle = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME +
 SerialLogHandler logHandler;
 SYSTEM_THREAD(ENABLED);
 
+// This instructs the core to not connect to the
+// Particle cloud until explicitly instructed to
+// do so from within our service loop ... This is so the device
+// has the ability to operate offline.
+SYSTEM_MODE(MANUAL);
 
 // setup() runs once, when the device is first turned on.
 void setup() {
@@ -651,9 +671,22 @@ void setup() {
   cleanDoneState.display3 =            "Return scale.       ";
   cleanDoneState.display4 =            "Click when Done     ";
 
+  joiningNetwork.state = JOINING_NETWORK;
+  joiningNetwork.display1 =            "Joining network ... ";
+  joiningNetwork.display2 =            "                    ";
+  joiningNetwork.display3 =            "                    ";
+  joiningNetwork.display4 =            "Click to Skip       ";
+
+  ignoringNetwork.state = IGNORING_NETWORK;
+  ignoringNetwork.display1 =            "Ignoring Network    ";
+  ignoringNetwork.display2 =            "                    ";
+  ignoringNetwork.display3 =            "                    ";
+  ignoringNetwork.display4 =            "Please wait ...     ";
+
+
   naState.state = NA;
 
-  currentGaggiaState = helloState;
+  currentGaggiaState = joiningNetwork;
   manualNextGaggiaState = naState;
 
   // LCD Setup
@@ -663,7 +696,6 @@ void setup() {
   display.setContrast(5); //Set contrast. Lower to 0 for higher contrast.
 
   display.clear(); //Clear the display - this moves the cursor to home position as well
-  display.print("Joining network ...");
 
 
   // Wait for a USB serial connection for up to 15 seconds
@@ -728,7 +760,8 @@ void loop() {
                                                    &scaleState, 
                                                    &userInputState,
                                                    &waterReservoirState,
-                                                   &waterPumpState);
+                                                   &waterPumpState,
+                                                   &networkState);
 
   if (first || nextGaggiaState.state != currentGaggiaState.state) {
 
@@ -744,6 +777,7 @@ void loop() {
                                &displayState,
                                &waterReservoirState,
                                &waterPumpState,
+                               &networkState,
                                nowTimeMillis);
   
       // Things we do when we enter a state
@@ -754,6 +788,7 @@ void loop() {
                                &displayState,
                                &waterReservoirState,
                                &waterPumpState,
+                               &networkState,
                                nowTimeMillis);
   
     nextGaggiaState.stateEnterTimeMillis = millis();
@@ -768,6 +803,7 @@ void loop() {
                             &displayState,
                             &waterReservoirState,
                             &waterPumpState,
+                            &networkState,
                             nowTimeMillis);
 
   sendTelemetryIfNecessary(nowTimeMillis,
@@ -775,8 +811,14 @@ void loop() {
                            &heaterState,
                            &scaleState,
                            &waterReservoirState,
-                           &waterPumpState);
+                           &waterPumpState,
+                           &networkState);
   
+    // resume service loop
+    if (networkState.connected) {
+      Particle.process();
+    }
+
   if (isInTestMode) {
     delay(2000);
   } else {
@@ -794,7 +836,8 @@ GaggiaState getNextGaggiaState(GaggiaState *currentGaggiaState,
                                ScaleState *scaleState,
                                UserInputState *userInputState,
                                WaterReservoirState *waterReservoirState,
-                               WaterPumpState *waterPumpState) {
+                               WaterPumpState *waterPumpState,
+                               NetworkState *networkState) {
 
   if (manualNextGaggiaState.state != NA) {
     GaggiaState nextGaggiaState = manualNextGaggiaState;
@@ -804,6 +847,26 @@ GaggiaState getNextGaggiaState(GaggiaState *currentGaggiaState,
   }
 
   switch (currentGaggiaState->state) {
+
+    case IGNORING_NETWORK :
+
+      if (WiFi.isOff()) {
+        return helloState;
+      }
+
+      break;
+
+    case JOINING_NETWORK :
+
+      if (networkState->connected) {
+        return helloState;
+      }
+      
+      if (userInputState->state == SHORT_PRESS || userInputState->state == LONG_PRESS) {
+        return ignoringNetwork;
+      }
+
+      break;
 
     case HELLO :
 
@@ -1037,6 +1100,7 @@ void processIncomingGaggiaState(GaggiaState *currentGaggiaState,
                                 DisplayState *displayState,
                                 WaterReservoirState *waterReservoirState,
                                 WaterPumpState *waterPumpState,
+                                NetworkState *networkState,
                                 float nowTimeMillis) {
   if (nextGaggiaState->dispenseWater) {
     publishParticleLog("dispense", "Launching Pressure PID");
@@ -1124,6 +1188,7 @@ void processOutgoingGaggiaState(GaggiaState *currentGaggiaState,
                                 DisplayState *displayState,
                                 WaterReservoirState *waterReservoirState,
                                 WaterPumpState *waterPumpState,
+                                NetworkState *networkState,
                                 float nowTimeMillis) {
 
   // Good time to pick up any MQTT erors...
@@ -1170,7 +1235,8 @@ void processOutgoingGaggiaState(GaggiaState *currentGaggiaState,
                            heaterState,
                            scaleState,
                            waterReservoirState,
-                           waterPumpState);
+                           waterPumpState,
+                           networkState);
 
   // Things we always reset when leaving a state...
   currentGaggiaState->stopTimeMillis = -1;
@@ -1184,6 +1250,7 @@ void processCurrentGaggiaState(GaggiaState *currentGaggiaState,
                                DisplayState *displayState,
                                WaterReservoirState *waterReservoirState,
                                WaterPumpState *waterPumpState,
+                               NetworkState *networkState,
                                float nowTimeMillis) {
 
   // 
@@ -1195,6 +1262,7 @@ void processCurrentGaggiaState(GaggiaState *currentGaggiaState,
                                              heaterState, 
                                              scaleState, 
                                              waterPumpState,
+                                             networkState,
                                              displayState->display1);
 
   displayState->display2 = updateDisplayLine(currentGaggiaState->display2, 
@@ -1203,6 +1271,7 @@ void processCurrentGaggiaState(GaggiaState *currentGaggiaState,
                                              heaterState, 
                                              scaleState, 
                                              waterPumpState,
+                                             networkState,
                                              displayState->display2);
 
   displayState->display3 = updateDisplayLine(currentGaggiaState->display3, 
@@ -1211,6 +1280,7 @@ void processCurrentGaggiaState(GaggiaState *currentGaggiaState,
                                              heaterState, 
                                              scaleState,  
                                              waterPumpState,
+                                             networkState,
                                              displayState->display3);
 
   displayState->display4 = updateDisplayLine(currentGaggiaState->display4, 
@@ -1219,6 +1289,7 @@ void processCurrentGaggiaState(GaggiaState *currentGaggiaState,
                                              heaterState, 
                                              scaleState, 
                                              waterPumpState,
+                                             networkState,
                                              displayState->display4);
 
 
@@ -1301,6 +1372,28 @@ void processCurrentGaggiaState(GaggiaState *currentGaggiaState,
     }
   } else {
     stopDispensingWater();
+  }
+
+  if (currentGaggiaState->state == IGNORING_NETWORK) {
+
+    // we do this just incase we spipped network AFTER
+    // we achieved a connection.
+    networkState->connected = false;
+    Particle.disconnect();
+    WiFi.off();
+  }
+
+  if (currentGaggiaState->state == JOINING_NETWORK) {
+
+    if (WiFi.connecting()) {
+      return;
+    }
+
+    if (!Particle.connected()) {
+      Particle.connect(); 
+    } else {
+      networkState->connected = true;
+    }
   }
 }
 
@@ -1517,6 +1610,7 @@ String updateDisplayLine(char *message,
                         HeaterState *heaterState,
                         ScaleState *scaleState,
                         WaterPumpState *waterPumpState,
+                        NetworkState *networkState,
                         String previousLineDisplayed) {
 
   display.setCursor(0,line-1);
@@ -1580,7 +1674,7 @@ String updateDisplayLine(char *message,
                                                        waterPumpState->pumpDutyCycle,
                                                        MAX_PUMP_DUTY_CYCLE,
                                                        " %");
-                }  
+                }
               }   
             }          
           }
@@ -1797,9 +1891,10 @@ void sendTelemetryIfNecessary(float nowTimeMillis,
                               HeaterState *heaterState,
                               ScaleState *scaleState,
                               WaterReservoirState *waterReservoirState,
-                              WaterPumpState *waterPumpState) {
+                              WaterPumpState *waterPumpState,
+                              NetworkState *networkState) {
 
-  if (TELEMETRY_ENABLED) {
+  if (TELEMETRY_ENABLED && networkState->connected) {
         // we want telemetry to be available for all non-rest states...
         // recall the system returns to hello after 15 minutes of inactivity.
         MQTTConnect();
@@ -1816,7 +1911,7 @@ void sendTelemetryIfNecessary(float nowTimeMillis,
         String(waterPumpState->measuredPressureInBars) + String(", ") +  // measured pressure in bars 
         String(waterPumpState->targetPressureInBars) + String(", ") + // target pressure in bars 
         String(waterPumpState->pumpDutyCycle) + String(", ")  // pump duty cycle 
-      , &mqttRoboGaggiaTelemetryTopic);
+      , &mqttRoboGaggiaTelemetryTopic, networkState);
 
 
       gaggiaState->nextTelemetryMillis = nowTimeMillis + TELEMETRY_PERIOD_MILLIS;
@@ -1824,8 +1919,8 @@ void sendTelemetryIfNecessary(float nowTimeMillis,
   }
 }
 
-void sendMessageToCloud(const char* message, Adafruit_MQTT_Publish* topic) {
-  if (TELEMETRY_ENABLED) {
+void sendMessageToCloud(const char* message, Adafruit_MQTT_Publish* topic, NetworkState *networkState) {
+  if (TELEMETRY_ENABLED && networkState->connected) {
     if (topic->publish(message)) {
         publishParticleLog("mqtt", "Message SUCCESS (" + String(message) + ").");
     } else {
