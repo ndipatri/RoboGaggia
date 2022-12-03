@@ -86,7 +86,7 @@ Copyright (c) 2016 SparkFun Electronics
 // send high to turn on solenoid
 #define WATER_RESERVOIR_SOLENOID  RX 
 
-#define SCALE_SAMPLE_SIZE 4 
+#define SCALE_SAMPLE_SIZE 10 
 #define LOOP_INTERVAL_MILLIS 50 
 
 
@@ -497,6 +497,8 @@ void setup() {
   Particle.variable("heaterTempC", heaterState.measuredTemp);
   Particle.variable("targetBrewTempC", TARGET_BREW_TEMP);
   Particle.variable("thermocoupleError",  heaterState.thermocoupleError);
+  Particle.variable("tareWeightGrams",  scaleState.tareWeight);
+  Particle.variable("measuredWeightGrams",  scaleState.measuredWeight);
   Particle.variable("targetPressureInBars", _targetPressureInBars);
   Particle.variable("isInTestMode",  isInTestMode);
   Particle.variable("doesWaterNeedFilling",  doesWaterReservoirNeedFilling);
@@ -516,12 +518,13 @@ void setup() {
   Particle.function("setCoolingState", _setCoolingState);
   Particle.function("setHelloState", _setHelloState);
 
+  // Can't expose all functions at once...
   //Particle.function("set_kP", _setPID_kP);
   //Particle.function("set_kI", _setPID_kI);
   //Particle.function("set_kD", _setPID_kD);
 
-  Particle.function("setScaleFactor", setScaleFactor);
-  Particle.function("setScaleOffset", setScaleOffset);
+  //Particle.function("setScaleFactor", setScaleFactor);
+  //Particle.function("setScaleOffset", setScaleOffset);
 
   // Define all possible states of RoboGaggia
   helloState.state = HELLO; 
@@ -530,10 +533,12 @@ void setup() {
   helloState.display3 =            "Click to Brew,      ";
   helloState.display4 =            "Hold to Clean       ";
   
+  // We need to measure temp when leaving to know if we need to
+  // do cooling phase first...
   helloState.measureTemp = true;
 
   // we don't want to heat here in case the unit was turned on and
-  // person walked away for 10 hours
+  // person walked away for a few days ...
   helloState.brewHeaterOn = false; 
 
   // we tare here so the weight of the scale itself isn't shown
@@ -543,7 +548,7 @@ void setup() {
   tareCup1State.state = TARE_CUP_BEFORE_MEASURE; 
   tareCup1State.display1 =         "Place empty cup     ";
   tareCup1State.display2 =         "on tray.            ";
-  tareCup1State.display3 =         "{measuredWeight}";
+  tareCup1State.display3 =         "{adjustedWeight}";
   tareCup1State.display4 =         "Click when Ready    ";
   tareCup1State.tareScale = true; 
   tareCup1State.brewHeaterOn = true; 
@@ -1657,7 +1662,7 @@ String updateDisplayLine(char *message,
                                               " degrees C");
         if (lineToDisplay == "") {
           lineToDisplay = decodeMessageIfNecessary(message,
-                                                "{measuredWeight}",
+                                                "{adjustedWeight}",
                                                 filterLowWeight(scaleState->measuredWeight - scaleState->tareWeight),
                                                 0,
                                                 " g");
