@@ -86,7 +86,7 @@ Copyright (c) 2016 SparkFun Electronics
 // send high to turn on solenoid
 #define WATER_RESERVOIR_SOLENOID  RX 
 
-#define SCALE_SAMPLE_SIZE 15 
+#define SCALE_SAMPLE_SIZE 4 
 #define LOOP_INTERVAL_MILLIS 50 
 
 
@@ -113,11 +113,9 @@ float BUTTON_LONG_PRESS_DURATION_MILLIS = 1000;
 // that of the ground beans.  Typically this is 2-to-1
 float BREW_WEIGHT_TO_BEAN_RATIO = 2.0;
 
-// LOAD_BLOCK_READING = (SCALE_FACTOR)(ACTUAL_WEIGHT_IN_GRAMS) + SCALE_OFFSET 
-//
-// ACTUAL_WEIGHT_IN_GRAMS = LOAD_BLOCK_READING/SCALE_FACTOR - SCALE_OFFSET
-double SCALE_FACTOR = 3137;  
-double SCALE_OFFSET = 47;
+// y = 6.33E-04*x + -13.2
+double SCALE_FACTOR = 0.000633; // 3137;  
+double SCALE_OFFSET = -13.2;  // 47;
 
 // Below which we consider weight to be 0
 int LOW_WEIGHT_THRESHOLD = 0;
@@ -135,9 +133,8 @@ int DONE_BREWING_LINGER_TIME_SECONDS = 5;
 // 5 cycles off
 int DISPENSE_FLOW_RATE_TOTAL_CYCES = 20;
 
-// The Gaggia currently has a 6bar spring in its 
+// The Gaggia currently has a 12bar spring in its 
 // OPV (over pressure valve)
-// For some reason, i can't get reading above 4 most times.. so keeping it at 5 for now.
 double DISPENSING_BAR = 6.0;
 double PRE_INFUSION_BAR = 1.0;
 double BACKFLUSH_BAR = 4.0;
@@ -161,7 +158,7 @@ int MAX_PUMP_DUTY_CYCLE = 100;
 int NUMBER_OF_CLEAN_CYCLES = 20; // (10 on and off based on https://youtu.be/lfJgabTJ-bM?t=38)
 int SECONDS_PER_CLEAN_CYCLE = 4; 
 
-int TELEMETRY_PERIOD_MILLIS = 500; 
+int TELEMETRY_PERIOD_MILLIS = 1000; 
 
 //
 // State
@@ -428,7 +425,7 @@ void sendMessageToCloud(const char* message, Adafruit_MQTT_Publish* topic, Netwo
 // If you check in this code WITH this KEY defined, it will be detected by IO.Adafruit
 // and IT WILL BE DISABLED !!!  So please delete value below before checking in!
 // ***************** !!!!!!!!!!!!!! **********
-#define AIO_KEY         "xxx" // Adafruit IO AIO Key
+#define AIO_KEY         "XXX" // Adafruit IO AIO Key
 #define AIO_SERVER      "io.adafruit.com"
 #define AIO_SERVERPORT  1883                   // use 8883 for SSL
 String AIO_USERNAME     = "ndipatri";
@@ -519,12 +516,12 @@ void setup() {
   Particle.function("setCoolingState", _setCoolingState);
   Particle.function("setHelloState", _setHelloState);
 
-  Particle.function("set_kP", _setPID_kP);
-  Particle.function("set_kI", _setPID_kI);
-  Particle.function("set_kD", _setPID_kD);
+  //Particle.function("set_kP", _setPID_kP);
+  //Particle.function("set_kI", _setPID_kI);
+  //Particle.function("set_kD", _setPID_kD);
 
-  Particle.function("setDispensingBar", _setDispensingBar);
-  Particle.function("setPreInfusionBar", _setPreInfusionBar);
+  Particle.function("setScaleFactor", setScaleFactor);
+  Particle.function("setScaleOffset", setScaleOffset);
 
   // Define all possible states of RoboGaggia
   helloState.state = HELLO; 
@@ -704,6 +701,9 @@ void setup() {
 
   display.clear(); //Clear the display - this moves the cursor to home position as well
 
+  myScale.setGain(NAU7802_GAIN_64); //Gain can be set to 1, 2, 4, 8, 16, 32, 64, or 128. default is 16
+  myScale.setSampleRate(NAU7802_SPS_80); //Sample rate can be set to 10, 20, 40, 80, or 320Hz. default is 10
+  myScale.calibrateAFE(); //Does an internal calibration. Recommended after power up, gain changes, sample rate changes, or channel changes.
 
   // Wait for a USB serial connection for up to 15 seconds
   waitFor(Serial.isConnected, 15000);
@@ -1407,22 +1407,23 @@ void readScaleState(NAU7802 myScale, ScaleState *scaleState) {
   scaleState->measuredWeight = 0;
 
   if (myScale.available() == true) {
-    float reading = myScale.getReading();
+    float scaleReading = myScale.getReading();
   
-     //Log.error("rawReading: " + String(reading));
-
-    float scaledReading = ((reading * SCALE_FACTOR) - SCALE_OFFSET)/10000000.0;
+    // Spreadsheet which shows calibration for this scale:
+    // https://docs.google.com/spreadsheets/d/1z3atpMJ9mnRWZPx-S3QPc0Lp2lXNPtheInoUFgV0nMo/edit?usp=sharing 
+    // weightInGrams = scaleReading * SCALE_FACTOR + SCALE_OFFSET
+    // y = 6.33E-04*x + -13.2
+  
+    float weightInGrams = scaleReading * SCALE_FACTOR + SCALE_OFFSET;
 
     // This is a rotating buffer
-    scaleState->avgWeights[scaleState->avgWeightIndex++] = scaledReading;
+    scaleState->avgWeights[scaleState->avgWeightIndex++] = weightInGrams;
     if(scaleState->avgWeightIndex == SCALE_SAMPLE_SIZE) scaleState->avgWeightIndex = 0;
 
     float avgWeight = 0;
     for (int index = 0 ; index < SCALE_SAMPLE_SIZE ; index++)
       avgWeight += scaleState->avgWeights[index];
     avgWeight /= SCALE_SAMPLE_SIZE;
-
-    //Log.error("scaledReading: " + String(scaledReading));
 
     scaleState->measuredWeight = avgWeight;
   }
