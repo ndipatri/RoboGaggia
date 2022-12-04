@@ -514,7 +514,7 @@ void setup() {
 
   Particle.function("setHeatingState", _setHeatingState);
   Particle.function("setBrewingState", _setBrewingState);
-  Particle.function("setPreInfusionState", _setPreInfusionState);
+  Particle.function("setSteamingState", _setSteamingState);
   Particle.function("setCoolingState", _setCoolingState);
   Particle.function("setHelloState", _setHelloState);
 
@@ -1801,6 +1801,11 @@ int _setHeatingState(String _) {
 
 int _setCoolingState(String _) {
   manualNextGaggiaState = coolingState;
+  return 1;
+}
+
+int _setSteamingState(String _) {
+  manualNextGaggiaState = steamingState;
   return 1;
 }
 
