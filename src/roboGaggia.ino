@@ -263,10 +263,11 @@ QwiicButton userButton;
 
 enum GaggiaStateEnum {
   HELLO = 0, 
+  FEATURES = 22, 
   TARE_CUP_BEFORE_MEASURE = 1, 
   MEASURE_BEANS = 2,  
   TARE_CUP_AFTER_MEASURE = 3, 
-  HEATING = 4, 
+  HEATING_TO_BREW = 4, 
   PREINFUSION = 5, 
   BREWING = 6, 
   DONE_BREWING = 7, 
@@ -281,10 +282,11 @@ enum GaggiaStateEnum {
   CLEAN_INSTRUCTION_3 = 16, 
   CLEAN_RINSE = 17, 
   CLEAN_DONE = 18, 
+  HEATING_TO_DISPENSE = 23, 
   DISPENSE_HOT_WATER = 21, 
   IGNORING_NETWORK = 19, 
   JOINING_NETWORK = 20, 
-  NA = 22  // indicates developer is NOT explicitly setting a test state through web interface
+  NA = 24  // indicates developer is NOT explicitly setting a test state through web interface
 };
 struct GaggiaState {
    enum GaggiaStateEnum state;   
@@ -294,8 +296,10 @@ struct GaggiaState {
    char *display4 = "";
    boolean  waterReservoirSolenoidOn = false;
    
+   // ************
    // WARNING: this cannot be done at the same time (or even in an adjacent state)
    // to dispensing water.
+   // ************
    boolean  fillingReservoir = false;
 
    boolean  brewHeaterOn = false;
@@ -319,12 +323,14 @@ struct GaggiaState {
    float nextTelemetryMillis = -1;
 } 
 helloState,
+featuresState,
 tareCup1State,
 measureBeansState,
 tareCup2State,
-heatingState,
+heatingToBrewState,
 preinfusionState,
 brewingState,
+heatingToDispenseState,
 dispenseHotWaterState,
 doneBrewingState,
 heatingToSteamState,
@@ -332,10 +338,10 @@ steamingState,
 coolStartState,
 coolingState,
 coolDoneState,
-cleanLoad1State,
-cleanLoad2State,
+cleanInstructions1State,
+cleanInstructions2State,
 cleanCycle1State,
-cleanLoad3State,
+cleanInstructions3State,
 cleanCycle2State,
 cleanDoneState,
 joiningNetwork,
@@ -531,7 +537,7 @@ void setup() {
   helloState.display1 =            "Hi.                 ";
   helloState.display2 =            "Clear scale surface.";
   helloState.display3 =            "Click to Brew,      ";
-  helloState.display4 =            "Hold to Clean       ";
+  helloState.display4 =            "Hold for Features   ";
   
   // We need to measure temp when leaving to know if we need to
   // do cooling phase first...
@@ -544,6 +550,12 @@ void setup() {
   // we tare here so the weight of the scale itself isn't shown
   // when we are measuring things...
   helloState.tareScale = true; 
+
+  featuresState.state = FEATURES; 
+  featuresState.display1 =            "Select Feature      ";
+  featuresState.display2 =            "Click for hot water ";
+  featuresState.display3 =            "   through wand,    ";
+  featuresState.display4 =            "Hold for Clean      ";
 
   tareCup1State.state = TARE_CUP_BEFORE_MEASURE; 
   tareCup1State.display1 =         "Place empty cup     ";
@@ -570,12 +582,12 @@ void setup() {
   tareCup2State.tareScale = true; 
   tareCup2State.brewHeaterOn = true; 
 
-  heatingState.state = HEATING; 
-  heatingState.display1 =    "Heating to brew.    ";
-  heatingState.display2 =    "Leave cup on tray.  ";
-  heatingState.display3 =    "{measuredBrewTemp}/{targetBrewTemp}";
-  heatingState.display4 =    "Please wait ...     ";
-  heatingState.brewHeaterOn = true; 
+  heatingToBrewState.state = HEATING_TO_BREW; 
+  heatingToBrewState.display1 =    "Heating to brew.    ";
+  heatingToBrewState.display2 =    "Leave cup on tray.  ";
+  heatingToBrewState.display3 =    "{measuredBrewTemp}/{targetBrewTemp}";
+  heatingToBrewState.display4 =    "Please wait ...     ";
+  heatingToBrewState.brewHeaterOn = true; 
 
   preinfusionState.state = PREINFUSION; 
   preinfusionState.display1 =          "Infusing coffee.    ";
@@ -592,6 +604,13 @@ void setup() {
   brewingState.display4 =          "{pumpDutyCycle}/{maxDutyCycle}";
   brewingState.brewHeaterOn = true; 
   brewingState.waterThroughGroupHead = true; 
+
+  heatingToDispenseState.state = HEATING_TO_DISPENSE; 
+  heatingToDispenseState.display1 =    "Heating to dispense ";
+  heatingToDispenseState.display2 =    "          hot water.";
+  heatingToDispenseState.display3 =   "{measuredSteamTemp}/{targetSteamTemp}";
+  heatingToDispenseState.display4 =    "Please wait ...     ";
+  heatingToDispenseState.steamHeaterOn = true; 
 
   dispenseHotWaterState.state = DISPENSE_HOT_WATER; 
   dispenseHotWaterState.display1 =          "Use steam wand to  ";
@@ -644,17 +663,17 @@ void setup() {
   coolDoneState.display3 =         "                    ";
   coolDoneState.display4 =         "Click when Ready    ";
 
-  cleanLoad1State.state = CLEAN_INSTRUCTION_1;
-  cleanLoad1State.display1 =            "Load backflush      ";
-  cleanLoad1State.display2 =            "portafilter with    ";
-  cleanLoad1State.display3 =            "3g of Cafiza.       ";
-  cleanLoad1State.display4 =            "Click when Ready    ";
+  cleanInstructions1State.state = CLEAN_INSTRUCTION_1;
+  cleanInstructions1State.display1 =            "Load backflush      ";
+  cleanInstructions1State.display2 =            "portafilter with    ";
+  cleanInstructions1State.display3 =            "3g of Cafiza.       ";
+  cleanInstructions1State.display4 =            "Click when Ready    ";
 
-  cleanLoad2State.state = CLEAN_INSTRUCTION_2;
-  cleanLoad2State.display1 =            "Remove scale        ";
-  cleanLoad2State.display2 =            "from the drain pan. ";
-  cleanLoad2State.display3 =            "                    ";
-  cleanLoad2State.display4 =            "Click when Ready    ";
+  cleanInstructions2State.state = CLEAN_INSTRUCTION_2;
+  cleanInstructions2State.display1 =            "Remove scale        ";
+  cleanInstructions2State.display2 =            "from the drain pan. ";
+  cleanInstructions2State.display3 =            "                    ";
+  cleanInstructions2State.display4 =            "Click when Ready    ";
 
   cleanCycle1State.state = CLEAN_SOAP;
   cleanCycle1State.display1 =            "Backflushing        ";
@@ -666,11 +685,11 @@ void setup() {
   // trying to fill reservoir during clean seemed to cause problems..
   // not sure why
 
-  cleanLoad3State.state = CLEAN_INSTRUCTION_3;
-  cleanLoad3State.display1 =            "Clean out backflush ";
-  cleanLoad3State.display2 =            "portafilter.        ";
-  cleanLoad3State.display3 =            "                    ";
-  cleanLoad3State.display4 =            "Click when Ready    ";
+  cleanInstructions3State.state = CLEAN_INSTRUCTION_3;
+  cleanInstructions3State.display1 =            "Clean out backflush ";
+  cleanInstructions3State.display2 =            "portafilter.        ";
+  cleanInstructions3State.display3 =            "                    ";
+  cleanInstructions3State.display4 =            "Click when Ready    ";
 
   cleanCycle2State.state = CLEAN_RINSE;
   cleanCycle2State.display1 =            "Backflushing        ";
@@ -737,10 +756,11 @@ int setScaleOffset(String factorString) {
 char* getStateName(GaggiaStateEnum stateEnum) {
    switch (stateEnum) {
     case HELLO: return "hello";
+    case FEATURES: return "features";
     case TARE_CUP_BEFORE_MEASURE: return "tareCupBeforeMeasure";
     case MEASURE_BEANS: return "measureBeans";
     case TARE_CUP_AFTER_MEASURE: return "tareCupAfterMeasure";
-    case HEATING: return "heating";
+    case HEATING_TO_BREW: return "heating";
     case PREINFUSION: return "preInfusion";
     case BREWING: return "brewing";
     case DONE_BREWING: return "doneBrewing";
@@ -755,6 +775,10 @@ char* getStateName(GaggiaStateEnum stateEnum) {
     case CLEAN_INSTRUCTION_3: return "cleanInst3";
     case CLEAN_RINSE: return "cleanRinse";
     case CLEAN_DONE: return "cleanDone";
+    case HEATING_TO_DISPENSE: return "heatingToDispense";
+    case DISPENSE_HOT_WATER: return "dispenseHotWater";
+    case IGNORING_NETWORK: return "ignoringNetwork";
+    case JOINING_NETWORK: return "joingingNetwork";
     case NA: return "na";
    }
 
@@ -897,10 +921,20 @@ GaggiaState getNextGaggiaState(GaggiaState *currentGaggiaState,
       }
 
       if (userInputState->state == LONG_PRESS) {
-        return cleanLoad1State;
+        return featuresState;
       }
       break;
-      
+
+    case FEATURES :
+
+      if (userInputState->state == SHORT_PRESS) {
+        return heatingToDispenseState;
+      }
+     
+      if (userInputState->state == LONG_PRESS) {
+        return cleanInstructions1State;
+      }
+      break;      
       
     case TARE_CUP_BEFORE_MEASURE :
 
@@ -926,14 +960,14 @@ GaggiaState getNextGaggiaState(GaggiaState *currentGaggiaState,
     case TARE_CUP_AFTER_MEASURE :
 
       if (userInputState->state == SHORT_PRESS) {
-        return heatingState;
+        return heatingToBrewState;
       }
       if (userInputState->state == LONG_PRESS) {
         return helloState;
       }
       break;
 
-    case HEATING :
+    case HEATING_TO_BREW :
 
       if (heaterState->measuredTemp >= TARGET_BREW_TEMP) {
         return preinfusionState;
@@ -997,6 +1031,27 @@ GaggiaState getNextGaggiaState(GaggiaState *currentGaggiaState,
       }
       break;
       
+    case HEATING_TO_DISPENSE :
+
+      if (heaterState->measuredTemp >= TARGET_STEAM_TEMP) {
+        return dispenseHotWaterState;
+      }
+     
+      if (userInputState->state == LONG_PRESS) {
+        return helloState;
+      }
+      break; 
+
+    case DISPENSE_HOT_WATER :
+
+      if (userInputState->state == SHORT_PRESS) {
+        return helloState;
+      }
+      if (userInputState->state == LONG_PRESS) {
+        return helloState;
+      }
+      break;
+     
     case COOL_START :
 
       if (userInputState->state == SHORT_PRESS) {
@@ -1038,7 +1093,7 @@ GaggiaState getNextGaggiaState(GaggiaState *currentGaggiaState,
     case CLEAN_INSTRUCTION_1 :
 
       if (userInputState->state == SHORT_PRESS) {
-        return cleanLoad2State;
+        return cleanInstructions2State;
       }
      
       if (userInputState->state == LONG_PRESS) {
@@ -1060,7 +1115,7 @@ GaggiaState getNextGaggiaState(GaggiaState *currentGaggiaState,
     case CLEAN_SOAP :
 
       if (currentGaggiaState->counter == currentGaggiaState->targetCounter-1) {
-        return cleanLoad3State;
+        return cleanInstructions3State;
       }
      
       if (userInputState->state == LONG_PRESS) {
@@ -1383,7 +1438,7 @@ void processCurrentGaggiaState(GaggiaState *currentGaggiaState,
       }
     } else {
       // normal dispense state
-      startDispensingWater(currentGaggiaState->waterThroughWand);
+      startDispensingWater(currentGaggiaState->waterThroughGroupHead);
     }
   } else {
     stopDispensingWater();
@@ -1805,7 +1860,7 @@ int _setHeatingState(String _) {
   scaleState.tareWeight = 320;
   scaleState.targetWeight = 100;
 
-  manualNextGaggiaState = heatingState;
+  manualNextGaggiaState = heatingToBrewState;
   return 1;
 }
 
