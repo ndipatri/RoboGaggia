@@ -71,12 +71,8 @@ Copyright (c) 2016 SparkFun Electronics
 
 #define HEATER D8
 
-// Output - For dispensing water
-//
-// Also, since we use the AC_DIMMER (via DISPENSE_POT), merely pulling
-// this DISPENSE_WATER pin high does NOT start dispensing water... the
-// POT also has to be pulled HIGH for that to happen.
-#define DISPENSE_WATER  TX
+// This sends water to the group head
+#define SOLENOID_VALVE_SSR  TX
 
 // 1 - air , 0 - water
 // This sensor draws max 2.5mA so it can be directly powered by 3.3v on
@@ -285,6 +281,7 @@ enum GaggiaStateEnum {
   CLEAN_INSTRUCTION_3 = 16, 
   CLEAN_RINSE = 17, 
   CLEAN_DONE = 18, 
+  DISPENSE_HOT_WATER = 21, 
   IGNORING_NETWORK = 19, 
   JOINING_NETWORK = 20, 
   NA = 22  // indicates developer is NOT explicitly setting a test state through web interface
@@ -305,7 +302,8 @@ struct GaggiaState {
    boolean  steamHeaterOn = false;
    boolean  measureTemp = false;
    boolean  tareScale = false;
-   boolean  dispenseWater = false;
+   boolean  waterThroughGroupHead = false;
+   boolean  waterThroughWand = false;
    boolean  recordWeight = false;
 
    float stateEnterTimeMillis = -1;
@@ -327,6 +325,7 @@ tareCup2State,
 heatingState,
 preinfusionState,
 brewingState,
+dispenseHotWaterState,
 doneBrewingState,
 heatingToSteamState,
 steamingState,
@@ -487,7 +486,7 @@ void setup() {
   pinMode(ZERO_CROSS_DISPENSE_POT, INPUT_PULLDOWN);
 
   // water dispenser
-  pinMode(DISPENSE_WATER, OUTPUT);
+  pinMode(SOLENOID_VALVE_SSR, OUTPUT);
   pinMode(WATER_RESERVOIR_SOLENOID, OUTPUT);
 
   // water reservoir sensor
@@ -517,6 +516,7 @@ void setup() {
   Particle.function("setSteamingState", _setSteamingState);
   Particle.function("setCoolingState", _setCoolingState);
   Particle.function("setHelloState", _setHelloState);
+  Particle.function("setDispenseHotWater", _setDispenseHotWater);
 
   // Can't expose all functions at once...
   //Particle.function("set_kP", _setPID_kP);
@@ -582,7 +582,7 @@ void setup() {
   preinfusionState.display2 =          "{measuredBars}/{targetBars}";
   preinfusionState.display3 =          "{measuredBrewTemp}/{targetBrewTemp}";
   preinfusionState.display4 =          "Please wait ...     ";
-  preinfusionState.dispenseWater = true; 
+  preinfusionState.waterThroughGroupHead = true; 
   preinfusionState.brewHeaterOn = true; 
 
   brewingState.state = BREWING; 
@@ -591,7 +591,15 @@ void setup() {
   brewingState.display3 =          "{measuredBars}/{targetBars}";
   brewingState.display4 =          "{pumpDutyCycle}/{maxDutyCycle}";
   brewingState.brewHeaterOn = true; 
-  brewingState.dispenseWater = true; 
+  brewingState.waterThroughGroupHead = true; 
+
+  dispenseHotWaterState.state = DISPENSE_HOT_WATER; 
+  dispenseHotWaterState.display1 =          "Use steam wand to  ";
+  dispenseHotWaterState.display2 =          "dispense hot water. ";
+  dispenseHotWaterState.display3 =          "                    ";
+  dispenseHotWaterState.display4 =          "Click when Done     ";
+  dispenseHotWaterState.steamHeaterOn = true; 
+  dispenseHotWaterState.waterThroughWand = true; 
 
   doneBrewingState.state = DONE_BREWING; 
   doneBrewingState.display1 =      "Done brewing.       ";
@@ -627,7 +635,7 @@ void setup() {
   coolingState.display2 =          "{measuredBrewTemp}/{targetBrewTemp}";
   coolingState.display3 =          "                    ";
   coolingState.display4 =          "Click to Stop       ";
-  coolingState.dispenseWater = true; 
+  coolingState.waterThroughGroupHead = true; 
   coolingState.measureTemp = true;
 
   coolDoneState.state = COOL_DONE;
@@ -654,7 +662,7 @@ void setup() {
   cleanCycle1State.display3 =            "{measuredBars}/{targetBars}";
   cleanCycle1State.display4 =            "{currentPass}/{targetPass}";
   cleanCycle1State.brewHeaterOn = true; 
-  cleanCycle1State.dispenseWater = true; 
+  cleanCycle1State.waterThroughGroupHead = true; 
   // trying to fill reservoir during clean seemed to cause problems..
   // not sure why
 
@@ -670,7 +678,7 @@ void setup() {
   cleanCycle2State.display3 =            "{measuredBars}/{targetBars}";
   cleanCycle2State.display4 =            "{currentPass}/{targetPass}";
   cleanCycle2State.brewHeaterOn = true; 
-  cleanCycle2State.dispenseWater = true; 
+  cleanCycle2State.waterThroughGroupHead = true; 
   // trying to fill reservoir during clean seemed to cause problems..
   // not sure why
 
@@ -1112,16 +1120,13 @@ void processIncomingGaggiaState(GaggiaState *currentGaggiaState,
                                 WaterPumpState *waterPumpState,
                                 NetworkState *networkState,
                                 float nowTimeMillis) {
-  if (nextGaggiaState->dispenseWater) {
+  if (nextGaggiaState->waterThroughGroupHead || nextGaggiaState->waterThroughWand) {
     publishParticleLog("dispense", "Launching Pressure PID");
+
+    waterPumpState->targetPressureInBars = DISPENSING_BAR;
 
     if (nextGaggiaState->state == PREINFUSION) {
       waterPumpState->targetPressureInBars = PRE_INFUSION_BAR;
-    }
-
-    if (nextGaggiaState->state == BREWING ||
-        nextGaggiaState->state == COOLING) {
-      waterPumpState->targetPressureInBars = DISPENSING_BAR;
     }
 
     if (nextGaggiaState->state == CLEAN_SOAP ||
@@ -1348,7 +1353,7 @@ void processCurrentGaggiaState(GaggiaState *currentGaggiaState,
     readHeaterState(MAX6675_CS_brew, MAX6675_SO_brew, MAX6675_SCK, heaterState);  
   }
 
-  if (currentGaggiaState->dispenseWater) {
+  if (currentGaggiaState->waterThroughGroupHead || currentGaggiaState->waterThroughWand) {
     if (currentGaggiaState->state == CLEAN_SOAP || currentGaggiaState->state == CLEAN_RINSE) {
       // whether or not we dispense water depends on where we are in the clean cycle...      
 
@@ -1356,7 +1361,7 @@ void processCurrentGaggiaState(GaggiaState *currentGaggiaState,
 
       if (currentGaggiaState->counter % 2 == 0) { // 0, and even counts 0, 2, 4...
         // we dispense water.. this fills portafilter with pressured hot water...
-        dispenseWater();
+        startDispensingWater(true); // going through grouphead
       } else { // odd counts 1,3,5...
         // we stop dispensing water .. this backfushes hot water through group head...
         stopDispensingWater();
@@ -1378,7 +1383,7 @@ void processCurrentGaggiaState(GaggiaState *currentGaggiaState,
       }
     } else {
       // normal dispense state
-      dispenseWater();
+      startDispensingWater(currentGaggiaState->waterThroughWand);
     }
   } else {
     stopDispensingWater();
@@ -1538,7 +1543,8 @@ void turnHeaterOff() {
   digitalWrite(HEATER, LOW);
 }
 
-void dispenseWater() {
+// The solenoid valve allows water to through to grouphead.
+void startDispensingWater(boolean turnOnSolenoidValve) {
   publishParticleLog("dispenser", "dispensingOn");
 
   readPumpState(&waterPumpState);  
@@ -1559,7 +1565,11 @@ void dispenseWater() {
   //
   attachInterrupt(ZERO_CROSS_DISPENSE_POT, handleZeroCrossingInterrupt, RISING, 0);
 
-  digitalWrite(DISPENSE_WATER, HIGH);
+  if (turnOnSolenoidValve) {
+    digitalWrite(SOLENOID_VALVE_SSR, HIGH);
+  } else {
+    digitalWrite(SOLENOID_VALVE_SSR, LOW);
+  }
 }
 
 void readPumpState(WaterPumpState *waterPumpState) {
@@ -1579,7 +1589,7 @@ void stopDispensingWater() {
 
   detachInterrupt(ZERO_CROSS_DISPENSE_POT);
 
-  digitalWrite(DISPENSE_WATER, LOW);
+  digitalWrite(SOLENOID_VALVE_SSR, LOW);
   digitalWrite(DISPENSE_POT, LOW);
 }
 
@@ -1813,6 +1823,12 @@ int _setHelloState(String _) {
   manualNextGaggiaState = helloState;
   return 1;
 }
+
+int _setDispenseHotWater(String _) {
+  manualNextGaggiaState = dispenseHotWaterState;
+  return 1;
+}
+
 
 int _setPID_kP(String _PID_kP) {
   
