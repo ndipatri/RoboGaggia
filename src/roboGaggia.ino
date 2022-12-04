@@ -114,7 +114,7 @@ double SCALE_FACTOR = 0.000633; // 3137;
 double SCALE_OFFSET = -13.2;  // 47;
 
 // Below which we consider weight to be 0
-int LOW_WEIGHT_THRESHOLD = 0;
+int LOW_WEIGHT_THRESHOLD = 5;
 
 int RETURN_TO_HOME_INACTIVITY_MINUTES = 10;
 
