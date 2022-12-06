@@ -82,7 +82,7 @@ Copyright (c) 2016 SparkFun Electronics
 // send high to turn on solenoid
 #define WATER_RESERVOIR_SOLENOID  RX 
 
-#define SCALE_SAMPLE_SIZE 10 
+#define SCALE_SAMPLE_SIZE 5 
 #define LOOP_INTERVAL_MILLIS 50 
 
 
@@ -114,7 +114,7 @@ double SCALE_FACTOR = 0.000633; // 3137;
 double SCALE_OFFSET = -13.2;  // 47;
 
 // Below which we consider weight to be 0
-int LOW_WEIGHT_THRESHOLD = 5;
+int LOW_WEIGHT_THRESHOLD = 0;
 
 int RETURN_TO_HOME_INACTIVITY_MINUTES = 10;
 
@@ -522,7 +522,7 @@ void setup() {
   Particle.function("setSteamingState", _setSteamingState);
   Particle.function("setCoolingState", _setCoolingState);
   Particle.function("setHelloState", _setHelloState);
-  Particle.function("setDispenseHotWater", _setDispenseHotWater);
+  Particle.function("setLowWeightThreshold", _setLowWeightThreshold);
 
   // Can't expose all functions at once...
   //Particle.function("set_kP", _setPID_kP);
