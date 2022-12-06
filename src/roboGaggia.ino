@@ -114,6 +114,8 @@ double SCALE_FACTOR = 0.000633; // 3137;
 double SCALE_OFFSET = -13.2;  // 47;
 
 // Below which we consider weight to be 0
+// Ideally if scale is calibrated properly and has solid connections, this
+// shouldn't be needed.
 int LOW_WEIGHT_THRESHOLD = 0;
 
 int RETURN_TO_HOME_INACTIVITY_MINUTES = 10;
@@ -159,6 +161,21 @@ int TELEMETRY_PERIOD_MILLIS = 1000;
 //
 // State
 //
+
+// This contains both instantaneous metrics (e.g. measuredWeight) and other metrics that we want to measure
+// over a longer period than the system poll interval (e.g. flowRateGPS.. since we want this to be measured for
+// as close to a second as possible for accuracy)
+struct Telemetry {  
+  String version = "2.1";
+  String stateName;
+  long measuredWeightGrams = 0;
+  double measuredPressureBars = 0.0;
+  double targetPressureBars = 0.0;
+  double pumpDutyCycle = 0.0;
+  double flowRateGPS = 0.0;
+  double brewTempC = 0.0;
+} currentTelemetry;
+
 
 struct WaterPumpState {
 
@@ -211,10 +228,6 @@ struct ScaleState {
   // recorded weight of cup meant be used when
   // measuring the weight of beans or brew  
   long tareWeight = 0;
-
-  // Units are grams/30-seconds
-  float flowRate = 0;
-
 } scaleState;
 void readScaleState(NAU7802 myScale, ScaleState *scaleState);
 NAU7802 myScale; //Create instance of the NAU7802 class
@@ -365,6 +378,7 @@ String updateDisplayLine(char *message,
                         ScaleState *scaleState,
                         WaterPumpState *waterPumpState,
                         NetworkState *networkState,
+                        Telemetry *telemetry,
                         String previousLineDisplayed);
 SerLCD display; // Initialize the library with default I2C address 0x72
 
@@ -417,13 +431,7 @@ void processIncomingGaggiaState(GaggiaState *currentGaggiaState,
                                 float nowTimeMillis);
 GaggiaState returnToHelloState(ScaleState *scaleState);
 float timeSpentInCurrentStateMillis(GaggiaState *currentGaggiaState);
-void sendTelemetryIfNecessary(float nowTimeMillis,
-                              GaggiaState *gaggiaState,
-                              HeaterState *heaterState,
-                              ScaleState *scaleState,
-                              WaterReservoirState *waterReservoirState,
-                              WaterPumpState *waterPumpState,
-                              NetworkState *networkState); 
+void sendTelemetry(Telemetry telemetry, NetworkState *networkState);
 char* getStateName(GaggiaStateEnum stateEnum);
 void sendMessageToCloud(const char* message, Adafruit_MQTT_Publish* topic, NetworkState *networkState);
 
@@ -522,7 +530,6 @@ void setup() {
   Particle.function("setSteamingState", _setSteamingState);
   Particle.function("setCoolingState", _setCoolingState);
   Particle.function("setHelloState", _setHelloState);
-  Particle.function("setLowWeightThreshold", _setLowWeightThreshold);
 
   // Can't expose all functions at once...
   //Particle.function("set_kP", _setPID_kP);
@@ -847,14 +854,6 @@ void loop() {
                             &networkState,
                             nowTimeMillis);
 
-  sendTelemetryIfNecessary(nowTimeMillis,
-                           &currentGaggiaState,
-                           &heaterState,
-                           &scaleState,
-                           &waterReservoirState,
-                           &waterPumpState,
-                           &networkState);
-  
     // resume service loop
     if (networkState.connected) {
       Particle.process();
@@ -1286,27 +1285,8 @@ void processOutgoingGaggiaState(GaggiaState *currentGaggiaState,
       (scaleState->measuredWeight - scaleState->tareWeight)*BREW_WEIGHT_TO_BEAN_RATIO; 
   }
 
-  if (currentGaggiaState->state == BREWING) {
-    // Just finished brewing.. Need to calculate flow rate...
-
-    // The rate is usually expressed as grams/30seconds
-    float timeSpent30SecondIntervals = timeSpentInCurrentStateMillis(currentGaggiaState)/(30 * 1000.0);
-
-    float dispendedWaterWeight =  scaleState->targetWeight;
-
-    publishParticleLog("flowRate", "(" + String(dispendedWaterWeight) + "/" + String(timeSpent30SecondIntervals) + ")");
-
-    scaleState->flowRate = dispendedWaterWeight/timeSpent30SecondIntervals;
-  }
-
   // This gives our current state one last chance to log any telemetry.
-  sendTelemetryIfNecessary(nowTimeMillis,
-                           currentGaggiaState,
-                           heaterState,
-                           scaleState,
-                           waterReservoirState,
-                           waterPumpState,
-                           networkState);
+  sendTelemetry(currentTelemetry, networkState);
 
   // Things we always reset when leaving a state...
   currentGaggiaState->stopTimeMillis = -1;
@@ -1333,6 +1313,7 @@ void processCurrentGaggiaState(GaggiaState *currentGaggiaState,
                                              scaleState, 
                                              waterPumpState,
                                              networkState,
+                                             &currentTelemetry,
                                              displayState->display1);
 
   displayState->display2 = updateDisplayLine(currentGaggiaState->display2, 
@@ -1342,6 +1323,7 @@ void processCurrentGaggiaState(GaggiaState *currentGaggiaState,
                                              scaleState, 
                                              waterPumpState,
                                              networkState,
+                                             &currentTelemetry,
                                              displayState->display2);
 
   displayState->display3 = updateDisplayLine(currentGaggiaState->display3, 
@@ -1351,6 +1333,7 @@ void processCurrentGaggiaState(GaggiaState *currentGaggiaState,
                                              scaleState,  
                                              waterPumpState,
                                              networkState,
+                                             &currentTelemetry,
                                              displayState->display3);
 
   displayState->display4 = updateDisplayLine(currentGaggiaState->display4, 
@@ -1360,6 +1343,7 @@ void processCurrentGaggiaState(GaggiaState *currentGaggiaState,
                                              scaleState, 
                                              waterPumpState,
                                              networkState,
+                                             &currentTelemetry,
                                              displayState->display4);
 
 
@@ -1463,6 +1447,26 @@ void processCurrentGaggiaState(GaggiaState *currentGaggiaState,
       Particle.connect(); 
     } else {
       networkState->connected = true;
+    }
+  }
+
+  if (currentGaggiaState->state == BREWING || currentGaggiaState->state == PREINFUSION) {
+    if (nowTimeMillis > currentGaggiaState->nextTelemetryMillis) {
+
+      Telemetry telemetry;
+      telemetry.stateName = getStateName(currentGaggiaState->state);
+      telemetry.measuredWeightGrams = scaleState->measuredWeight - scaleState->tareWeight;
+      telemetry.measuredPressureBars = waterPumpState->measuredPressureInBars;
+      telemetry.targetPressureBars = waterPumpState->targetPressureInBars;
+      telemetry.pumpDutyCycle = waterPumpState->pumpDutyCycle;
+      telemetry.flowRateGPS = (telemetry.measuredWeightGrams - currentTelemetry.measuredWeightGrams)/TELEMETRY_PERIOD_MILLIS*1000;
+      telemetry.brewTempC = heaterState->measuredTemp;
+
+      currentTelemetry = telemetry;
+      
+      currentGaggiaState->nextTelemetryMillis = nowTimeMillis + TELEMETRY_PERIOD_MILLIS;
+    
+      sendTelemetry(currentTelemetry, networkState);
     }
   }
 }
@@ -1696,6 +1700,7 @@ String updateDisplayLine(char *message,
                         ScaleState *scaleState,
                         WaterPumpState *waterPumpState,
                         NetworkState *networkState,
+                        Telemetry *telemetry,
                         String previousLineDisplayed) {
 
   display.setCursor(0,line-1);
@@ -1734,7 +1739,7 @@ String updateDisplayLine(char *message,
           if (lineToDisplay == "") {
             lineToDisplay = decodeMessageIfNecessary(message,
                                                      "{flowRate}",
-                                                     scaleState->flowRate,
+                                                     telemetry->flowRateGPS,
                                                      0,
                                                      " g/30sec");
             if (lineToDisplay == "") {
@@ -1982,13 +1987,7 @@ void handleZeroCrossingInterrupt() {
   timer.startFromISR();  
 }
 
-void sendTelemetryIfNecessary(float nowTimeMillis,
-                              GaggiaState *gaggiaState,
-                              HeaterState *heaterState,
-                              ScaleState *scaleState,
-                              WaterReservoirState *waterReservoirState,
-                              WaterPumpState *waterPumpState,
-                              NetworkState *networkState) {
+void sendTelemetry(Telemetry telemetry, NetworkState *networkState) {
 
   if (TELEMETRY_ENABLED && networkState->connected) {
         // we want telemetry to be available for all non-rest states...
@@ -1996,23 +1995,16 @@ void sendTelemetryIfNecessary(float nowTimeMillis,
         MQTTConnect();
   }
 
-  if (gaggiaState->state == BREWING || gaggiaState->state == PREINFUSION) {
-    if (nowTimeMillis > gaggiaState->nextTelemetryMillis) {
-
-      sendMessageToCloud(
-        String("v1.1, ") + // telemetery version
-        String(getStateName(gaggiaState->state)) + String(", ") + // state name
-        String(scaleState->measuredWeight - scaleState->tareWeight) + String(", ") + // extracted liquid weight in grams
-        String(scaleState->targetWeight) + String(", ") + // target liquid weight in grams 
-        String(waterPumpState->measuredPressureInBars) + String(", ") +  // measured pressure in bars 
-        String(waterPumpState->targetPressureInBars) + String(", ") + // target pressure in bars 
-        String(waterPumpState->pumpDutyCycle) + String(", ")  // pump duty cycle 
-      , &mqttRoboGaggiaTelemetryTopic, networkState);
-
-
-      gaggiaState->nextTelemetryMillis = nowTimeMillis + TELEMETRY_PERIOD_MILLIS;
-    }
-  }
+  sendMessageToCloud(
+    telemetry.version + String(", ") +  
+    telemetry.stateName + String(", ") + 
+    String(telemetry.measuredWeightGrams) + String(", ") + 
+    String(telemetry.measuredPressureBars) + String(", ") +  
+    String(telemetry.targetPressureBars) + String(", ") + 
+    String(telemetry.pumpDutyCycle) + String(", ") +
+    String(telemetry.flowRateGPS)  + String(", ") +
+    String(telemetry.brewTempC) 
+    , &mqttRoboGaggiaTelemetryTopic, networkState);
 }
 
 void sendMessageToCloud(const char* message, Adafruit_MQTT_Publish* topic, NetworkState *networkState) {
