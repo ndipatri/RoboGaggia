@@ -94,7 +94,7 @@ Copyright (c) 2016 SparkFun Electronics
 // FEATURE FLAGS 
 // *************
 
-boolean TELEMETRY_ENABLED = false;
+boolean TELEMETRY_ENABLED = true;
 
 double TARGET_BREW_TEMP = 103; // should be 65
 double TOO_HOT_TO_BREW_TEMP = 110; // should be 80
@@ -137,6 +137,8 @@ double DISPENSING_BAR = 6.0;
 double PRE_INFUSION_BAR = 1.0;
 double BACKFLUSH_BAR = 4.0;
 
+double TARGET_FLOW_RATE = 3.0;
+
 // These were emperically derived.  They are highly dependent on the actual system , but should now work
 // for any RoboGaggia.
 // see https://en.wikipedia.org/wiki/PID_controller#Loop_tuning
@@ -174,12 +176,14 @@ struct Telemetry {
   double pumpDutyCycle = 0.0;
   double flowRateGPS = 0.0;
   double brewTempC = 0.0;
-} currentTelemetry;
+};
 
 
 struct WaterPumpState {
 
-double targetPressureInBars = PRE_INFUSION_BAR; 
+  double targetPressureInBars = PRE_INFUSION_BAR; 
+
+  double targetFlowRateGPS = TARGET_FLOW_RATE; 
 
   // current pressure
   // This is input for the PID
@@ -307,6 +311,10 @@ struct GaggiaState {
    char *display2 = "";
    char *display3 = "";
    char *display4 = "";
+   
+   float nextTelemetryMillis = -1;
+   Telemetry telemetry;
+
    boolean  waterReservoirSolenoidOn = false;
    
    // ************
@@ -332,8 +340,6 @@ struct GaggiaState {
    // An arbitrary counter that can be used
    int counter = -1;
    int targetCounter = -1;
-
-   float nextTelemetryMillis = -1;
 } 
 helloState,
 featuresState,
@@ -378,7 +384,6 @@ String updateDisplayLine(char *message,
                         ScaleState *scaleState,
                         WaterPumpState *waterPumpState,
                         NetworkState *networkState,
-                        Telemetry *telemetry,
                         String previousLineDisplayed);
 SerLCD display; // Initialize the library with default I2C address 0x72
 
@@ -438,7 +443,7 @@ void sendMessageToCloud(const char* message, Adafruit_MQTT_Publish* topic, Netwo
 // If you check in this code WITH this KEY defined, it will be detected by IO.Adafruit
 // and IT WILL BE DISABLED !!!  So please delete value below before checking in!
 // ***************** !!!!!!!!!!!!!! **********
-#define AIO_KEY         "XXX" // Adafruit IO AIO Key
+#define AIO_KEY         "aio_pWpL9230eWuC9nRomCtKgIUC6yo1" // Adafruit IO AIO Key
 #define AIO_SERVER      "io.adafruit.com"
 #define AIO_SERVERPORT  1883                   // use 8883 for SSL
 String AIO_USERNAME     = "ndipatri";
@@ -507,12 +512,9 @@ void setup() {
   pinMode(WATER_RESERVOIR_SENSOR, INPUT);
 
   // // Useful state exposed to Particle web console
-  Particle.variable("heaterTempC", heaterState.measuredTemp);
   Particle.variable("targetBrewTempC", TARGET_BREW_TEMP);
-  Particle.variable("thermocoupleError",  heaterState.thermocoupleError);
   Particle.variable("tareWeightGrams",  scaleState.tareWeight);
   Particle.variable("measuredWeightGrams",  scaleState.measuredWeight);
-  Particle.variable("targetPressureInBars", _targetPressureInBars);
   Particle.variable("isInTestMode",  isInTestMode);
   Particle.variable("doesWaterNeedFilling",  doesWaterReservoirNeedFilling);
   Particle.variable("currentState", _readCurrentState);
@@ -520,7 +522,7 @@ void setup() {
   Particle.variable("PID_kI", PID_kI);
   Particle.variable("PID_kD", PID_kD);
   Particle.variable("DispensingBar", DISPENSING_BAR);
-  Particle.variable("PreInfusionBar", PRE_INFUSION_BAR);
+  Particle.variable("targetFlowRate", TARGET_FLOW_RATE);
 
   Particle.function("turnOnTestMode", turnOnTestMode);
   Particle.function("turnOffTestMode", turnOffTestMode);
@@ -530,6 +532,7 @@ void setup() {
   Particle.function("setSteamingState", _setSteamingState);
   Particle.function("setCoolingState", _setCoolingState);
   Particle.function("setHelloState", _setHelloState);
+  Particle.function("setTargetFlowRate", _setTargetFlowRate);
 
   // Can't expose all functions at once...
   //Particle.function("set_kP", _setPID_kP);
@@ -629,7 +632,7 @@ void setup() {
 
   doneBrewingState.state = DONE_BREWING; 
   doneBrewingState.display1 =      "Done brewing.       ";
-  doneBrewingState.display2 =      "{flowRate}";
+  doneBrewingState.display2 =      "                    ";
   doneBrewingState.display3 =      "Remove cup.         ";
   doneBrewingState.display4 =      "Please wait ...     ";
   doneBrewingState.brewHeaterOn = true; 
@@ -638,14 +641,14 @@ void setup() {
   heatingToSteamState.state = HEATING_TO_STEAM; 
   heatingToSteamState.display1 =   "Heating to steam.   ";
   heatingToSteamState.display2 =   "{measuredSteamTemp}/{targetSteamTemp}";
-  heatingToSteamState.display3 =   "{flowRate}";
+  heatingToSteamState.display3 =   "                    ";
   heatingToSteamState.display4 =   "Please wait ...     ";
   heatingToSteamState.steamHeaterOn = true; 
 
   steamingState.state = STEAMING; 
   steamingState.display1 =         "Operate steam wand. ";
   steamingState.display2 =         "{measuredSteamTemp}/{targetSteamTemp}";
-  steamingState.display3 =         "{flowRate}";
+  steamingState.display3 =         "                    ";
   steamingState.display4 =         "Click when Done     ";
   steamingState.steamHeaterOn = true; 
 
@@ -1179,40 +1182,66 @@ void processIncomingGaggiaState(GaggiaState *currentGaggiaState,
 
     waterPumpState->targetPressureInBars = DISPENSING_BAR;
 
-    if (nextGaggiaState->state == PREINFUSION) {
-      waterPumpState->targetPressureInBars = PRE_INFUSION_BAR;
-    }
-
-    if (nextGaggiaState->state == CLEAN_SOAP ||
-        nextGaggiaState->state == CLEAN_RINSE) {
-      waterPumpState->targetPressureInBars = BACKFLUSH_BAR;
-    }
+    if (nextGaggiaState->state == BREWING) {
     
-    // The reason we do this here is because PID can't change its target value,
-    // so we must create a new one when our target pressure changes..
-    PID *thisWaterPumpPID = new PID(&waterPumpState->measuredPressureInBars,  // input
-                                    &waterPumpState->pumpDutyCycle,  // output
-                                    &waterPumpState->targetPressureInBars,  // target
-                                    PID_kP, PID_kI, PID_kD, PID::DIRECT);
+      // For brewing, we use flow profiling...
     
-    // The Gaggia water pump doesn't energize at all below 30 duty cycle.
-    // This number range is the 'dutyCycle' of the power we are sending to the water
-    // pump.
+      // The reason we do this here is because PID can't change its target value,
+      // so we must create a new one when our target pressure changes..
+      PID *thisWaterPumpPID = new PID(&(currentGaggiaState->telemetry.flowRateGPS),  // input
+                                      &waterPumpState->pumpDutyCycle,  // output
+                                      &waterPumpState->targetFlowRateGPS,  // target
+                                      PID_kP, PID_kI, PID_kD, PID::DIRECT);
+    
+      // The Gaggia water pump doesn't energize at all below 30 duty cycle.
+      // This number range is the 'dutyCycle' of the power we are sending to the water
+      // pump.
+      thisWaterPumpPID->SetOutputLimits(MIN_PUMP_DUTY_CYCLE, MAX_PUMP_DUTY_CYCLE);
+      thisWaterPumpPID->SetSampleTime(500);
+      thisWaterPumpPID->SetMode(PID::AUTOMATIC);
 
-    double maxOutput = MAX_PUMP_DUTY_CYCLE;
-    // For preinfusion, we hold dutyCycle at 30%. When the puck is dry, it provides little
-    // backpressure and so the PID will immediately ramp up to max duty cycle, which is NOT
-    // want we want for preinfusion.... This is a silly way to use the PID, in general, but works
-    // only for preinfusion.    
-    if (nextGaggiaState->state == PREINFUSION) {
-      maxOutput = MIN_PUMP_DUTY_CYCLE;
+      delete waterPumpState->waterPumpPID;
+      waterPumpState->waterPumpPID = thisWaterPumpPID;
+
+    } else {
+
+      if (nextGaggiaState->state == PREINFUSION) {
+        waterPumpState->targetPressureInBars = PRE_INFUSION_BAR;
+      }
+
+      if (nextGaggiaState->state == CLEAN_SOAP ||
+          nextGaggiaState->state == CLEAN_RINSE) {
+        waterPumpState->targetPressureInBars = BACKFLUSH_BAR;
+      }
+    
+      // for pre-infusion and cleaning, we use pressure profiling
+    
+      // The reason we do this here is because PID can't change its target value,
+      // so we must create a new one when our target pressure changes..
+      PID *thisWaterPumpPID = new PID(&waterPumpState->measuredPressureInBars,  // input
+                                      &waterPumpState->pumpDutyCycle,  // output
+                                      &waterPumpState->targetPressureInBars,  // target
+                                      PID_kP, PID_kI, PID_kD, PID::DIRECT);
+    
+      // The Gaggia water pump doesn't energize at all below 30 duty cycle.
+      // This number range is the 'dutyCycle' of the power we are sending to the water
+      // pump.
+
+      double maxOutput = MAX_PUMP_DUTY_CYCLE;
+      // For preinfusion, we hold dutyCycle at 30%. When the puck is dry, it provides little
+      // backpressure and so the PID will immediately ramp up to max duty cycle, which is NOT
+      // want we want for preinfusion.... This is a silly way to use the PID, in general, but works
+      // only for preinfusion.    
+      if (nextGaggiaState->state == PREINFUSION) {
+        maxOutput = MIN_PUMP_DUTY_CYCLE;
+      }
+      thisWaterPumpPID->SetOutputLimits(MIN_PUMP_DUTY_CYCLE, maxOutput);
+      thisWaterPumpPID->SetSampleTime(500);
+      thisWaterPumpPID->SetMode(PID::AUTOMATIC);
+
+      delete waterPumpState->waterPumpPID;
+      waterPumpState->waterPumpPID = thisWaterPumpPID;
     }
-    thisWaterPumpPID->SetOutputLimits(MIN_PUMP_DUTY_CYCLE, maxOutput);
-    thisWaterPumpPID->SetSampleTime(500);
-    thisWaterPumpPID->SetMode(PID::AUTOMATIC);
-
-    delete waterPumpState->waterPumpPID;
-    waterPumpState->waterPumpPID = thisWaterPumpPID;
   }
 
   if (nextGaggiaState->brewHeaterOn) {
@@ -1286,7 +1315,9 @@ void processOutgoingGaggiaState(GaggiaState *currentGaggiaState,
   }
 
   // This gives our current state one last chance to log any telemetry.
-  sendTelemetry(currentTelemetry, networkState);
+  if (currentGaggiaState->state == BREWING) {
+    sendTelemetry(currentGaggiaState->telemetry, networkState);
+  }
 
   // Things we always reset when leaving a state...
   currentGaggiaState->stopTimeMillis = -1;
@@ -1313,7 +1344,6 @@ void processCurrentGaggiaState(GaggiaState *currentGaggiaState,
                                              scaleState, 
                                              waterPumpState,
                                              networkState,
-                                             &currentTelemetry,
                                              displayState->display1);
 
   displayState->display2 = updateDisplayLine(currentGaggiaState->display2, 
@@ -1323,7 +1353,6 @@ void processCurrentGaggiaState(GaggiaState *currentGaggiaState,
                                              scaleState, 
                                              waterPumpState,
                                              networkState,
-                                             &currentTelemetry,
                                              displayState->display2);
 
   displayState->display3 = updateDisplayLine(currentGaggiaState->display3, 
@@ -1333,7 +1362,6 @@ void processCurrentGaggiaState(GaggiaState *currentGaggiaState,
                                              scaleState,  
                                              waterPumpState,
                                              networkState,
-                                             &currentTelemetry,
                                              displayState->display3);
 
   displayState->display4 = updateDisplayLine(currentGaggiaState->display4, 
@@ -1343,7 +1371,6 @@ void processCurrentGaggiaState(GaggiaState *currentGaggiaState,
                                              scaleState, 
                                              waterPumpState,
                                              networkState,
-                                             &currentTelemetry,
                                              displayState->display4);
 
 
@@ -1453,20 +1480,28 @@ void processCurrentGaggiaState(GaggiaState *currentGaggiaState,
   if (currentGaggiaState->state == BREWING || currentGaggiaState->state == PREINFUSION) {
     if (nowTimeMillis > currentGaggiaState->nextTelemetryMillis) {
 
+      // Time to calculate new telemetry
+
+      double flowRateGPS = ( // current extracted weight
+                             scaleState->measuredWeight - scaleState->tareWeight -
+                             // previous extracted weight
+                             currentGaggiaState->telemetry.measuredWeightGrams) /
+                             (TELEMETRY_PERIOD_MILLIS/1000.0); 
+
       Telemetry telemetry;
       telemetry.stateName = getStateName(currentGaggiaState->state);
       telemetry.measuredWeightGrams = scaleState->measuredWeight - scaleState->tareWeight;
       telemetry.measuredPressureBars = waterPumpState->measuredPressureInBars;
       telemetry.targetPressureBars = waterPumpState->targetPressureInBars;
       telemetry.pumpDutyCycle = waterPumpState->pumpDutyCycle;
-      telemetry.flowRateGPS = (telemetry.measuredWeightGrams - currentTelemetry.measuredWeightGrams)/TELEMETRY_PERIOD_MILLIS*1000;
+      telemetry.flowRateGPS = flowRateGPS;
       telemetry.brewTempC = heaterState->measuredTemp;
 
-      currentTelemetry = telemetry;
+      currentGaggiaState->telemetry = telemetry;
       
       currentGaggiaState->nextTelemetryMillis = nowTimeMillis + TELEMETRY_PERIOD_MILLIS;
     
-      sendTelemetry(currentTelemetry, networkState);
+      sendTelemetry(currentGaggiaState->telemetry, networkState);
     }
   }
 }
@@ -1700,7 +1735,6 @@ String updateDisplayLine(char *message,
                         ScaleState *scaleState,
                         WaterPumpState *waterPumpState,
                         NetworkState *networkState,
-                        Telemetry *telemetry,
                         String previousLineDisplayed) {
 
   display.setCursor(0,line-1);
@@ -1739,7 +1773,7 @@ String updateDisplayLine(char *message,
           if (lineToDisplay == "") {
             lineToDisplay = decodeMessageIfNecessary(message,
                                                      "{flowRate}",
-                                                     telemetry->flowRateGPS,
+                                                     gaggiaState->telemetry.flowRateGPS,
                                                      0,
                                                      " g/30sec");
             if (lineToDisplay == "") {
@@ -1921,6 +1955,13 @@ int _setDispensingBar(String _dispensingBar) {
 int _setPreInfusionBar(String _preInfusionBar) {
   
   DISPENSING_BAR = _preInfusionBar.toFloat();
+
+  return 1;
+}
+
+int _setTargetFlowRate(String _flowRate) {
+  
+  TARGET_FLOW_RATE = _flowRate.toFloat();
 
   return 1;
 }
