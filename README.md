@@ -28,7 +28,7 @@ In an attempt to mitigate the above Gaggia short comings, I've implemented the f
 
 1. Integrated scale that fits in the drip tray
 2. Dual PID temperature controllers
-3. PID pressure controller that implements Pre-Infusion and a fixed Flow Profile.  
+3. PID flow-rate controller that implements Pre-Infusion and a fixed Flow Profile.  
 4. Live flow telemetry sent to Adafruit.IO for flow analytics
 5. Auto-Fill water reservoir
 6. Auto-Shutoff
@@ -121,7 +121,7 @@ Ok, so the existing Gaggia wiring is actually quite brilliant.
 
 For an AMAZING explanation of how the Gaggia works, from an electrical perspective, please [read this explanation](https://comoricoffee.com/en/gaggia-classic-pro-circuit-diagram-en/) from @comoricoffee. 
 
-The biggest change I made is I removed some stuff :-). I removed the 'Brew' and 'Steam' switches and I removed their associated 'lamps'.  None of these are necessary with Robo Gaggia! As part of the simplified wiring, I removed the safety interconnect which disabled the water pump if the steam temperature is enabled. This is an important safety feature, but it is now implemented in software.  The software will NOT brew (turn on the water pump) if the steam temperature has been achieved.
+The biggest change I made is I removed some stuff :-). I removed the 'Brew' and 'Steam' switches and I removed their associated 'lamps'.  None of these are necessary with Robo Gaggia! RoboGaggia still lets you brew, steam, and send hot water through the steam wand using the single arcade-button interface.
 
 Here is a crude diagram of the changes I made (see where I added the two [High Power Solid State Relay(SSR)](https://www.sparkfun.com/products/13015) and the [AC Dimmer Controller](https://www.amazon.com/gp/product/B072K9P7KH/ref=ppx_yo_dt_b_asin_title_o03_s00?ie=UTF8&psc=1)
 
@@ -167,6 +167,11 @@ Note that if the portafiter is not filled with coffee, it will not supply 'backp
 In the interest of simplicity, the heater PID uses the same tuning values as the water pressure PID.  The heater temp is a slow-moving system and is therefore not as sensitive to these values.
 
 [This PID Tuning GIF](media/PID_animation.gif) demonstrates the tradeoffs of these three tuning parameters with respect to system 'overshoot', 'oscillation', and responsiveness.
+
+## More on Pressure and FlowRate
+
+During the development of RoboGaggia, I migrated from 'Pressure Profiling' to 'Flow Profiling' during brewing.  What this means is, at the start, I used the system pressure as an input to the brew PID and the output was the duty cycle of the Gaggia's vibration pump.  However, after doing more research such as listening to the [Decent Folks](https://youtu.be/KsagEqYYxDw?t=604), I pivoted and now I use pressure only for pre-infusion (I keep it around 1bar), but during brewing, I drive the brew PID with the instantaneous flow rate.  For now, I keep this at around 3 grams/second.  So the PID will drive the pump's duty cycle to whatever it needs to in order to achieve a somewhat constant fow rate.  This implies that the pressure shoots up in the beginning (once the puck is saturated), but then has to get dialed back down as the flow rate increases during the shot (due to reduced coffee solids, etc.). 
+
 
 ## Live Flow Telemetry
 
