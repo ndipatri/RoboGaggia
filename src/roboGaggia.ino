@@ -94,7 +94,7 @@ Copyright (c) 2016 SparkFun Electronics
 // FEATURE FLAGS 
 // *************
 
-boolean TELEMETRY_ENABLED = true;
+boolean TELEMETRY_ENABLED = false;
 
 double TARGET_BREW_TEMP = 103; // should be 65
 double TOO_HOT_TO_BREW_TEMP = 110; // should be 80
@@ -133,6 +133,9 @@ int DISPENSE_FLOW_RATE_TOTAL_CYCES = 20;
 
 // The Gaggia currently has a 12bar spring in its 
 // OPV (over pressure valve)
+// These target pressures are for preinfusion and clenaing only.
+// The brewing state drives the water pump based on flowRate, not bar...
+// Pressure is measured but not used as an input during brewing.
 double DISPENSING_BAR = 6.0;
 double PRE_INFUSION_BAR = 1.0;
 double BACKFLUSH_BAR = 4.0;
@@ -170,9 +173,9 @@ int TELEMETRY_PERIOD_MILLIS = 1000;
 struct Telemetry {  
   String version = "2.1";
   String stateName;
+  double elapsedSeconds = 0.0;
   long measuredWeightGrams = 0;
   double measuredPressureBars = 0.0;
-  double targetPressureBars = 0.0;
   double pumpDutyCycle = 0.0;
   double flowRateGPS = 0.0;
   double brewTempC = 0.0;
@@ -443,7 +446,7 @@ void sendMessageToCloud(const char* message, Adafruit_MQTT_Publish* topic, Netwo
 // If you check in this code WITH this KEY defined, it will be detected by IO.Adafruit
 // and IT WILL BE DISABLED !!!  So please delete value below before checking in!
 // ***************** !!!!!!!!!!!!!! **********
-#define AIO_KEY         "aio_pWpL9230eWuC9nRomCtKgIUC6yo1" // Adafruit IO AIO Key
+#define AIO_KEY         "XXX" // Adafruit IO AIO Key
 #define AIO_SERVER      "io.adafruit.com"
 #define AIO_SERVERPORT  1883                   // use 8883 for SSL
 String AIO_USERNAME     = "ndipatri";
@@ -1488,13 +1491,15 @@ void processCurrentGaggiaState(GaggiaState *currentGaggiaState,
                              currentGaggiaState->telemetry.measuredWeightGrams) /
                              (TELEMETRY_PERIOD_MILLIS/1000.0); 
 
+      double elapsedSeconds = (nowTimeMillis - currentGaggiaState->stateEnterTimeMillis)/1000.0;
+
       Telemetry telemetry;
       telemetry.stateName = getStateName(currentGaggiaState->state);
       telemetry.measuredWeightGrams = scaleState->measuredWeight - scaleState->tareWeight;
       telemetry.measuredPressureBars = waterPumpState->measuredPressureInBars;
-      telemetry.targetPressureBars = waterPumpState->targetPressureInBars;
       telemetry.pumpDutyCycle = waterPumpState->pumpDutyCycle;
       telemetry.flowRateGPS = flowRateGPS;
+      telemetry.elapsedSeconds = elapsedSeconds;
       telemetry.brewTempC = heaterState->measuredTemp;
 
       currentGaggiaState->telemetry = telemetry;
@@ -2038,10 +2043,10 @@ void sendTelemetry(Telemetry telemetry, NetworkState *networkState) {
 
   sendMessageToCloud(
     telemetry.version + String(", ") +  
+    String(telemetry.elapsedSeconds) + String(", ") + 
     telemetry.stateName + String(", ") + 
     String(telemetry.measuredWeightGrams) + String(", ") + 
     String(telemetry.measuredPressureBars) + String(", ") +  
-    String(telemetry.targetPressureBars) + String(", ") + 
     String(telemetry.pumpDutyCycle) + String(", ") +
     String(telemetry.flowRateGPS)  + String(", ") +
     String(telemetry.brewTempC) 
