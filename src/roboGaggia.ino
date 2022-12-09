@@ -94,7 +94,7 @@ Copyright (c) 2016 SparkFun Electronics
 // FEATURE FLAGS 
 // *************
 
-boolean TELEMETRY_ENABLED = false;
+boolean TELEMETRY_ENABLED = true;
 
 double TARGET_BREW_TEMP = 103; // should be 65
 double TOO_HOT_TO_BREW_TEMP = 110; // should be 80
@@ -446,7 +446,7 @@ void sendMessageToCloud(const char* message, Adafruit_MQTT_Publish* topic, Netwo
 // If you check in this code WITH this KEY defined, it will be detected by IO.Adafruit
 // and IT WILL BE DISABLED !!!  So please delete value below before checking in!
 // ***************** !!!!!!!!!!!!!! **********
-#define AIO_KEY         "XXX" // Adafruit IO AIO Key
+#define AIO_KEY         "aio_besk78mc7BC8GL37grhZSWCAlj7J" // Adafruit IO AIO Key
 #define AIO_SERVER      "io.adafruit.com"
 #define AIO_SERVERPORT  1883                   // use 8883 for SSL
 String AIO_USERNAME     = "ndipatri";

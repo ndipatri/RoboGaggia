@@ -1,0 +1,5 @@
+{
+    "particle.targetDevice": "roboGaggia2",
+    "particle.firmwareVersion": "4.0.1",
+    "particle.targetPlatform": "argon"
+}
