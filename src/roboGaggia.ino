@@ -161,7 +161,7 @@ int MAX_PUMP_DUTY_CYCLE = 100;
 int NUMBER_OF_CLEAN_CYCLES = 20; // (10 on and off based on https://youtu.be/lfJgabTJ-bM?t=38)
 int SECONDS_PER_CLEAN_CYCLE = 4; 
 
-int TELEMETRY_PERIOD_MILLIS = 1000; 
+int TELEMETRY_PERIOD_MILLIS = 1200; 
 
 //
 // State
@@ -446,7 +446,7 @@ void sendMessageToCloud(const char* message, Adafruit_MQTT_Publish* topic, Netwo
 // If you check in this code WITH this KEY defined, it will be detected by IO.Adafruit
 // and IT WILL BE DISABLED !!!  So please delete value below before checking in!
 // ***************** !!!!!!!!!!!!!! **********
-#define AIO_KEY         "aio_besk78mc7BC8GL37grhZSWCAlj7J" // Adafruit IO AIO Key
+#define AIO_KEY         "xxx" // Adafruit IO AIO Key
 #define AIO_SERVER      "io.adafruit.com"
 #define AIO_SERVERPORT  1883                   // use 8883 for SSL
 String AIO_USERNAME     = "ndipatri";
