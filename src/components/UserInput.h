@@ -1,7 +1,7 @@
 #ifndef USER_INPUT_H
 #define USER_INPUT_H
 
-#include "Core.h"
+#include "Common.h"
 
 #include <SparkFun_Qwiic_Button.h>
 

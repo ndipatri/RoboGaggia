@@ -67,7 +67,7 @@ struct GaggiaState {
    int targetCounter = -1;
 };
 
-void coreInit();
+void commonInit();
 
 void publishParticleLog(String group, String message);
 

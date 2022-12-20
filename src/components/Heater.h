@@ -2,7 +2,7 @@
 #define HEATER_H
 
 #include <pid.h>
-#include "Core.h"
+#include "Common.h"
 
 extern double TARGET_BREW_TEMP; 
 

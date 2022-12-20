@@ -1,4 +1,4 @@
-#include "Core.h"
+#include "Common.h"
 
 // Slows down the main loop interval so we can monitor certain behaviors.. also allows
 // for loop-level debug logs to be sent to Particle Cloud
@@ -36,7 +36,7 @@ int enterDFUMode(String _na) {
     return 1;
 }
 
-void coreInit() {
+void commonInit() {
   Particle.variable("isInTestMode",  isInTestMode);
   Particle.function("turnOnTestMode", turnOnTestMode);
   Particle.function("turnOffTestMode", turnOffTestMode);

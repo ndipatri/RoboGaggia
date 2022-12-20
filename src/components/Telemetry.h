@@ -3,7 +3,7 @@
 #define TELEMETRY_H
 
 #include "Network.h"
-#include "Core.h"
+#include "Common.h"
 #include "State.h"
 
 extern boolean TELEMETRY_ENABLED;

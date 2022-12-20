@@ -47,21 +47,35 @@ void setup() {
   // I2C Setup
   Wire.begin();
 
+  // Manages system state, when to change state, and what to do when
+  // entering or leaving state.  
+  stateInit();
+
+  // Manages the vibration pump.  Maintains PID controllers for
+  // both flow-based control (brewing) and 
+  // pressure-based control (preinfusion, hot water dispense, cleaning)
   waterPumpInit();
 
+  // Manages the water reservoir to ensure water always available.  Controls the
+  // solenoid valve attached to external water feed. 
   waterReservoirInit();
 
+  // Manages the custom-built scale embedded in the drain pan.  This scale has a 
+  // single 500g capacity load cell.
   scaleInit();
 
+  // Manages user input from the single arcade-style button.  This button is
+  // capable of 'short' and 'long' press operations.
   userInputInit();
 
   heaterInit();
 
+  // Manages 4x24 LCD Display and maintains existing state so we only write to
+  // LCD when text has changed.
   displayInit();
 
-  stateInit();
-
-  coreInit();
+  // Provides core data types and logging
+  commonInit();
 
   // Wait for a USB serial connection for up to 3 seconds
   waitFor(Serial.isConnected, 3000);

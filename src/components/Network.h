@@ -1,7 +1,7 @@
 #ifndef NETWORK_H
 #define NETWORK_H
 
-#include "Core.h"
+#include "Common.h"
 
 struct NetworkState {
   boolean connected = false;

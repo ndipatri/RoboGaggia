@@ -1,7 +1,7 @@
 #ifndef STATE_H
 #define STATE_H
 
-#include "Core.h"
+#include "Common.h"
 #include "Heater.h"
 #include "WaterPump.h"
 #include "Network.h"

@@ -1,7 +1,7 @@
 #ifndef WATER_RESERVOIR_H
 #define WATER_RESERVOIR_H
 
-#include "Core.h"
+#include "Common.h"
 
 struct WaterReservoirState {
   boolean isSolenoidOn = false;
