@@ -175,6 +175,21 @@ During the development of RoboGaggia, I migrated from 'Pressure Profiling' to 'F
 
 ## Live Flow Telemetry
 
+To use the ** Live Telemetry ** feature, you need to add a `components/Secrets.h` header file containing this information:
+
+`
+#ifndef SECRETS_H
+#define SECRETS_H
+
+// If you check in this code WITH this KEY defined, it will be detected by IO.Adafruit
+// and IT WILL BE DISABLED !!!  So please make sure this file is 'ignored' by your
+// source code management!
+#define AIO_USERNAME "your adafruit username"
+#define AIO_KEY "your adafruit api key"
+
+#endif
+` 
+
 If the 'TELEMETRY_FEATURE' is enabled (it is NOT, by default), RoboGaggia will attempt to post live flow telemetry data to Adafruit.IO. 
 
 In order to use this feature, you will need to go to Adafruit.IO and create an account.  You can then [update the code with your username and an 'API KEY'](https://github.com/ndipatri/roboGaggia/blob/main/src/roboGaggia.ino#L409).
