@@ -175,20 +175,23 @@ During the development of RoboGaggia, I migrated from 'Pressure Profiling' to 'F
 
 ## Live Flow Telemetry
 
-To use the ** Live Telemetry ** feature, you need to add a `components/Secrets.h` header file containing this information:
+To use the **Live Telemetry** feature, you need to add a `components/Secrets.h` header file containing this information:
 
-`
-#ifndef SECRETS_H
-#define SECRETS_H
+```
+  #ifndef SECRETS_H
+  #define SECRETS_H
 
-// If you check in this code WITH this KEY defined, it will be detected by IO.Adafruit
-// and IT WILL BE DISABLED !!!  So please make sure this file is 'ignored' by your
-// source code management!
-#define AIO_USERNAME "your adafruit username"
-#define AIO_KEY "your adafruit api key"
+  // make this false and telemetry will NOT be sent
+  #define TELEMETRY_ENABLED true
 
-#endif
-` 
+  // If you check in this code WITH this KEY defined, it will be detected by IO.Adafruit
+  // and IT WILL BE DISABLED !!!  So please make sure this file is 'ignored' by your
+  // source code management!
+  #define AIO_USERNAME "your adafruit username"
+  #define AIO_KEY "your adafruit api key"
+
+  #endif 
+```
 
 If the 'TELEMETRY_FEATURE' is enabled (it is NOT, by default), RoboGaggia will attempt to post live flow telemetry data to Adafruit.IO. 
 
@@ -196,8 +199,10 @@ In order to use this feature, you will need to go to Adafruit.IO and create an a
 
 The columns for the posted data are:
 
-'telemetryVersion, state, measuredWeight, targetWeight, measuredPressure, targetPressure, dutyCycleOfWaterPump'
+'state, measuredWeight, measuredPressure, dutyCycle, flowRate, tempC'
 
-The 'preInfusion' state indicates the beginning of a new brew cycle.  The target pressure is 1 bar during preInfusion and it lasts for 5 seconds.  This is to saturate the puck so it accepts higher pressures better without tunneling. 
+The 'preInfusion' state indicates the beginning of a new brew cycle.  The target pressure is 1 bar during preInfusion and it lasts until 2 grams has been extracted.  This is to saturate the puck so it accepts higher pressures better without tunneling. 
 
 The 'brewing' state indicates active brewing. A new telemetry value is posted every 500ms. 
+
+You can visit my [RoboGaggiaAndroid](https://github.com/ndipatri/RoboGaggiaAndroid) GitHub repository to download an Android app that presents this realtime Telemetry as your shot is being extracted!
