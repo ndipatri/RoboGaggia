@@ -181,9 +181,6 @@ To use the **Live Telemetry** feature, you need to add a `components/Secrets.h` 
   #ifndef SECRETS_H
   #define SECRETS_H
 
-  // make this false and telemetry will NOT be sent
-  #define TELEMETRY_ENABLED true
-
   // If you check in this code WITH this KEY defined, it will be detected by IO.Adafruit
   // and IT WILL BE DISABLED !!!  So please make sure this file is 'ignored' by your
   // source code management!
@@ -193,7 +190,7 @@ To use the **Live Telemetry** feature, you need to add a `components/Secrets.h` 
   #endif 
 ```
 
-If the 'TELEMETRY_FEATURE' is enabled (it is NOT, by default), RoboGaggia will attempt to post live flow telemetry data to Adafruit.IO. 
+If the above file is present, RoboGaggia will attempt to post live flow telemetry data to Adafruit.IO. 
 
 In order to use this feature, you will need to go to Adafruit.IO and create an account.  You can then [update the code with your username and an 'API KEY'](https://github.com/ndipatri/roboGaggia/blob/main/src/roboGaggia.ino#L409).
 

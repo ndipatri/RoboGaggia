@@ -7,8 +7,6 @@ float nextTelemetryMillis = -1;
 // these more frequently that once every second.
 int TELEMETRY_PERIOD_MILLIS = 1200; 
 
-boolean TELEMETRY_ENABLED = true;
-
 void sendTelemetry() {
 
   Telemetry telemetry;
@@ -19,23 +17,23 @@ void sendTelemetry() {
   telemetry.flowRateGPS = waterPumpState.flowRateGPS;
   telemetry.brewTempC = heaterState.measuredTemp;
 
-  if (TELEMETRY_ENABLED) {
+    #ifdef AIO_USERNAME
 
-    Log.error("New Telemetry: (" + 
-        String(telemetry.stateName) + "," +
-        String(telemetry.measuredWeightGrams) + "," +
-        String(telemetry.measuredPressureBars) + "," +
-        String(telemetry.pumpDutyCycle) + "," +
-        String(telemetry.flowRateGPS) + "," +
-        String(telemetry.brewTempC) + ")" 
-      );
+      Log.error("New Telemetry: (" + 
+          String(telemetry.stateName) + "," +
+          String(telemetry.measuredWeightGrams) + "," +
+          String(telemetry.measuredPressureBars) + "," +
+          String(telemetry.pumpDutyCycle) + "," +
+          String(telemetry.flowRateGPS) + "," +
+          String(telemetry.brewTempC) + ")" 
+        );
     
-    sendMessageToCloud(
-        String(telemetry.stateName) + String(", ") + 
-        String(telemetry.measuredWeightGrams) + String(", ") + 
-        String(telemetry.measuredPressureBars) + String(", ") +  
-        String(telemetry.pumpDutyCycle) + String(", ") +
-        String(telemetry.flowRateGPS)  + String(", ") +
-        String(telemetry.brewTempC));
-  }
+      sendMessageToCloud(
+          String(telemetry.stateName) + String(", ") + 
+          String(telemetry.measuredWeightGrams) + String(", ") + 
+          String(telemetry.measuredPressureBars) + String(", ") +  
+          String(telemetry.pumpDutyCycle) + String(", ") +
+          String(telemetry.flowRateGPS)  + String(", ") +
+          String(telemetry.brewTempC));
+    #endif
 }

@@ -638,11 +638,13 @@ void processOutgoingGaggiaState() {
   if (currentGaggiaState.state == HELLO) {
 
     // when we leave hello, we connect to MQTT broker for telemetry...
-    if (TELEMETRY_ENABLED && networkState.connected) {
-      // we want telemetry to be available for all non-rest states...
-      // recall the system returns to hello after 15 minutes of inactivity.
-      MQTTConnect();
-    }
+    #ifdef AIO_USERNAME
+      if (networkState.connected) {
+        // we want telemetry to be available for all non-rest states...
+        // recall the system returns to hello after 15 minutes of inactivity.
+        MQTTConnect();
+      }
+    #endif
   }
 
   // Things we always reset when leaving a state...
@@ -670,11 +672,13 @@ void processIncomingGaggiaState(GaggiaState *nextGaggiaState) {
   if (nextGaggiaState->state == HELLO) {
 
     // when we enter hello, we disconnect from MQTT broker for telemetry...
-    if (TELEMETRY_ENABLED && networkState.connected) {
-      // we want telemetry to be available for all non-rest states...
-      // recall the system returns to hello after 15 minutes of inactivity.
-      MQTTDisconnect();
-    }
+    #ifdef AIO_USERNAME
+      if (networkState.connected) {
+        // we want telemetry to be available for all non-rest states...
+        // recall the system returns to hello after 15 minutes of inactivity.
+        MQTTDisconnect();
+      }
+    #endif
   }
 }
 

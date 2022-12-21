@@ -6,8 +6,6 @@
 #include "Common.h"
 #include "State.h"
 
-extern boolean TELEMETRY_ENABLED;
-
 // This contains both instantaneous metrics (e.g. measuredWeight) and other metrics that we want to measure
 // over a longer period than the system poll interval (e.g. flowRateGPS.. since we want this to be measured for
 // as close to a second as possible for accuracy)
