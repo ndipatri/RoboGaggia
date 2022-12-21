@@ -198,8 +198,10 @@ The columns for the posted data are:
 
 'state, measuredWeight, measuredPressure, dutyCycle, flowRate, tempC'
 
-The 'preInfusion' state indicates the beginning of a new brew cycle.  The target pressure is 1 bar during preInfusion and it lasts until 2 grams has been extracted.  This is to saturate the puck so it accepts higher pressures better without tunneling. 
+Telemetry is only posted during the PREINFUSION and BREWING states.
 
-The 'brewing' state indicates active brewing. A new telemetry value is posted every 500ms. 
+The PREINFUSION state indicates the beginning of a new brew cycle.  The target pressure is 1 bar during preInfusion and it lasts until 2 grams has been extracted.  This is to saturate the puck so it accepts higher pressures better without tunneling. 
+
+The BREWING state indicates active brewing. A new telemetry value is posted every 1200ms.  If you post more often than this, Adafruit.IO will block the account for overusage. 
 
 You can visit my [RoboGaggiaAndroid](https://github.com/ndipatri/RoboGaggiaAndroid) GitHub repository to download an Android app that presents this realtime Telemetry as your shot is being extracted!
