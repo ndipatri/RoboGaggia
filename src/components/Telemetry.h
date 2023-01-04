@@ -11,6 +11,7 @@
 // as close to a second as possible for accuracy)
 struct Telemetry {  
   String stateName;
+  String description;
   long measuredWeightGrams = 0;
   double measuredPressureBars = 0.0;
   double pumpDutyCycle = 0.0;

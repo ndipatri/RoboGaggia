@@ -777,6 +777,7 @@ void stateInit() {
   featuresState.display2 =            "Click for hot water ";
   featuresState.display3 =            "   through wand,    ";
   featuresState.display4 =            "Hold for Clean      ";
+  featuresState.fillingReservoir = true;
 
   tareCup1State.state = TARE_CUP_BEFORE_MEASURE; 
   tareCup1State.display1 =         "Place empty cup     ";

@@ -1,6 +1,18 @@
 
 #include "WaterPump.h"
 
+// These were emperically derived.  They are highly dependent on the actual system , but should now work
+// for any RoboGaggia.
+// see https://en.wikipedia.org/wiki/PID_controller#Loop_tuning
+double pressure_PID_kP = 0.2;
+double pressure_PID_kI = 1.0;
+double pressure_PID_kD = 2.0;
+
+//double pressure_PID_kP = 0.5;
+//double pressure_PID_kI = 8.0;
+//double pressure_PID_kD = 0.0;
+
+
 float nextFlowRateSampleMillis = -1;
 
 int FLOW_RATE_SAMPLE_PERIOD_MILLIS = 1200; 
@@ -32,16 +44,10 @@ double DEFAULT_DISPENSE_TARGET_BAR = 6.0;
 
 // We do 'Pressure Profiling', meaning we modulate the water pump power based
 // on the measure pressure, only during PREINFUSION and CLEANING
-double PRE_INFUSION_TARGET_BAR = 1.0;
+double PRE_INFUSION_TARGET_BAR = 1.5;
 
 double BACKFLUSH_TARGET_BAR = 4.0;
 
-// These were emperically derived.  They are highly dependent on the actual system , but should now work
-// for any RoboGaggia.
-// see https://en.wikipedia.org/wiki/PID_controller#Loop_tuning
-double pressure_PID_kP = 8.0;
-double pressure_PID_kI = 5.0;
-double pressure_PID_kD = 2.0;
 
 // see https://docs.google.com/spreadsheets/d/1_15rEy-WI82vABUwQZRAxucncsh84hbYKb2WIA9cnOU/edit?usp=sharing
 // as shown in shart above, the following values were derived by hooking up a bicycle pump w/ guage to the
@@ -83,7 +89,7 @@ void configureWaterPump(int gaggiaState) {
       // This number range is the 'dutyCycle' of the power we are sending to the water
       // pump.
       thisWaterPumpPID->SetOutputLimits(MIN_PUMP_DUTY_CYCLE, MAX_PUMP_DUTY_CYCLE);
-      thisWaterPumpPID->SetSampleTime(500);
+      thisWaterPumpPID->SetSampleTime(200);
       thisWaterPumpPID->SetMode(PID::AUTOMATIC);
 
       delete waterPumpState.waterPumpPID;

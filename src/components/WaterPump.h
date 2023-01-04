@@ -7,6 +7,10 @@
 #include "Telemetry.h"
 #include "Scale.h"
 
+extern double pressure_PID_kP;
+extern double pressure_PID_kI;
+extern double pressure_PID_kD;
+
 extern float nextFlowRateSampleMillis;
 
 extern int FLOW_RATE_SAMPLE_PERIOD_MILLIS;

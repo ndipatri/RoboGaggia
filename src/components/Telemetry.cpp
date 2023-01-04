@@ -10,6 +10,10 @@ int TELEMETRY_PERIOD_MILLIS = 1200;
 void sendTelemetry() {
 
   Telemetry telemetry;
+  telemetry.description = "PID(" + 
+                            String(pressure_PID_kP) + ":" +
+                            String(pressure_PID_kI) + ":" +
+                            String(pressure_PID_kD) + ")";
   telemetry.stateName = getStateName(currentGaggiaState.state);
   telemetry.measuredWeightGrams = scaleState.measuredWeight - scaleState.tareWeight;
   telemetry.measuredPressureBars = waterPumpState.measuredPressureInBars;
@@ -21,6 +25,7 @@ void sendTelemetry() {
 
       Log.error("New Telemetry: (" + 
           String(telemetry.stateName) + "," +
+          String(telemetry.description) + "," +
           String(telemetry.measuredWeightGrams) + "," +
           String(telemetry.measuredPressureBars) + "," +
           String(telemetry.pumpDutyCycle) + "," +
@@ -30,6 +35,7 @@ void sendTelemetry() {
     
       sendMessageToCloud(
           String(telemetry.stateName) + String(", ") + 
+          String(telemetry.description) + String(", ") + 
           String(telemetry.measuredWeightGrams) + String(", ") + 
           String(telemetry.measuredPressureBars) + String(", ") +  
           String(telemetry.pumpDutyCycle) + String(", ") +
