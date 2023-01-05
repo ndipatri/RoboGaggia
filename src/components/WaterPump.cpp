@@ -8,7 +8,7 @@ double pressure_PID_kP = 0.2;
 double pressure_PID_kI = 1.0;
 double pressure_PID_kD = 2.0;
 
-//double pressure_PID_kP = 0.5;
+//double pressure_PID_kP = 0.5;  main gain is too high.. way too much overshooting
 //double pressure_PID_kI = 8.0;
 //double pressure_PID_kD = 0.0;
 
@@ -47,6 +47,10 @@ double DEFAULT_DISPENSE_TARGET_BAR = 6.0;
 double PRE_INFUSION_TARGET_BAR = 1.5;
 
 double BACKFLUSH_TARGET_BAR = 4.0;
+
+// Once we hit this, we clamp the pump duty cycle so we don't exceed.. THis is a 
+// software Overflow Prevention feature. 
+double MAX_BAR = 12.0;
 
 
 // see https://docs.google.com/spreadsheets/d/1_15rEy-WI82vABUwQZRAxucncsh84hbYKb2WIA9cnOU/edit?usp=sharing
@@ -171,7 +175,15 @@ void handleZeroCrossingInterrupt() {
 
   // NOTE: dutyCycle below 30 is kinda useless.. doesn't really energize water
   // pump
-  int offIntervalMs = 8 - round((8*(waterPumpState.pumpDutyCycle/100.0)));
+  
+  double regulatedPumpDutyCycle = waterPumpState.pumpDutyCycle;
+
+  if (waterPumpState.measuredPressureInBars >= MAX_BAR) {
+    // primative means of clamping pressure
+    regulatedPumpDutyCycle /= 3.0;
+  }
+
+  int offIntervalMs = 8 - round((8*(regulatedPumpDutyCycle/100.0)));
 
   // There needs to be a minimal delay between LOW and HIGH for the TRIAC
   offIntervalMs = max(offIntervalMs, 1);
