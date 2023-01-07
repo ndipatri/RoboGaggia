@@ -251,6 +251,13 @@ int setPID_kD(String _PID_kD) {
   return 1;
 }
 
+String getPumpState() {
+  
+  readPumpState();
+
+  return String(waterPumpState.measuredPressureInBars);
+}
+
 boolean updateFlowRateMetricWhenItsTime() {
     if (millis() > nextFlowRateSampleMillis) {
 
@@ -295,6 +302,7 @@ void waterPumpInit() {
   Particle.variable("PID_kI", pressure_PID_kI);
   Particle.variable("PID_kD", pressure_PID_kD);
   Particle.variable("targetFlowRate", TARGET_FLOW_RATE);
+  Particle.variable("currentPressureBars", getPumpState);
 
   Particle.function("setTargetFlowRate", setTargetFlowRate);
   Particle.function("setPID_kP", setPID_kP);
