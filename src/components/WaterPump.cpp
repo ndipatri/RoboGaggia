@@ -40,7 +40,7 @@ Adafruit_ADS1115 ads1115;  // the adc for the pressure sensor
 
 // For all unspecified states while dispensing, such as 
 // push water out of steam wand.
-double DEFAULT_DISPENSE_TARGET_BAR = 6.0;
+double DEFAULT_DISPENSE_TARGET_BAR = 3.0;
 
 // We do 'Pressure Profiling', meaning we modulate the water pump power based
 // on the measure pressure, only during PREINFUSION and CLEANING
@@ -110,7 +110,7 @@ void configureWaterPump(int gaggiaState) {
         waterPumpState.targetPressureInBars = BACKFLUSH_TARGET_BAR;
       }
     
-      // for pre-infusion and cleaning, we use pressure profiling
+      // for pre-infusion, cleaning, and hot water dispense, we use pressure profiling
     
       // The reason we do this here is because PID can't change its target value,
       // so we must create a new one when our target pressure changes..
