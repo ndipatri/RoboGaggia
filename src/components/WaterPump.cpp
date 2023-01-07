@@ -12,6 +12,7 @@ double pressure_PID_kD = 2.0;
 //double pressure_PID_kI = 8.0;
 //double pressure_PID_kD = 0.0;
 
+double TARGET_FLOW_RATE = 3.0;
 
 float nextFlowRateSampleMillis = -1;
 
@@ -36,7 +37,6 @@ Adafruit_ADS1115 ads1115;  // the adc for the pressure sensor
 // This sends water to the group head
 #define SOLENOID_VALVE_SSR  TX
 
-double TARGET_FLOW_RATE = 2.0;
 
 // For all unspecified states while dispensing, such as 
 // push water out of steam wand.
@@ -50,7 +50,7 @@ double BACKFLUSH_TARGET_BAR = 4.0;
 
 // Once we hit this, we clamp the pump duty cycle so we don't exceed.. THis is a 
 // software Overflow Prevention feature. 
-double MAX_BAR = 12.0;
+double MAX_BAR = 14.0;
 
 
 // see https://docs.google.com/spreadsheets/d/1_15rEy-WI82vABUwQZRAxucncsh84hbYKb2WIA9cnOU/edit?usp=sharing
@@ -197,6 +197,12 @@ void handleZeroCrossingInterrupt() {
 void startDispensingWater(boolean turnOnSolenoidValve) {
   publishParticleLog("dispenser", "dispensingOn");
 
+  if (turnOnSolenoidValve) {
+    digitalWrite(SOLENOID_VALVE_SSR, HIGH);
+  } else {
+    digitalWrite(SOLENOID_VALVE_SSR, LOW);
+  }
+
   readPumpState();  
 
   // This triggers the PID to use previous and current
@@ -215,12 +221,6 @@ void startDispensingWater(boolean turnOnSolenoidValve) {
   // This will not trigger unless water dispenser is running.
   //
   attachInterrupt(ZERO_CROSS_DISPENSE_POT, handleZeroCrossingInterrupt, RISING, 0);
-
-  if (turnOnSolenoidValve) {
-    digitalWrite(SOLENOID_VALVE_SSR, HIGH);
-  } else {
-    digitalWrite(SOLENOID_VALVE_SSR, LOW);
-  }
 }
 
 int setTargetFlowRate(String _flowRate) {

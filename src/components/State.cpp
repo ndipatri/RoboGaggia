@@ -469,6 +469,35 @@ char* getStateName(int stateEnum) {
   return "na";
 }
 
+void processIncomingGaggiaState(GaggiaState *nextGaggiaState) {
+  
+  if (nextGaggiaState->waterThroughGroupHead || nextGaggiaState->waterThroughWand) {
+    publishParticleLog("dispense", "Launching Pressure PID");
+
+    configureWaterPump(nextGaggiaState->state);
+  }
+
+  if (nextGaggiaState->brewHeaterOn) {
+    configureBrewHeater();
+  }
+
+  if (nextGaggiaState->steamHeaterOn) {
+    configureSteamHeater();
+  }
+
+  if (nextGaggiaState->state == HELLO) {
+
+    // when we enter hello, we disconnect from MQTT broker for telemetry...
+    #ifdef AIO_USERNAME
+      if (networkState.connected) {
+        // we want telemetry to be available for all non-rest states...
+        // recall the system returns to hello after 15 minutes of inactivity.
+        MQTTDisconnect();
+      }
+    #endif
+  }
+}
+
 void processCurrentGaggiaState() { 
 
   // 
@@ -651,35 +680,6 @@ void processOutgoingGaggiaState() {
   currentGaggiaState.stopTimeMillis = -1;
   currentGaggiaState.counter = -1;
   nextFlowRateSampleMillis = -1;
-}
-
-void processIncomingGaggiaState(GaggiaState *nextGaggiaState) {
-  
-  if (nextGaggiaState->waterThroughGroupHead || nextGaggiaState->waterThroughWand) {
-    publishParticleLog("dispense", "Launching Pressure PID");
-
-    configureWaterPump(nextGaggiaState->state);
-  }
-
-  if (nextGaggiaState->brewHeaterOn) {
-    configureBrewHeater();
-  }
-
-  if (nextGaggiaState->steamHeaterOn) {
-    configureSteamHeater();
-  }
-
-  if (nextGaggiaState->state == HELLO) {
-
-    // when we enter hello, we disconnect from MQTT broker for telemetry...
-    #ifdef AIO_USERNAME
-      if (networkState.connected) {
-        // we want telemetry to be available for all non-rest states...
-        // recall the system returns to hello after 15 minutes of inactivity.
-        MQTTDisconnect();
-      }
-    #endif
-  }
 }
 
 String readCurrentState() {
