@@ -8,6 +8,9 @@ extern double TARGET_BREW_TEMP;
 
 extern double TARGET_STEAM_TEMP; 
 
+extern double TARGET_HOT_WATER_DISPENSE_TEMP; 
+
+
 struct HeaterState {
   boolean thermocoupleError = false;  
 
@@ -39,6 +42,7 @@ boolean shouldTurnOnHeater();
 
 void configureBrewHeater();
 void configureSteamHeater();
+void configureHotWaterDispenseHeater();
 
 boolean isHeaterOn();
 

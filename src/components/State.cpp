@@ -200,7 +200,7 @@ GaggiaState getNextGaggiaState() {
       
     case HEATING_TO_DISPENSE :
 
-      if (heaterState.measuredTemp >= TARGET_STEAM_TEMP) {
+      if (heaterState.measuredTemp >= TARGET_HOT_WATER_DISPENSE_TEMP) {
         return dispenseHotWaterState;
       }
      
@@ -485,6 +485,10 @@ void processIncomingGaggiaState(GaggiaState *nextGaggiaState) {
     configureSteamHeater();
   }
 
+  if (nextGaggiaState->hotWaterDispenseHeaterOn) {
+    configureHotWaterDispenseHeater();
+  }
+
   if (nextGaggiaState->state == HELLO) {
 
     // when we enter hello, we disconnect from MQTT broker for telemetry...
@@ -544,7 +548,16 @@ void processCurrentGaggiaState() {
       turnHeaterOff();
     } 
   }
-  if (!currentGaggiaState.brewHeaterOn && !currentGaggiaState.steamHeaterOn) {
+  if (currentGaggiaState.hotWaterDispenseHeaterOn) {
+    readSteamHeaterState(); 
+
+    if (shouldTurnOnHeater()) {
+      turnHeaterOn();
+    } else {
+      turnHeaterOff();
+    } 
+  }
+  if (!currentGaggiaState.brewHeaterOn && !currentGaggiaState.steamHeaterOn && !currentGaggiaState.hotWaterDispenseHeaterOn) {
       turnHeaterOff();
   }
 
@@ -832,14 +845,14 @@ void stateInit() {
   heatingToDispenseState.display2 =    "          hot water.";
   heatingToDispenseState.display3 =   "{measuredSteamTemp}/{targetSteamTemp}";
   heatingToDispenseState.display4 =    "Please wait ...     ";
-  heatingToDispenseState.steamHeaterOn = true; 
+  heatingToDispenseState.hotWaterDispenseHeaterOn = true; 
 
   dispenseHotWaterState.state = DISPENSE_HOT_WATER; 
   dispenseHotWaterState.display1 =          "Use steam wand to  ";
   dispenseHotWaterState.display2 =          "dispense hot water. ";
   dispenseHotWaterState.display3 =          "                    ";
   dispenseHotWaterState.display4 =          "Click when Done     ";
-  dispenseHotWaterState.steamHeaterOn = true; 
+  dispenseHotWaterState.hotWaterDispenseHeaterOn = true; 
   dispenseHotWaterState.waterThroughWand = true; 
 
   doneBrewingState.state = DONE_BREWING; 

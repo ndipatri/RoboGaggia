@@ -50,6 +50,7 @@ struct GaggiaState {
 
    boolean  brewHeaterOn = false;
    boolean  steamHeaterOn = false;
+   boolean  hotWaterDispenseHeaterOn = false;
    boolean  measureTemp = false;
    boolean  tareScale = false;
    boolean  waterThroughGroupHead = false;
