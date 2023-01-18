@@ -11,6 +11,9 @@ NAU7802 myScale; //Create instance of the NAU7802 class
 // MEASURE_BEANS state
 double TARGET_BEAN_WEIGHT = 22; // grams
 
+// The extraction weight which triggers the end of PREINFUSION
+int PREINFUSION_WEIGHT_THRESHOLD_GRAMS = 1;
+
 // This is the ration of final espresso weight compared to
 // that of the ground beans.  Typically this is 2-to-1
 float BREW_WEIGHT_TO_BEAN_RATIO = 2.0;
@@ -26,9 +29,6 @@ double SCALE_OFFSET = -13.2;  // 47;
 // Ideally if scale is calibrated properly and has solid connections, this
 // shouldn't be needed.
 int LOW_WEIGHT_THRESHOLD = 0;
-
-// The extraction weight which triggers the end of PREINFUSION
-int PREINFUSION_WEIGHT_THRESHOLD_GRAMS = 2;
 
 void readScaleState() {
   scaleState.measuredWeight = 0;

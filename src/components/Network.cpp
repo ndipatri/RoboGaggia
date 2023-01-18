@@ -54,7 +54,7 @@ void MQTTConnect() {
     // on account
     int result = mqtt.connect();
     if (result != 0) {
-      publishParticleLog("mqtt", "MQTT connect error: " + String(mqtt.connectErrorString(ret)));
+      publishParticleLogNow("mqtt", "MQTT connect error: " + String(mqtt.connectErrorString(ret)));
     } else {
       publishParticleLog("mqtt", "MQTT connected!");
     }
@@ -71,3 +71,14 @@ void MQTTDisconnect() {
     mqtt.disconnect();
 }
 
+String readCurrentMQTTState() {
+  if (mqtt.connected()) {
+    return "connected";
+  } else {
+    return "disconnected";
+  }
+}
+
+void networkInit() {
+  Particle.variable("mqttState", readCurrentMQTTState);
+}

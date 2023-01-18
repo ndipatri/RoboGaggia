@@ -408,6 +408,13 @@ String updateDisplayLine(char *message,
                                                        waterPumpState.pumpDutyCycle,
                                                        MAX_PUMP_DUTY_CYCLE,
                                                        " %");
+                  if (lineToDisplay == "") {
+                    lineToDisplay = decodeMessageIfNecessary(message,
+                                              "{measuredSteamTemp}/{targetHotWaterDispenseTemp}",
+                                              heaterState.measuredTemp,
+                                              TARGET_HOT_WATER_DISPENSE_TEMP,
+                                              " degrees C");
+                  }
                 }
               }   
             }          
@@ -843,7 +850,7 @@ void stateInit() {
   heatingToDispenseState.state = HEATING_TO_DISPENSE; 
   heatingToDispenseState.display1 =    "Heating to dispense ";
   heatingToDispenseState.display2 =    "          hot water.";
-  heatingToDispenseState.display3 =   "{measuredSteamTemp}/{targetSteamTemp}";
+  heatingToDispenseState.display3 =   "{measuredSteamTemp}/{targetHotWaterDispenseTemp}";
   heatingToDispenseState.display4 =    "Please wait ...     ";
   heatingToDispenseState.hotWaterDispenseHeaterOn = true; 
 

@@ -21,4 +21,6 @@ void MQTTDisconnect();
 
 void MQTTConnect();
 
+void networkInit();
+
 #endif

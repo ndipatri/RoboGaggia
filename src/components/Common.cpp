@@ -4,6 +4,11 @@
 // for loop-level debug logs to be sent to Particle Cloud
 boolean isInTestMode = false;
 
+void publishParticleLogNow(String group, String message) {
+    Particle.publish(group, message, 60, PUBLIC);
+    Log.error(message);
+}
+
 void publishParticleLog(String group, String message) {
     if (PLATFORM_ID == PLATFORM_ARGON && isInTestMode) {
         Particle.publish(group, message, 60, PUBLIC);

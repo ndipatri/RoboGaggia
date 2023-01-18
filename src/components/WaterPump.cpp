@@ -14,13 +14,22 @@ double pressure_PID_kD = 2.0;
 
 double TARGET_FLOW_RATE = 3.0;
 
-float nextFlowRateSampleMillis = -1;
+// We do 'Pressure Profiling', meaning we modulate the water pump power based
+// on the measure pressure, only during PREINFUSION and CLEANING
+double PRE_INFUSION_TARGET_BAR = 3.0;
 
+// Adafruit.IO will complain if you do this any faster than 1000ms per sample.
 int FLOW_RATE_SAMPLE_PERIOD_MILLIS = 1200; 
+
+int MIN_PUMP_DUTY_CYCLE = 40;
+int MAX_PUMP_DUTY_CYCLE = 100;
+
+float nextFlowRateSampleMillis = -1;
 
 WaterPumpState waterPumpState;
 
 Adafruit_ADS1115 ads1115;  // the adc for the pressure sensor
+
 
 // The TRIAC on/off signal for the AC Potentiometer
 // https://rocketcontroller.com/product/1-channel-high-load-ac-dimmer-for-use-witch-micro-controller-3-3v-5v-logic-ac-50-60hz/
@@ -42,9 +51,6 @@ Adafruit_ADS1115 ads1115;  // the adc for the pressure sensor
 // push water out of steam wand.
 double DEFAULT_DISPENSE_TARGET_BAR = 3.0;
 
-// We do 'Pressure Profiling', meaning we modulate the water pump power based
-// on the measure pressure, only during PREINFUSION and CLEANING
-double PRE_INFUSION_TARGET_BAR = 1.5;
 
 double BACKFLUSH_TARGET_BAR = 4.0;
 
@@ -59,8 +65,7 @@ double MAX_BAR = 14.0;
 double PRESSURE_SENSOR_SCALE_FACTOR = 1658.0;
 int PRESSURE_SENSOR_OFFSET = 2470; 
 
-int MIN_PUMP_DUTY_CYCLE = 40;
-int MAX_PUMP_DUTY_CYCLE = 100;
+
 
 void readPumpState() {
   // reading from first channel of the 1015
@@ -129,7 +134,9 @@ void configureWaterPump(int gaggiaState) {
       // want we want for preinfusion.... This is a silly way to use the PID, in general, but works
       // only for preinfusion.    
       if (gaggiaState == PREINFUSION) {
-        maxOutput = MIN_PUMP_DUTY_CYCLE;
+        // This is ridiculous but the PID code will ignore the SetOutputLimits
+        // call if min and max are identical.
+        maxOutput = MIN_PUMP_DUTY_CYCLE - MIN_PUMP_DUTY_CYCLE*.01;
       }
       thisWaterPumpPID->SetOutputLimits(MIN_PUMP_DUTY_CYCLE, maxOutput);
       thisWaterPumpPID->SetSampleTime(500);

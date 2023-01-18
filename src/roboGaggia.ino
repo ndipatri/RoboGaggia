@@ -74,6 +74,9 @@ void setup() {
   // LCD when text has changed.
   displayInit();
 
+  // 
+  networkInit();
+
   // Provides core data types and logging
   commonInit();
 

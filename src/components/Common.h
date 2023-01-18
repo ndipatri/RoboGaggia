@@ -70,6 +70,8 @@ struct GaggiaState {
 
 void commonInit();
 
+void publishParticleLogNow(String group, String message);
+
 void publishParticleLog(String group, String message);
 
 int turnOnTestMode(String _na);
