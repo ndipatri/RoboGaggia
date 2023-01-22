@@ -21,8 +21,8 @@ double PRE_INFUSION_TARGET_BAR = 3.0;
 // Adafruit.IO will complain if you do this any faster than 1000ms per sample.
 int FLOW_RATE_SAMPLE_PERIOD_MILLIS = 1200; 
 
-int MIN_PUMP_DUTY_CYCLE = 40;
-int MAX_PUMP_DUTY_CYCLE = 100;
+double MIN_PUMP_DUTY_CYCLE = 40.0;
+double MAX_PUMP_DUTY_CYCLE = 100.0;
 
 float nextFlowRateSampleMillis = -1;
 
@@ -136,10 +136,10 @@ void configureWaterPump(int gaggiaState) {
       if (gaggiaState == PREINFUSION) {
         // This is ridiculous but the PID code will ignore the SetOutputLimits
         // call if min and max are identical.
-        maxOutput = MIN_PUMP_DUTY_CYCLE - MIN_PUMP_DUTY_CYCLE*.01;
+        maxOutput = MIN_PUMP_DUTY_CYCLE + MIN_PUMP_DUTY_CYCLE*.01;
       }
       thisWaterPumpPID->SetOutputLimits(MIN_PUMP_DUTY_CYCLE, maxOutput);
-      thisWaterPumpPID->SetSampleTime(500);
+      thisWaterPumpPID->SetSampleTime(200);
       thisWaterPumpPID->SetMode(PID::AUTOMATIC);
 
       delete waterPumpState.waterPumpPID;

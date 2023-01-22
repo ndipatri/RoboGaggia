@@ -15,7 +15,8 @@ extern float nextFlowRateSampleMillis;
 
 extern int FLOW_RATE_SAMPLE_PERIOD_MILLIS;
 
-extern int MAX_PUMP_DUTY_CYCLE;
+extern double MAX_PUMP_DUTY_CYCLE;
+extern double MIN_PUMP_DUTY_CYCLE;
 
 struct WaterPumpState {
 

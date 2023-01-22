@@ -495,18 +495,6 @@ void processIncomingGaggiaState(GaggiaState *nextGaggiaState) {
   if (nextGaggiaState->hotWaterDispenseHeaterOn) {
     configureHotWaterDispenseHeater();
   }
-
-  if (nextGaggiaState->state == HELLO) {
-
-    // when we enter hello, we disconnect from MQTT broker for telemetry...
-    #ifdef AIO_USERNAME
-      if (networkState.connected) {
-        // we want telemetry to be available for all non-rest states...
-        // recall the system returns to hello after 15 minutes of inactivity.
-        MQTTDisconnect();
-      }
-    #endif
-  }
 }
 
 void processCurrentGaggiaState() { 
@@ -649,6 +637,21 @@ void processCurrentGaggiaState() {
       sendTelemetry();
     }
   }
+
+  #ifdef AIO_USERNAME
+    if (currentGaggiaState.state == HELLO) {
+      // when we enter hello, we disconnect from MQTT broker for telemetry...
+      if (networkState.connected) {
+        // recall the system returns to hello after 15 minutes of inactivity.
+        MQTTDisconnect();
+      }
+    } else {
+      // we want telemetry to be available for all non-rest states...
+      if (networkState.connected) {
+        MQTTConnect();
+      }
+    }
+  #endif
 }
 
 
@@ -682,18 +685,6 @@ void processOutgoingGaggiaState() {
   // This gives our current state one last chance to log any telemetry.
   if (currentGaggiaState.state == BREWING) {
     sendTelemetry();
-  }
-
-  if (currentGaggiaState.state == HELLO) {
-
-    // when we leave hello, we connect to MQTT broker for telemetry...
-    #ifdef AIO_USERNAME
-      if (networkState.connected) {
-        // we want telemetry to be available for all non-rest states...
-        // recall the system returns to hello after 15 minutes of inactivity.
-        MQTTConnect();
-      }
-    #endif
   }
 
   // Things we always reset when leaving a state...

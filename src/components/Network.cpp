@@ -9,6 +9,8 @@ NetworkState networkState;
 #define AIO_SERVER      "io.adafruit.com"
 #define AIO_SERVERPORT  1883                   // use 8883 for SSL
 
+int MAX_MQTT_RECONNECT_ATTEMPS = 2;
+
 TCPClient client; // TCP Client used by Adafruit IO library
 
 Adafruit_MQTT_SPARK mqtt(&client, AIO_SERVER, AIO_SERVERPORT, AIO_USERNAME, AIO_KEY);
@@ -52,11 +54,15 @@ void MQTTConnect() {
 
     // Note that reconnecting more than 20 times per minute will cause a temporary ban
     // on account
-    int result = mqtt.connect();
-    if (result != 0) {
-      publishParticleLogNow("mqtt", "MQTT connect error: " + String(mqtt.connectErrorString(ret)));
-    } else {
-      publishParticleLog("mqtt", "MQTT connected!");
+    int count = 1;
+    while (count++ <= MAX_MQTT_RECONNECT_ATTEMPS) {
+      int result = mqtt.connect();
+      if (result != 0) {
+        publishParticleLogNow("mqtt", "MQTT connect error: " + String(mqtt.connectErrorString(ret)));
+      } else {
+        publishParticleLogNow("mqtt", "MQTT connected!");
+        break;
+      }
     }
 
     // give up for now...
@@ -68,6 +74,11 @@ void MQTTConnect() {
 }
 
 void MQTTDisconnect() {
+    
+    if (!mqtt.connected()) {
+        return;
+    }
+
     mqtt.disconnect();
 }
 

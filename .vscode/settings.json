@@ -3,6 +3,7 @@
     "particle.firmwareVersion": "4.0.1",
     "particle.targetPlatform": "argon",
     "files.associations": {
-        "ctime": "cpp"
+        "ctime": "cpp",
+        "new": "cpp"
     }
 }
