@@ -4,6 +4,7 @@
 
 GaggiaState helloState,
             featuresState,
+            wandFeaturesState,
             tareCup1State,
             measureBeansState,
             tareCup2State,
@@ -96,14 +97,25 @@ GaggiaState getNextGaggiaState() {
     case FEATURES :
 
       if (userInputState.state == SHORT_PRESS) {
-        return heatingToDispenseState;
+        return wandFeaturesState;
       }
      
       if (userInputState.state == LONG_PRESS) {
         return cleanInstructions1State;
       }
       break;      
-      
+
+    case WAND_FEATURES :
+
+      if (userInputState.state == SHORT_PRESS) {
+        return heatingToDispenseState;
+      }
+     
+      if (userInputState.state == LONG_PRESS) {
+        return heatingToSteamState;
+      }
+      break;    
+
     case TARE_CUP_BEFORE_MEASURE :
 
       if (userInputState.state == SHORT_PRESS) {
@@ -448,6 +460,7 @@ char* getStateName(int stateEnum) {
    switch (stateEnum) {
     case HELLO: return "hello";
     case FEATURES: return "features";
+    case WAND_FEATURES: return "wandFeatures";
     case TARE_CUP_BEFORE_MEASURE: return "tareCupBeforeMeasure";
     case MEASURE_BEANS: return "measureBeans";
     case TARE_CUP_AFTER_MEASURE: return "tareCupAfterMeasure";
@@ -785,10 +798,17 @@ void stateInit() {
 
   featuresState.state = FEATURES; 
   featuresState.display1 =            "Select Feature      ";
-  featuresState.display2 =            "Click for hot water ";
-  featuresState.display3 =            "   through wand,    ";
+  featuresState.display2 =            "                    ";
+  featuresState.display3 =            "Click for wand,     ";
   featuresState.display4 =            "Hold for Clean      ";
   featuresState.fillingReservoir = true;
+
+  wandFeaturesState.state = WAND_FEATURES; 
+  wandFeaturesState.display1 =        "Select Wand Feature ";
+  wandFeaturesState.display2 =        "Click for           ";
+  wandFeaturesState.display3 =        "  hot water,        ";
+  wandFeaturesState.display4 =        "Hold for Steam      ";
+  wandFeaturesState.fillingReservoir = true;
 
   tareCup1State.state = TARE_CUP_BEFORE_MEASURE; 
   tareCup1State.display1 =         "Place empty cup     ";

@@ -15,6 +15,7 @@ extern GaggiaState manualNextGaggiaState;
 
 extern GaggiaState  helloState,
                     featuresState,
+                    wandFeaturesState,
                     tareCup1State,
                     measureBeansState,
                     tareCup2State,

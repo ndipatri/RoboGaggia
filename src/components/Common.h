@@ -7,6 +7,7 @@
 enum GaggiaStateEnum {
   HELLO , 
   FEATURES , 
+  WAND_FEATURES, 
   TARE_CUP_BEFORE_MEASURE , 
   MEASURE_BEANS ,  
   TARE_CUP_AFTER_MEASURE , 
