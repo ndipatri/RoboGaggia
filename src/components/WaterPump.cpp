@@ -133,7 +133,7 @@ void configureWaterPump(int gaggiaState) {
       // backpressure and so the PID will immediately ramp up to max duty cycle, which is NOT
       // want we want for preinfusion.... This is a silly way to use the PID, in general, but works
       // only for preinfusion.    
-      if (gaggiaState == PREINFUSION) {
+      if (gaggiaState == PREINFUSION || gaggiaState == PURGE_BEFORE_STEAM_2) {
         // This is ridiculous but the PID code will ignore the SetOutputLimits
         // call if min and max are identical.
         maxOutput = MIN_PUMP_DUTY_CYCLE + MIN_PUMP_DUTY_CYCLE*.01;

@@ -9,7 +9,7 @@ NAU7802 myScale; //Create instance of the NAU7802 class
 
 // This is the suggested target weight when in
 // MEASURE_BEANS state
-double TARGET_BEAN_WEIGHT = 22; // grams
+double TARGET_BEAN_WEIGHT = 19; // grams
 
 // The extraction weight which triggers the end of PREINFUSION
 int PREINFUSION_WEIGHT_THRESHOLD_GRAMS = 1;

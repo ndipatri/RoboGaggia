@@ -14,6 +14,9 @@ GaggiaState helloState,
             heatingToDispenseState,
             dispenseHotWaterState,
             doneBrewingState,
+            purgeBeforeSteam1, 
+            purgeBeforeSteam2, 
+            purgeBeforeSteam3, 
             heatingToSteamState, 
             steamingState,
             coolStartState,
@@ -37,6 +40,7 @@ GaggiaState helloState,
 // case the uesr is watching.. 
 int DONE_BREWING_LINGER_TIME_SECONDS = 5;
   
+int DONE_PURGE_BEFORE_STEAM_TIME_SECONDS = 3;
 
 int NUMBER_OF_CLEAN_CYCLES = 20; // (10 on and off based on https://youtu.be/lfJgabTJ-bM?t=38)
 int SECONDS_PER_CLEAN_CYCLE = 4; 
@@ -112,9 +116,44 @@ GaggiaState getNextGaggiaState() {
       }
      
       if (userInputState.state == LONG_PRESS) {
-        return heatingToSteamState;
+        return purgeBeforeSteam1;
       }
       break;    
+
+    case PURGE_BEFORE_STEAM_1 :
+
+      if (userInputState.state == SHORT_PRESS) {
+        return purgeBeforeSteam2;
+      }
+     
+      if (userInputState.state == LONG_PRESS) {
+        return helloState;
+      }
+      break;   
+
+    case PURGE_BEFORE_STEAM_2 :
+     
+      if ((millis() - currentGaggiaState.stateEnterTimeMillis) > 
+             DONE_PURGE_BEFORE_STEAM_TIME_SECONDS * 1000) {        
+        return purgeBeforeSteam3;
+      }     
+     
+      if (userInputState.state == LONG_PRESS) {
+        return helloState;
+      }
+      break;   
+
+    case PURGE_BEFORE_STEAM_3 :
+
+      if (userInputState.state == SHORT_PRESS) {
+        return heatingToSteamState;
+      }
+     
+      if (userInputState.state == LONG_PRESS) {
+        return helloState;
+      }
+      break;   
+
 
     case TARE_CUP_BEFORE_MEASURE :
 
@@ -859,27 +898,49 @@ void stateInit() {
   brewingState.waterThroughGroupHead = true; 
 
   heatingToDispenseState.state = HEATING_TO_DISPENSE; 
-  heatingToDispenseState.display1 =    "Heating to dispense ";
-  heatingToDispenseState.display2 =    "          hot water.";
+  heatingToDispenseState.display1 =   "Heating to dispense ";
+  heatingToDispenseState.display2 =   "          hot water.";
   heatingToDispenseState.display3 =   "{measuredSteamTemp}/{targetHotWaterDispenseTemp}";
-  heatingToDispenseState.display4 =    "Please wait ...     ";
+  heatingToDispenseState.display4 =   "Please wait ...     ";
   heatingToDispenseState.hotWaterDispenseHeaterOn = true; 
 
   dispenseHotWaterState.state = DISPENSE_HOT_WATER; 
-  dispenseHotWaterState.display1 =          "Use steam wand to  ";
-  dispenseHotWaterState.display2 =          "dispense hot water. ";
-  dispenseHotWaterState.display3 =          "                    ";
-  dispenseHotWaterState.display4 =          "Click when Done     ";
+  dispenseHotWaterState.display1 =    "Use steam wand to  ";
+  dispenseHotWaterState.display2 =    "dispense hot water. ";
+  dispenseHotWaterState.display3 =    "                    ";
+  dispenseHotWaterState.display4 =    "Click when Done     ";
   dispenseHotWaterState.hotWaterDispenseHeaterOn = true; 
   dispenseHotWaterState.waterThroughWand = true; 
 
   doneBrewingState.state = DONE_BREWING; 
-  doneBrewingState.display1 =      "Done brewing.       ";
-  doneBrewingState.display2 =      "                    ";
-  doneBrewingState.display3 =      "Remove cup.         ";
-  doneBrewingState.display4 =      "Please wait ...     ";
+  doneBrewingState.display1 =     "Done brewing.       ";
+  doneBrewingState.display2 =     "                    ";
+  doneBrewingState.display3 =     "Remove cup.         ";
+  doneBrewingState.display4 =     "Please wait ...     ";
   doneBrewingState.brewHeaterOn = true; 
   doneBrewingState.fillingReservoir = true;
+
+  purgeBeforeSteam1.state = PURGE_BEFORE_STEAM_1; 
+  purgeBeforeSteam1.display1 =   "Boiler needs water. ";
+  purgeBeforeSteam1.display2 =   "Remove scale and    ";
+  purgeBeforeSteam1.display3 =   "place cup on tray.  ";
+  purgeBeforeSteam1.display4 =   "Click when Ready    ";
+  purgeBeforeSteam1.brewHeaterOn = true; 
+
+  purgeBeforeSteam2.state = PURGE_BEFORE_STEAM_2; 
+  purgeBeforeSteam2.display1 =   "Pumping water into  ";
+  purgeBeforeSteam2.display2 =   "boiler.             ";
+  purgeBeforeSteam2.display3 =   "                    ";
+  purgeBeforeSteam2.display4 =   "Please wait ...     ";
+  purgeBeforeSteam2.brewHeaterOn = true; 
+  purgeBeforeSteam2.waterThroughGroupHead = true; 
+
+  purgeBeforeSteam3.state = PURGE_BEFORE_STEAM_3; 
+  purgeBeforeSteam3.display1 =   "Boiler is now ready ";
+  purgeBeforeSteam3.display2 =   "to steam.           ";
+  purgeBeforeSteam3.display3 =   "                    ";
+  purgeBeforeSteam3.display4 =   "Click when Ready    ";
+  purgeBeforeSteam3.steamHeaterOn = true; 
 
   heatingToSteamState.state = HEATING_TO_STEAM; 
   heatingToSteamState.display1 =   "Heating to steam.   ";
