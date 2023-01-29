@@ -22,12 +22,16 @@ GaggiaState helloState,
             coolStartState,
             coolingState,
             coolDoneState,
-            cleanInstructions1State,
-            cleanInstructions2State,
-            cleanCycle1State,
-            cleanInstructions3State,
-            cleanCycle2State,
-            cleanDoneState,
+            cleanOptionsState,
+            groupClean1State,
+            groupClean2State,
+            groupClean3State,
+            backflushInstructions1State,
+            backflushInstructions2State,
+            backflushInstructions3State,
+            backflushCycle1State,
+            backflushCycle2State,
+            backflushCycleDoneState,
             joiningNetwork,
             ignoringNetwork,
             naState,
@@ -105,7 +109,7 @@ GaggiaState getNextGaggiaState() {
       }
      
       if (userInputState.state == LONG_PRESS) {
-        return cleanInstructions1State;
+        return cleanOptionsState;
       }
       break;      
 
@@ -308,10 +312,53 @@ GaggiaState getNextGaggiaState() {
       }
       break;  
   
-    case CLEAN_INSTRUCTION_1 :
+    case CLEAN_OPTIONS :
 
       if (userInputState.state == SHORT_PRESS) {
-        return cleanInstructions2State;
+        return backflushCycle1State;
+      }
+      if (userInputState.state == LONG_PRESS) {
+          return groupClean1State;
+      }
+      break;  
+
+    case GROUP_CLEAN_1 :
+
+      if (heaterState.measuredTemp >= TARGET_HOT_WATER_DISPENSE_TEMP) {
+        return groupClean2State;
+      }
+
+      if (userInputState.state == LONG_PRESS) {
+        return helloState;
+      }
+      break; 
+  
+    case GROUP_CLEAN_2 :
+
+      if (userInputState.state == SHORT_PRESS) {
+          return groupClean3State;
+      }
+      if (userInputState.state == LONG_PRESS) {
+        return helloState;
+      }
+      break;  
+  
+  
+      case GROUP_CLEAN_3 :
+
+      if (userInputState.state == SHORT_PRESS) {
+          return helloState;
+      }
+      if (userInputState.state == LONG_PRESS) {
+        return helloState;
+      }
+      break; 
+  
+  
+    case BACKFLUSH_INSTRUCTION_1 :
+
+      if (userInputState.state == SHORT_PRESS) {
+        return backflushInstructions2State;
       }
      
       if (userInputState.state == LONG_PRESS) {
@@ -319,10 +366,10 @@ GaggiaState getNextGaggiaState() {
       }
       break;
 
-    case CLEAN_INSTRUCTION_2 :
+    case BACKFLUSH_INSTRUCTION_2 :
 
       if (userInputState.state == SHORT_PRESS) {
-        return cleanCycle1State;
+        return backflushCycle1State;
       }
      
       if (userInputState.state == LONG_PRESS) {
@@ -330,10 +377,10 @@ GaggiaState getNextGaggiaState() {
       }
       break;
 
-    case CLEAN_SOAP :
+    case BACKFLUSH_CYCLE_1 :
 
       if (currentGaggiaState.counter == currentGaggiaState.targetCounter-1) {
-        return cleanInstructions3State;
+        return backflushInstructions3State;
       }
      
       if (userInputState.state == LONG_PRESS) {
@@ -341,10 +388,10 @@ GaggiaState getNextGaggiaState() {
       }
       break;
 
-    case CLEAN_INSTRUCTION_3 :
+    case BACKFLUSH_INSTRUCTION_3 :
 
       if (userInputState.state == SHORT_PRESS) {
-        return cleanCycle2State;
+        return backflushCycle2State;
       }
      
       if (userInputState.state == LONG_PRESS) {
@@ -352,10 +399,10 @@ GaggiaState getNextGaggiaState() {
       }
       break;
 
-    case CLEAN_RINSE :
+    case BACKFLUSH_CYCLE_2 :
 
       if (currentGaggiaState.counter == currentGaggiaState.targetCounter-1) {
-        return cleanDoneState;
+        return backflushCycleDoneState;
       }
      
       if (userInputState.state == LONG_PRESS) {
@@ -363,7 +410,7 @@ GaggiaState getNextGaggiaState() {
       }
       break;
   
-      case CLEAN_DONE :
+      case BACKFLUSH_CYCLE_DONE :
 
       if (userInputState.state == SHORT_PRESS) {
         return helloState;
@@ -512,12 +559,12 @@ char* getStateName(int stateEnum) {
     case COOL_START: return "coolStart";
     case COOLING: return "cooling";
     case COOL_DONE: return "coolDone";
-    case CLEAN_INSTRUCTION_1: return "cleanInst1";
-    case CLEAN_INSTRUCTION_2: return "cleanInst2";
-    case CLEAN_SOAP: return "cleanSoap";
-    case CLEAN_INSTRUCTION_3: return "cleanInst3";
-    case CLEAN_RINSE: return "cleanRinse";
-    case CLEAN_DONE: return "cleanDone";
+    case BACKFLUSH_INSTRUCTION_1: return "cleanInst1";
+    case BACKFLUSH_INSTRUCTION_2: return "cleanInst2";
+    case BACKFLUSH_CYCLE_1: return "cleanSoap";
+    case BACKFLUSH_INSTRUCTION_3: return "cleanInst3";
+    case BACKFLUSH_CYCLE_2: return "cleanRinse";
+    case BACKFLUSH_CYCLE_DONE: return "cleanDone";
     case HEATING_TO_DISPENSE: return "heatingToDispense";
     case DISPENSE_HOT_WATER: return "dispenseHotWater";
     case IGNORING_NETWORK: return "ignoringNetwork";
@@ -627,7 +674,7 @@ void processCurrentGaggiaState() {
   }
 
   if (currentGaggiaState.waterThroughGroupHead || currentGaggiaState.waterThroughWand) {
-    if (currentGaggiaState.state == CLEAN_SOAP || currentGaggiaState.state == CLEAN_RINSE) {
+    if (currentGaggiaState.state == BACKFLUSH_CYCLE_1 || currentGaggiaState.state == BACKFLUSH_CYCLE_2) {
       // whether or not we dispense water depends on where we are in the clean cycle...      
 
       currentGaggiaState.targetCounter = NUMBER_OF_CLEAN_CYCLES;
@@ -977,49 +1024,75 @@ void stateInit() {
   coolDoneState.display3 =         "                    ";
   coolDoneState.display4 =         "Click when Ready    ";
 
-  cleanInstructions1State.state = CLEAN_INSTRUCTION_1;
-  cleanInstructions1State.display1 =            "Load backflush      ";
-  cleanInstructions1State.display2 =            "portafilter with    ";
-  cleanInstructions1State.display3 =            "3g of Cafiza.       ";
-  cleanInstructions1State.display4 =            "Click when Ready    ";
+  cleanOptionsState.state = CLEAN_OPTIONS;
+  cleanOptionsState.display1 =  "Pick clean option   ";
+  cleanOptionsState.display2 =  "                    ";
+  cleanOptionsState.display3 =  "Click for Backflush  ";
+  cleanOptionsState.display4 =  "Hold for Group,    ";
 
-  cleanInstructions2State.state = CLEAN_INSTRUCTION_2;
-  cleanInstructions2State.display1 =            "Remove scale        ";
-  cleanInstructions2State.display2 =            "from the drain pan. ";
-  cleanInstructions2State.display3 =            "                    ";
-  cleanInstructions2State.display4 =            "Click when Ready    ";
+  groupClean1State.state = GROUP_CLEAN_1; 
+  groupClean1State.display1 =   "Heating to Clean    ";
+  groupClean1State.display2 =   "Group               ";
+  groupClean1State.display3 =   "{measuredSteamTemp}/{targetHotWaterDispenseTemp}";
+  groupClean1State.display4 =   "Please wait ...     ";
+  groupClean1State.hotWaterDispenseHeaterOn = true; 
 
-  cleanCycle1State.state = CLEAN_SOAP;
-  cleanCycle1State.display1 =            "Backflushing        ";
-  cleanCycle1State.display2 =            "with cleaner.       ";
-  cleanCycle1State.display3 =            "{measuredBars}/{targetBars}";
-  cleanCycle1State.display4 =            "{currentPass}/{targetPass}";
-  cleanCycle1State.brewHeaterOn = true; 
-  cleanCycle1State.waterThroughGroupHead = true; 
+  groupClean2State.state = GROUP_CLEAN_2; 
+  groupClean2State.display1 =   "Ready to Clean    ";
+  groupClean2State.display2 =   "Remove portafilter";
+  groupClean2State.display3 =   "and place towel   ";
+  groupClean2State.display4 =   "Click when Ready  ";
+  groupClean2State.hotWaterDispenseHeaterOn = true; 
+
+  groupClean3State.state = GROUP_CLEAN_3;
+  groupClean3State.display1 =   "Cleaning Group Head ";
+  groupClean3State.display2 =   "                    ";
+  groupClean3State.display3 =   "                    ";
+  groupClean3State.display4 =   "Click when Done     ";
+  groupClean3State.hotWaterDispenseHeaterOn = true; 
+  groupClean3State.waterThroughGroupHead = true; 
+
+  backflushInstructions1State.state = BACKFLUSH_INSTRUCTION_1;
+  backflushInstructions1State.display1 =            "Load backflush      ";
+  backflushInstructions1State.display2 =            "portafilter with    ";
+  backflushInstructions1State.display3 =            "3g of Cafiza.       ";
+  backflushInstructions1State.display4 =            "Click when Ready    ";
+
+  backflushInstructions2State.state = BACKFLUSH_INSTRUCTION_2;
+  backflushInstructions2State.display1 =            "Remove scale        ";
+  backflushInstructions2State.display2 =            "from the drain pan. ";
+  backflushInstructions2State.display3 =            "                    ";
+  backflushInstructions2State.display4 =            "Click when Ready    ";
+
+  backflushInstructions3State.state = BACKFLUSH_INSTRUCTION_3;
+  backflushInstructions3State.display1 =            "Clean out backflush ";
+  backflushInstructions3State.display2 =            "portafilter.        ";
+  backflushInstructions3State.display3 =            "                    ";
+  backflushInstructions3State.display4 =            "Click when Ready    ";
+
+  backflushCycle1State.state = BACKFLUSH_CYCLE_1;
+  backflushCycle1State.display1 =            "Backflushing        ";
+  backflushCycle1State.display2 =            "with cleaner.       ";
+  backflushCycle1State.display3 =            "{measuredBars}/{targetBars}";
+  backflushCycle1State.display4 =            "{currentPass}/{targetPass}";
+  backflushCycle1State.brewHeaterOn = true; 
+  backflushCycle1State.waterThroughGroupHead = true; 
+
+  backflushCycle2State.state = BACKFLUSH_CYCLE_2;
+  backflushCycle2State.display1 =            "Backflushing        ";
+  backflushCycle2State.display2 =            "with water.         ";
+  backflushCycle2State.display3 =            "{measuredBars}/{targetBars}";
+  backflushCycle2State.display4 =            "{currentPass}/{targetPass}";
+  backflushCycle2State.brewHeaterOn = true; 
+  backflushCycle2State.waterThroughGroupHead = true; 
   // trying to fill reservoir during clean seemed to cause problems..
   // not sure why
 
-  cleanInstructions3State.state = CLEAN_INSTRUCTION_3;
-  cleanInstructions3State.display1 =            "Clean out backflush ";
-  cleanInstructions3State.display2 =            "portafilter.        ";
-  cleanInstructions3State.display3 =            "                    ";
-  cleanInstructions3State.display4 =            "Click when Ready    ";
-
-  cleanCycle2State.state = CLEAN_RINSE;
-  cleanCycle2State.display1 =            "Backflushing        ";
-  cleanCycle2State.display2 =            "with water.         ";
-  cleanCycle2State.display3 =            "{measuredBars}/{targetBars}";
-  cleanCycle2State.display4 =            "{currentPass}/{targetPass}";
-  cleanCycle2State.brewHeaterOn = true; 
-  cleanCycle2State.waterThroughGroupHead = true; 
-  // trying to fill reservoir during clean seemed to cause problems..
-  // not sure why
-
-  cleanDoneState.state = CLEAN_DONE;
-  cleanDoneState.display1 =            "Replace normal      ";
-  cleanDoneState.display2 =            "portafilter.        ";
-  cleanDoneState.display3 =            "Return scale.       ";
-  cleanDoneState.display4 =            "Click when Done     ";
+  backflushCycleDoneState.state = BACKFLUSH_CYCLE_DONE;
+  backflushCycleDoneState.display1 =            "Replace normal      ";
+  backflushCycleDoneState.display2 =            "portafilter.        ";
+  backflushCycleDoneState.display3 =            "Return scale.       ";
+  backflushCycleDoneState.display4 =            "Click when Done     ";
 
   joiningNetwork.state = JOINING_NETWORK;
   joiningNetwork.display1 =            "Joining network ... ";

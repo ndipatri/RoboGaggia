@@ -110,8 +110,8 @@ void configureWaterPump(int gaggiaState) {
         waterPumpState.targetPressureInBars = PRE_INFUSION_TARGET_BAR;
       }
 
-      if (gaggiaState == CLEAN_SOAP ||
-          gaggiaState == CLEAN_RINSE) {
+      if (gaggiaState == BACKFLUSH_CYCLE_1 ||
+          gaggiaState == BACKFLUSH_CYCLE_2) {
         waterPumpState.targetPressureInBars = BACKFLUSH_TARGET_BAR;
       }
     
