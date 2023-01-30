@@ -84,6 +84,15 @@ These are other modifications & purchases I've made to my Gaggia which I've foun
 7. [Over Pressure Valve](https://www.shadesofcoffee.co.uk/gaggia-classic-opv-spring-mod-kit---standard-version-just-springs) The Gaggia comes stock with a 12bar release valve.  This means the pressure will attain 12bars inside of the heater before the valve spring will release pressure.  This is appropriate if you are using the high-pressure basket that comes with the Gaggia, but if you are using a regular basket, you should dial it down to probably a 9bar spring.  This is what I've done.
 
 
+# More Images
+
+![PCB Top](media/PCB_top.jpg)
+![PCB Bottom](media/PCB_bottom.jpg)
+![PCB Side](media/PCB_side.jpg)
+![Power Enclosure](media/power.jpg)
+![PCB and Power Mounted](media/gaggiaBack.jpg)
+
+
 # Schematic Diagram
 
 Ok, now that you have all the parts, I will tell you how to put them together! Sorry this isn't going to be a highly detailed guide.  Everywhere there's a line, that means you use wire :-)
