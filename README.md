@@ -33,8 +33,9 @@ In an attempt to mitigate the above Gaggia short comings, I've implemented the f
 5. Auto-Fill water reservoir
 6. Auto-Shutoff
 7. Microcontroller-based automated brew process that eliminates the need for the Brew or Steam buttons.
-8. Cool-down feature to assist in cooling down the heater for brewing.
+8. Cool-down feature to assist in cooling down the heater for alternating between brewing and steaming.  This is important for single-boiler machines such as the Gaggia.
 9. Clean feature which automates much of the rather tedious process of backflushing the Gaggia's grouphead with Cafiza cleaner.
+10. All additional electrical features are installed on a separate printed circuit board (PCB) which is attached on the back of the Gaggia.  The designs for this PCB are included in this repo with instructions on how to get the board fabricated.
 
 
 # Disclaimer
@@ -69,6 +70,7 @@ I will explain in detail how each of these are used. Here is a list of all major
 15. [Thermal Fuse](https://www.amazon.com/gp/product/B07K35GYVJ/ref=ppx_yo_dt_b_asin_title_o04_s00?ie=UTF8&psc=1) The Gaggia is protected by a thermal fuse.  If the termperature inside the Gaggia exceeds 184C, this fuse blows and the Gaggia will stop working.  It's good to have an extra one of these :-) [This video](https://www.youtube.com/watch?v=qDc9i3p_1Xo&ab_channel=SebastianDehne) by [Sebastian Dehne](https://www.youtube.com/channel/UCV03WlzvGM_9urZA-7VE8Ww) will describe the technique you can use to replace a thermal fuse.
 16. [Water Level Sensor](https://www.adafruit.com/product/3397) This is used to measure the water level in the water reservoir. You can print the associated 3D STL file for the [Water Sensor Mount](/3DPrints/waterSensorMount.stl), attach the sensor to the mount, and then glue it to the interior of the water reservoir. The software will ensure that the water never goes well below the sensor or above the sensor. In the last few seconds of the [Video of RoboGaggia!](https://www.youtube.com/watch?v=cBopyQF-BVA&ab_channel=nickdipatri), I show you where this sensor is placed inside the water reservoir.
 17. [Water Pressure Sensor](https://www.aliexpress.us/item/2255800570317172.html?spm=a2g0o.order_list.0.0.21ef1802Ig0OM9&gatewayAdapt=glo2usa&_randl_shipto=US), [16-bit Analog to Digital Converter](https://www.amazon.com/gp/product/B01DLHKMO2/ref=ppx_yo_dt_b_search_asin_title?ie=UTF8&psc=1), and associated [rubber tubing](https://www.aliexpress.us/item/3256801543138865.html?spm=a2g0o.order_list.0.0.2483180256qY54&gatewayAdapt=glo2usa&_randl_shipto=US), [Sensor Connector](https://www.aliexpress.com/item/2251832641599579.html?spm=a2g0o.order_list.0.0.2483180256qY54), [Connector Kit](https://www.amazon.com/gp/product/B08HJK3G92/ref=ppx_yo_dt_b_asin_title_o00_s00?ie=UTF8&psc=1), and [Y connector](https://www.aliexpress.com/item/3256802563681593.html?spm=a2g0o.order_list.0.0.2483180256qY54) The sensor is spliced into the high pressure water line between the water pump and the solenoid valve. For this install, I had to remove the heater and disconnect many wires - so take pictures before you do this! This is used by the software 'Pressure PID' to determine how much power to send to the water pump.  This gives us control over the Pressure Profile. I choose to use the 'hose clamps' that need a screwdriver rather than a crimper as these are easier to install in confined spaces.
+18. [RoboGaggia Printed Circuit Board Design Files](/circuitBoard/roboGaggia_PCBFiles.zip) can be uploaded to [OSH Park](oshpark.com) and then you can order a PCB to be fabricated and sent to you!  It takes about 3 weeks and cost about $60 for three copies.  The PCB is labelled well so you can solder your components with confidence.
 
 # Other modifications and purchases
 
