@@ -97,7 +97,7 @@ These are other modifications & purchases I've made to my Gaggia which I've foun
 
 Ok, now that you have all the parts, I will tell you how to put them together! Sorry this isn't going to be a highly detailed guide.  Everywhere there's a line, that means you use wire :-)
 
-![Schematic](media/schematic.jpg)
+![Schematic](media/schematic.pdf)
 
 
 
