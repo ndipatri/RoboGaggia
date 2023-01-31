@@ -86,7 +86,10 @@ These are other modifications & purchases I've made to my Gaggia which I've foun
 
 # More Images
 
-<img src="media/PCB_top.jpg" alt="PCB Top" width="200"/>
+<img src="media/PCB_top.jpg" alt="PCB Top" width="300"/>
+<img src="media/PCB_bottom.jpg" alt="PCB Bottom" width="300"/>
+<img src="media/power.jpg" alt="Power Enclosure" width="300"/>
+<img src="media/gaggiaBack.jpg" alt="PCB and Power Mounted" width="300"/>
 
 ![PCB Top](media/PCB_top.jpg)
 ![PCB Bottom](media/PCB_bottom.jpg)
