@@ -86,6 +86,8 @@ These are other modifications & purchases I've made to my Gaggia which I've foun
 
 # More Images
 
+<img src="media/PCB_top.jpg" alt="PCB Top" width="200"/>
+
 ![PCB Top](media/PCB_top.jpg)
 ![PCB Bottom](media/PCB_bottom.jpg)
 ![PCB Side](media/PCB_side.jpg)
