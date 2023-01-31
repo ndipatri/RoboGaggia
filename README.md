@@ -5,6 +5,11 @@
 
 [GIF of RoboGaggia extracting](/media/meCoffee.gif)
 
+<img src="media/PCB_top.jpg" alt="PCB Top" width="300"/>
+
+<img src="media/telemetry.png" alt="Live Telemetry" width="300"/>
+
+
 # roboGaggia - TL;DR
 
 This project is a hardware-hack of the amazing [Gaggia Pro](https://www.wholelattelove.com/products/gaggia-classic-pro-espresso-machine-in-cherry-red?gclid=Cj0KCQjw-fmZBhDtARIsAH6H8qj_Ss3SJIp0CvJAVQRKj4xInX0PIXOTgVx_EXvSSFgazGyuVBLtaYUaAsB3EALw_wcB)
@@ -90,13 +95,7 @@ These are other modifications & purchases I've made to my Gaggia which I've foun
 <img src="media/PCB_bottom.jpg" alt="PCB Bottom" width="300"/>
 <img src="media/power.jpg" alt="Power Enclosure" width="300"/>
 <img src="media/gaggiaBack.jpg" alt="PCB and Power Mounted" width="300"/>
-<img src="media/telemetry.jpg" alt="Live Telemetry" width="300"/>
-
-![PCB Top](media/PCB_top.jpg)
-![PCB Bottom](media/PCB_bottom.jpg)
-![PCB Side](media/PCB_side.jpg)
-![Power Enclosure](media/power.jpg)
-![PCB and Power Mounted](media/gaggiaBack.jpg)
+<img src="media/telemetry.png" alt="Live Telemetry" width="300"/>
 
 
 # Schematic Diagram
