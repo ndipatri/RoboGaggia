@@ -29,7 +29,7 @@ Copyright (c) 2016 SparkFun Electronics
 #include "components/State.h"
 
 
-#define LOOP_INTERVAL_MILLIS 50 
+#define LOOP_INTERVAL_MILLIS 75
 
 
 SerialLogHandler logHandler;

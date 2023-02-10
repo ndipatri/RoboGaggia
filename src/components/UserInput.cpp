@@ -14,7 +14,7 @@ float BUTTON_LONG_PRESS_DURATION_MILLIS = 1000;
 
 // This can be considered an 'auto-off' feature as the HOME state represents
 // effectively NO BEHAVIOR (e.g. heater is off, no extraction, no telemetry being sent)
-int RETURN_TO_HOME_INACTIVITY_MINUTES = 10;
+int RETURN_TO_HOME_INACTIVITY_MINUTES = 30;
 
 void readUserInputState() {
   // Derive current user input state

@@ -14,6 +14,7 @@
 extern GaggiaState manualNextGaggiaState;
 
 extern GaggiaState  helloState,
+                    startupHelloState,
                     featuresState,
                     wandFeaturesState,
                     tareCup1State,

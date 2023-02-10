@@ -3,6 +3,7 @@
 #include <Qwiic_Scale_NAU7802_Arduino_Library.h>
 
 GaggiaState helloState,
+            startupHelloState,
             featuresState,
             wandFeaturesState,
             tareCup1State,
@@ -69,7 +70,7 @@ GaggiaState getNextGaggiaState() {
     case IGNORING_NETWORK :
 
       if (WiFi.isOff()) {
-        return helloState;
+        return startupHelloState;
       }
 
       break;
@@ -77,7 +78,7 @@ GaggiaState getNextGaggiaState() {
     case JOINING_NETWORK :
 
       if (networkState.connected) {
-        return helloState;
+        return startupHelloState;
       }
       
       if (userInputState.state == SHORT_PRESS || userInputState.state == LONG_PRESS) {
@@ -87,6 +88,22 @@ GaggiaState getNextGaggiaState() {
       break;
 
     case HELLO :
+
+      // We have to give the scale long enough to tare proper weight
+      if (userInputState.state == SHORT_PRESS) {
+        if (heaterState.measuredTemp >= TARGET_BREW_TEMP * 1.20) {
+          return coolStartState;
+        } else {
+          return tareCup1State;
+        }
+      }
+
+      if (userInputState.state == LONG_PRESS) {
+        return featuresState;
+      }
+      break;
+
+    case STARTUP_HELLO :
 
       // We have to give the scale long enough to tare proper weight
       if (userInputState.state == SHORT_PRESS) {
@@ -545,6 +562,7 @@ String updateDisplayLine(char *message,
 char* getStateName(int stateEnum) {
    switch (stateEnum) {
     case HELLO: return "hello";
+    case STARTUP_HELLO: return "startupHello";
     case FEATURES: return "features";
     case WAND_FEATURES: return "wandFeatures";
     case TARE_CUP_BEFORE_MEASURE: return "tareCupBeforeMeasure";
@@ -738,7 +756,7 @@ void processCurrentGaggiaState() {
   }
 
   #ifdef AIO_USERNAME
-    if (currentGaggiaState.state == HELLO) {
+    if (currentGaggiaState.state == HELLO || currentGaggiaState.state == STARTUP_HELLO) {
       // when we enter hello, we disconnect from MQTT broker for telemetry...
       if (networkState.connected) {
         // recall the system returns to hello after 15 minutes of inactivity.
@@ -881,6 +899,22 @@ void stateInit() {
   // we tare here so the weight of the scale itself isn't shown
   // when we are measuring things...
   helloState.tareScale = true; 
+
+  // This is the same as HELLO, except it preheats.. we only
+  // do this when we first power up the Gaggia.. otherwise, the
+  // quiescent 'hello' state is non-heated for safety reasons.
+  startupHelloState.state = STARTUP_HELLO;
+  startupHelloState.display1 =            "Hi.                 ";
+  startupHelloState.display2 =            "Clear scale surface.";
+  startupHelloState.display3 =            "Click to Brew,      ";
+  startupHelloState.display4 =            "Hold for Features   ";
+  startupHelloState.measureTemp = true;
+
+  // this is the only unique thing about the STARTUP_HELLO vs. HELLO
+  startupHelloState.brewHeaterOn = true; 
+
+  startupHelloState.tareScale = true; 
+
 
   featuresState.state = FEATURES; 
   featuresState.display1 =            "Select Feature      ";

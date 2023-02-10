@@ -5,6 +5,7 @@
 #include "Secrets.h"
 
 enum GaggiaStateEnum {
+  STARTUP_HELLO , 
   HELLO , 
   FEATURES , 
   WAND_FEATURES, 
@@ -52,7 +53,7 @@ struct GaggiaState {
    
    // ************
    // WARNING: this cannot be done at the same time (or even in an adjacent state)
-   // to dispensing water.
+   // to dispensing water... i have no clue why..
    // ************
    boolean  fillingReservoir = false;
 
