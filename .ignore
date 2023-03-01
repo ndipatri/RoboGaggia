@@ -2,6 +2,4 @@
 .idea/workspace.xml
 .idea/uiDesigner.xml
 target
-.vscode/.cortex-debug.peripherals.state.json
-.vscode/.cortex-debug.registers.state.json
-.vscode/settings.json
+.vscode/
