@@ -18,8 +18,7 @@ double TARGET_FLOW_RATE = 3.0;
 // on the measure pressure, only during PREINFUSION and CLEANING
 double PRE_INFUSION_TARGET_BAR = 3.0;
 
-// Adafruit.IO will complain if you do this any faster than 1000ms per sample.
-int FLOW_RATE_SAMPLE_PERIOD_MILLIS = 1200; 
+int FLOW_RATE_SAMPLE_PERIOD_MILLIS = 200; 
 
 double MIN_PUMP_DUTY_CYCLE = 40.0;
 double MAX_PUMP_DUTY_CYCLE = 100.0;
@@ -265,7 +264,7 @@ String getPumpState() {
   return String(waterPumpState.measuredPressureInBars);
 }
 
-boolean updateFlowRateMetricWhenItsTime() {
+void updateFlowRateMetricWhenItsTime() {
     if (millis() > nextFlowRateSampleMillis) {
 
       // Time to calculate new telemetry
@@ -283,11 +282,7 @@ boolean updateFlowRateMetricWhenItsTime() {
       waterPumpState.measuredWeightAtFlowRate = scaleState.measuredWeight - scaleState.tareWeight;
     
       nextFlowRateSampleMillis = millis() + FLOW_RATE_SAMPLE_PERIOD_MILLIS;
-    
-      return true;
     }
-
-    return false;
 }
 
 

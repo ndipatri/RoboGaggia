@@ -41,7 +41,7 @@ extern ScaleState scaleState;
 
 void scaleInit();
 
-void readScaleState();
+ readScaleState();
 
 String updateDisplayLine(char *message, 
                          int line,

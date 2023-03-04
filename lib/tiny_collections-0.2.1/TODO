@@ -1,0 +1,4 @@
+
+* Remove dependency on STL header files; include our own definition of `std::initializer_list<T>`,
+  etc.
+* Add a `const_flash_array<T>` class that operates on elements stored in `PROGMEM`.

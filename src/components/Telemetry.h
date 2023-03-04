@@ -5,6 +5,7 @@
 #include "Network.h"
 #include "Common.h"
 #include "State.h"
+#include "tiny-collections.h"
 
 // This contains both instantaneous metrics (e.g. measuredWeight) and other metrics that we want to measure
 // over a longer period than the system poll interval (e.g. flowRateGPS.. since we want this to be measured for
@@ -19,6 +20,6 @@ struct Telemetry {
   double brewTempC = 0.0;
 };
 
-void sendTelemetry();
+void calculateAndSendTelemetryIfNecessary();
 
 #endif

@@ -1,9 +1,21 @@
 {
-    "particle.targetDevice": "roboGaggia2",
+    "particle.targetDevice": "roboGaggia3",
     "particle.firmwareVersion": "4.0.1",
     "particle.targetPlatform": "argon",
     "files.associations": {
         "ctime": "cpp",
-        "new": "cpp"
+        "new": "cpp",
+        "vector": "cpp",
+        "iosfwd": "cpp",
+        "iterator": "cpp",
+        "__hash_table": "cpp",
+        "__split_buffer": "cpp",
+        "array": "cpp",
+        "bitset": "cpp",
+        "initializer_list": "cpp",
+        "string": "cpp",
+        "string_view": "cpp",
+        "unordered_map": "cpp",
+        "utility": "cpp"
     }
 }
