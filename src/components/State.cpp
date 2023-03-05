@@ -750,8 +750,9 @@ void processCurrentGaggiaState() {
   }
 
   if (currentGaggiaState.state == BREWING || currentGaggiaState.state == PREINFUSION) {
-    updateFlowRateMetricWhenItsTime();
-    calculateAndSendTelemetryIfNecessary();
+    if (updateFlowRateMetricIfNecessary()) {
+      calculateAndSendTelemetryIfNecessary();
+    }
   }
 
   #ifdef AIO_USERNAME
@@ -800,7 +801,9 @@ void processOutgoingGaggiaState() {
 
   // This gives our current state one last chance to log any telemetry.
   if (currentGaggiaState.state == BREWING) {
-    calculateAndSendTelemetryIfNecessary();
+    if (updateFlowRateMetricIfNecessary()) {
+      calculateAndSendTelemetryIfNecessary();
+    }
   }
 
   // Things we always reset when leaving a state...

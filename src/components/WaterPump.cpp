@@ -264,25 +264,33 @@ String getPumpState() {
   return String(waterPumpState.measuredPressureInBars);
 }
 
-void updateFlowRateMetricWhenItsTime() {
-    if (millis() > nextFlowRateSampleMillis) {
+// Altough we preserve the last measure so we can come up with
+// an average flow rate, the interval between these times are
+// determined elsewhere.
+boolean updateFlowRateMetricIfNecessary() {
 
-      // Time to calculate new telemetry
+  boolean flowRateUpdated = false;
 
-      double newFlowRateGPS = ( // current extracted weight
-                             scaleState.measuredWeight - scaleState.tareWeight -
+  if (millis() > nextFlowRateSampleMillis) {
+    double measuredWeightNow = scaleState.measuredWeight - scaleState.tareWeight;
+
+    double newFlowRateGPS = ( // current extracted weight
+                            measuredWeightNow -
                              // previous extracted weight
-                             waterPumpState.measuredWeightAtFlowRate) /
-                             (FLOW_RATE_SAMPLE_PERIOD_MILLIS/1000.0); 
+                            waterPumpState.measuredWeightAtFlowRate) /
+                            (FLOW_RATE_SAMPLE_PERIOD_MILLIS/1000.0); 
 
-      // This is observed by the PID
-      waterPumpState.flowRateGPS = newFlowRateGPS;
+    // This is observed by the PID
+    waterPumpState.flowRateGPS = newFlowRateGPS;
       
-      // This is used for the next rate calculation.
-      waterPumpState.measuredWeightAtFlowRate = scaleState.measuredWeight - scaleState.tareWeight;
-    
-      nextFlowRateSampleMillis = millis() + FLOW_RATE_SAMPLE_PERIOD_MILLIS;
-    }
+    // This is used for the next rate calculation.
+    waterPumpState.measuredWeightAtFlowRate = measuredWeightNow;
+
+    nextFlowRateSampleMillis = millis() + FLOW_RATE_SAMPLE_PERIOD_MILLIS;
+    flowRateUpdated = true;
+  }
+
+  return flowRateUpdated;
 }
 
 

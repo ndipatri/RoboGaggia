@@ -2,24 +2,16 @@
 
 using namespace tc; // Import tc::* into the global namespace
 
-float nextTelemetryCollectMillis = -1;
-
 // This is the interval of time between when we send telemetry values
 // to adafruit.io.  Adafruit IO will block this client if we send
 // these more frequently that once every second.
 // This * TELEMETRY_COLLECT_PERIOD_MILLIS must be >= 1200!
 int TELEMETRY_SEND_INTERVAL = 6; 
 
-// In between when we 'send' telemetry, we collect multiple
-// values for low-pass-filtering...
-int TELEMETRY_COLLECT_PERIOD_MILLIS = 200; 
-
 vector<Telemetry> telemetryHistory;
 
 void calculateAndSendTelemetryIfNecessary() {
 
-  // We collect telemtry every so often...
-  if (millis() > nextTelemetryCollectMillis) {
     Telemetry telemetry;
     telemetry.description = "PID(" + 
                               String(pressure_PID_kP) + ":" +
@@ -85,10 +77,6 @@ void calculateAndSendTelemetryIfNecessary() {
             String(averageTelemetry.flowRateGPS)  + String(", ") +
             String(averageTelemetry.brewTempC));
       #endif
-
-    }
-
-    nextTelemetryCollectMillis = millis() + TELEMETRY_COLLECT_PERIOD_MILLIS;
 
   }
 }

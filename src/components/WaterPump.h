@@ -59,6 +59,7 @@ void startDispensingWater(boolean turnOnSolenoidValve);
 
 void stopDispensingWater();
 
-void updateFlowRateMetricWhenItsTime();
+// We only update this value at specific intervals
+boolean updateFlowRateMetricIfNecessary();
 
 #endif

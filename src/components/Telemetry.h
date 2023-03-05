@@ -13,13 +13,14 @@
 struct Telemetry {  
   String stateName;
   String description;
-  long measuredWeightGrams = 0;
+  double measuredWeightGrams = 0;
   double measuredPressureBars = 0.0;
   double pumpDutyCycle = 0.0;
   double flowRateGPS = 0.0;
   double brewTempC = 0.0;
 };
 
+// Return value indicates telemetry measurement was taken
 void calculateAndSendTelemetryIfNecessary();
 
 #endif
