@@ -6,7 +6,7 @@
 #include "WaterPump.h"
 #include "Network.h"
 
-#define SCALE_SAMPLE_SIZE 5 
+#define SCALE_SAMPLE_SIZE 8 
 
 
 extern int PREINFUSION_WEIGHT_THRESHOLD_GRAMS;
@@ -26,15 +26,15 @@ struct ScaleState {
   float avgWeights[SCALE_SAMPLE_SIZE];
   byte avgWeightIndex = 0;
 
-  long measuredWeight = 0;
+  double measuredWeight = 0.0;
 
   // this will be the measuredWeight - tareWeight * BREW_WEIGHT_TO_BEAN_RATIO
   // at the moment this value is recorded...
-  long targetWeight = 0; 
+  double targetWeight = 0; 
 
   // recorded weight of cup meant be used when
   // measuring the weight of beans or brew  
-  long tareWeight = 0;
+  double tareWeight = 0;
 };
 
 extern ScaleState scaleState;

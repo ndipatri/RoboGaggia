@@ -31,12 +31,16 @@ double SCALE_OFFSET = -13.2;  // 47;
 int LOW_WEIGHT_THRESHOLD = 0;
 
 void readScaleState() {
-  scaleState.measuredWeight = 0;
+  scaleState.measuredWeight = 0.0;
 
   if (myScale.available() == true) {
-    float scaleReading = myScale.getReading();
+    long scaleReading = myScale.getReading();
 
-    float weightInGrams = scaleReading * SCALE_FACTOR + SCALE_OFFSET;
+    float weightInGrams = (float)scaleReading * SCALE_FACTOR + SCALE_OFFSET;
+
+    if (weightInGrams < 0.0) {
+      weightInGrams = 0.0;
+    }
 
     // This is a rotating buffer
     scaleState.avgWeights[scaleState.avgWeightIndex++] = weightInGrams;
