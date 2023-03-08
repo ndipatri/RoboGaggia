@@ -34,11 +34,11 @@ void calculateAndSendTelemetryIfNecessary() {
 
     // and if we have to send telemetry, we average queue and send results ...
     if (telemetryHistory.size() >= TELEMETRY_SEND_INTERVAL) {
-        float weightSum = 0;
-        float barsSum = 0;
-        float dutyCycleSum = 0;
-        float flowRateSum = 0;
-        float brewTempSum = 0;
+        double weightSum = 0;
+        double barsSum = 0;
+        double dutyCycleSum = 0;
+        double flowRateSum = 0;
+        double brewTempSum = 0;
         for (auto dataPoint: telemetryHistory) {
           weightSum += dataPoint.measuredWeightGrams;
           barsSum += dataPoint.measuredPressureBars;

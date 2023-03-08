@@ -23,7 +23,7 @@ extern int LOW_WEIGHT_THRESHOLD;
 struct ScaleState {
 
   // The current weight measurement is a sliding average
-  float avgWeights[SCALE_SAMPLE_SIZE];
+  double avgWeights[SCALE_SAMPLE_SIZE];
   byte avgWeightIndex = 0;
 
   double measuredWeight = 0.0;

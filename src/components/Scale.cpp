@@ -36,9 +36,9 @@ void readScaleState() {
   if (myScale.available() == true) {
     long scaleReading = myScale.getReading();
 
-    float weightInGrams = (float)scaleReading * SCALE_FACTOR + SCALE_OFFSET;
+    double weightInGrams = (float)scaleReading * SCALE_FACTOR + SCALE_OFFSET;
 
-    if (weightInGrams < 0.0) {
+    if (weightInGrams < 0.1) {
       weightInGrams = 0.0;
     }
 
