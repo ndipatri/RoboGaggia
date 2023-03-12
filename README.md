@@ -150,15 +150,15 @@ Below is a shot of the inside of the Gaggia with the above schematic changes:
 
 Here are the highlights:
 
-1 - Pressure Sensor
-2 - Steam and Heat Thermocouples
-3 - Three-way splitter for plumbing in the Pressure Sensor
-4 - Dispense and Heat Solid State Relays
-5 - Water Solenoid Valve
-6 - Power for the RoboGaggia circuitboard
-7 - Dimmer output for water pump
-8 - Wire harness leading to RoboGaggia circuitboard
-9 - Water feed line to external water source
+1. Pressure Sensor
+2. Steam and Heat Thermocouples
+3. Three-way splitter for plumbing in the Pressure Sensor
+4. Dispense and Heat Solid State Relays
+5. Water Solenoid Valve
+6. Power for the RoboGaggia circuitboard
+7. Dimmer output for water pump
+8. Wire harness leading to RoboGaggia circuitboard
+9. Water feed line to external water source
 
 
 ![Overhead of Changes](media/internal_gaggia.jpg)
