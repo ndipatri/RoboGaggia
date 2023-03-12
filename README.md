@@ -5,11 +5,13 @@
 
 [GIF of RoboGaggia extracting](/media/meCoffee.gif)
 
+[Video of Shot Extraction Including Telemetry!](https://youtu.be/NSmCpHrQ0_Q)
+
+
 <img src="media/PCB_top.jpg" alt="PCB Top" width="300"/>
 
 <img src="media/telemetry.png" alt="Live Telemetry" width="300"/>
 
-[Video of Shot Extraction Including Telemetry!](/media/shotExtraction_combined.mov)
 
 # roboGaggia - TL;DR
 
