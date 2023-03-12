@@ -18,7 +18,7 @@ void calculateAndSendTelemetryIfNecessary() {
                               String(pressure_PID_kI) + ":" +
                               String(pressure_PID_kD) + ")";
     telemetry.stateName = getStateName(currentGaggiaState.state);
-    telemetry.measuredWeightGrams = scaleState.measuredWeight - scaleState.tareWeight;
+    telemetry.measuredWeightGrams = abs(scaleState.measuredWeight - scaleState.tareWeight);
     telemetry.measuredPressureBars = waterPumpState.measuredPressureInBars;
     telemetry.pumpDutyCycle = waterPumpState.pumpDutyCycle;
     telemetry.flowRateGPS = waterPumpState.flowRateGPS;
