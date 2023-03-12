@@ -9,6 +9,7 @@
 
 <img src="media/telemetry.png" alt="Live Telemetry" width="300"/>
 
+[Video of Shot Extraction Including Telemetry!](/media/shotExtraction_combined.mov)
 
 # roboGaggia - TL;DR
 
