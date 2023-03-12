@@ -143,6 +143,13 @@ Here is a crude diagram of the changes I made (see where I added the two [High P
 ![Basic Wiring Changes](media/gaggiaWiring.jpg)
 
 
+Below is a shot of the inside of the Gaggia with the above schematic changes:
+
+
+![Overhead of Changes](media/internal_gaggia.jpg)
+
+
+
 # Additional Notes
 
 ## Calibrating Sensors
