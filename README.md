@@ -5,6 +5,9 @@
 
 [GIF of RoboGaggia extracting](/media/meCoffee.gif)
 
+[Video of Shot Extraction Including Telemetry!](https://youtu.be/NSmCpHrQ0_Q)
+
+
 <img src="media/PCB_top.jpg" alt="PCB Top" width="300"/>
 
 <img src="media/telemetry.png" alt="Live Telemetry" width="300"/>
@@ -141,6 +144,25 @@ The biggest change I made is I removed some stuff :-). I removed the 'Brew' and 
 Here is a crude diagram of the changes I made (see where I added the two [High Power Solid State Relay(SSR)](https://www.sparkfun.com/products/13015) and the [AC Dimmer Controller](https://www.amazon.com/gp/product/B072K9P7KH/ref=ppx_yo_dt_b_asin_title_o03_s00?ie=UTF8&psc=1)
 
 ![Basic Wiring Changes](media/gaggiaWiring.jpg)
+
+
+Below is a shot of the inside of the Gaggia with the above schematic changes:
+
+Here are the highlights:
+
+1. Pressure Sensor
+2. Steam and Heat Thermocouples
+3. Three-way splitter for plumbing in the Pressure Sensor
+4. Dispense and Heat Solid State Relays
+5. Water Solenoid Valve
+6. Power for the RoboGaggia circuitboard
+7. Dimmer output for water pump
+8. Wire harness leading to RoboGaggia circuitboard
+9. Water feed line to external water source
+
+
+![Overhead of Changes](media/internal_gaggia.jpg)
+
 
 
 # Additional Notes
