@@ -22,8 +22,9 @@ float BREW_WEIGHT_TO_BEAN_RATIO = 2.0;
 // https://docs.google.com/spreadsheets/d/1z3atpMJ9mnRWZPx-S3QPc0Lp2lXNPtheInoUFgV0nMo/edit?usp=sharing 
 // weightInGrams = scaleReading * SCALE_FACTOR + SCALE_OFFSET
 // y = 6.33E-04*x + -13.2
-double SCALE_FACTOR = 0.000633; // 3137;  
-double SCALE_OFFSET = -13.2;  // 47;
+double SCALE_FACTOR = 0.000659; // 3137;  
+double SCALE_OFFSET = 4.92;  // 47;
+
 
 // Below which we consider weight to be 0
 // Ideally if scale is calibrated properly and has solid connections, this
