@@ -1,6 +1,7 @@
 ![Robo Gaggia](media/gaggia1.jpg)
 
 [Nick DiPatri](ndipatri@gmail.com)
+
 [LinkedIn](https://www.linkedin.com/in/ndipatri/)
 
 
