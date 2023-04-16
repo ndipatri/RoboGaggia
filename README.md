@@ -29,6 +29,7 @@ Although it's an amazing machine, the Gaggia requires a number of manual steps t
 3. While brewing, you need to remember the weight of your coffee grounds so you know how much to brew. You need to either weigh your resulting coffee using an external scale or approximate the output by counting the seconds of your extraction.
 4. After brewing, you then have to manually switch the 'steam' button and wait for the heater to achieve the steam temperature.
 5. After steaming, if you want to brew again, you have to go through the process of extracting water to cool off the heater - the heater is always on with the stock Gaggia, so cooling off the heateater takes a while.
+6. If you leave RoboGaggia on, it will continue to heat the boiler and waste energy even if you haven't used it for hours.
 
 ## The above five steps are rather tedious and time consuming. It would be nice if I could load the Gaggia with fresh ground coffee, push a button, then walk away to attend to other things in my morning routine. When I return, I want my shot done and the machine ready to steam. These modifications do this.
 
