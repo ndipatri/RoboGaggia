@@ -60,6 +60,8 @@ These instructions assume you are proficient in handling both DC and AC electric
 
 Also, I know absolutely NOTHING about proper coffee.  It's quite possible everything I'm doing here is wrong, so don't yell at me.  Anything I do know, I've learned by watching the awesome coffee videos from [James Hoffman](https://www.youtube.com/channel/UCMb0O2CdPBNi-QqPk5T3gsQ)
 
+I also want to give a shout-out to another great Gaggia hack, the [Gaggiaduino Project!](https://gaggiuino.github.io/#/)  
+
 
 
 
