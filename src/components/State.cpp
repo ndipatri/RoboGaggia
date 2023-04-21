@@ -449,7 +449,7 @@ GaggiaState getNextGaggiaState() {
 }  
 
 
-long filterLowWeight(long weight) {
+double filterLowWeight(double weight) {
   if (abs(weight) < LOW_WEIGHT_THRESHOLD) {
     return 0;
   } else {
@@ -466,69 +466,69 @@ String updateDisplayLine(char *message,
   
   String lineToDisplay; 
   
-  lineToDisplay = decodeMessageIfNecessary(message,
-                                           "{adjustedWeight}/{targetBeanWeight}",
-                                           filterLowWeight(scaleState.measuredWeight - scaleState.tareWeight),
-                                           TARGET_BEAN_WEIGHT,
-                                           " g");
+  lineToDisplay = decodeFloatMessageIfNecessary(message,
+                                               "{adjustedWeight}/{targetBeanWeight}",
+                                               filterLowWeight(scaleState.measuredWeight - scaleState.tareWeight),
+                                               TARGET_BEAN_WEIGHT,
+                                               " g");
   if (lineToDisplay == "") {
-    lineToDisplay = decodeMessageIfNecessary(message,
-                                            "{measuredBrewTemp}/{targetBrewTemp}",
-                                            heaterState.measuredTemp,
-                                            TARGET_BREW_TEMP,
-                                            " degrees C");
+    lineToDisplay = decodeLongMessageIfNecessary(message,
+                                                 "{measuredBrewTemp}/{targetBrewTemp}",
+                                                 heaterState.measuredTemp,
+                                                 TARGET_BREW_TEMP,
+                                                 " degrees C");
     if (lineToDisplay == "") {
-      lineToDisplay = decodeMessageIfNecessary(message,
-                                              "{adjustedWeight}/{targetBrewWeight}",
-                                              filterLowWeight(scaleState.measuredWeight - scaleState.tareWeight),
-                                              scaleState.targetWeight,
-                                              " g");
+      lineToDisplay = decodeFloatMessageIfNecessary(message,
+                                                    "{adjustedWeight}/{targetBrewWeight}",
+                                                    filterLowWeight(scaleState.measuredWeight - scaleState.tareWeight),
+                                                    scaleState.targetWeight,
+                                                    " g");
       if (lineToDisplay == "") {
-        lineToDisplay = decodeMessageIfNecessary(message,
-                                              "{measuredSteamTemp}/{targetSteamTemp}",
-                                              heaterState.measuredTemp,
-                                              TARGET_STEAM_TEMP,
-                                              " degrees C");
+        lineToDisplay = decodeLongMessageIfNecessary(message,
+                                                     "{measuredSteamTemp}/{targetSteamTemp}",
+                                                     heaterState.measuredTemp,
+                                                     TARGET_STEAM_TEMP,
+                                                     " degrees C");
         if (lineToDisplay == "") {
-          lineToDisplay = decodeMessageIfNecessary(message,
-                                                "{adjustedWeight}",
-                                                filterLowWeight(scaleState.measuredWeight - scaleState.tareWeight),
-                                                0,
-                                                " g");
+          lineToDisplay = decodeFloatMessageIfNecessary(message,
+                                                        "{adjustedWeight}",
+                                                        filterLowWeight(scaleState.measuredWeight - scaleState.tareWeight),
+                                                        0,
+                                                        " g");
           if (lineToDisplay == "") {
-            lineToDisplay = decodeMessageIfNecessary(message,
-                                                     "{flowRate}",
-                                                     waterPumpState.flowRateGPS,
-                                                     0,
-                                                     " g/30sec");
+            lineToDisplay = decodeLongMessageIfNecessary(message,
+                                                         "{flowRate}",
+                                                         waterPumpState.flowRateGPS,
+                                                         0,
+                                                         " g/30sec");
             if (lineToDisplay == "") {
-              lineToDisplay = decodeMessageIfNecessary(message,
-                                                       "{measuredBars}/{targetBars}",
-                                                       waterPumpState.measuredPressureInBars,
-                                                       waterPumpState.targetPressureInBars,
-                                                       " bars");
+              lineToDisplay = decodeLongMessageIfNecessary(message,
+                                                           "{measuredBars}/{targetBars}",
+                                                           waterPumpState.measuredPressureInBars,
+                                                           waterPumpState.targetPressureInBars,
+                                                           " bars");
               if (lineToDisplay == "") {
                 // One count consists of both the clean and rest... so we only have
                 // targetCounter/2 total clean passes.
-                lineToDisplay = decodeMessageIfNecessary(message,
-                                                       "{currentPass}/{targetPass}",
-                                                       (currentGaggiaState.counter/2)+1,
-                                                       (currentGaggiaState.targetCounter)/2,
-                                                       " pass");
+                lineToDisplay = decodeLongMessageIfNecessary(message,
+                                                             "{currentPass}/{targetPass}",
+                                                             (currentGaggiaState.counter/2)+1,
+                                                             (currentGaggiaState.targetCounter)/2,
+                                                             " pass");
                 if (lineToDisplay == "") {
                   // One count consists of both the clean and rest... so we only have
                   // targetCounter/2 total clean passes.
-                  lineToDisplay = decodeMessageIfNecessary(message,
-                                                       "{pumpDutyCycle}/{maxDutyCycle}",
-                                                       waterPumpState.pumpDutyCycle,
-                                                       MAX_PUMP_DUTY_CYCLE,
-                                                       " %");
+                  lineToDisplay = decodeLongMessageIfNecessary(message,
+                                                               "{pumpDutyCycle}/{maxDutyCycle}",
+                                                               waterPumpState.pumpDutyCycle,
+                                                               MAX_PUMP_DUTY_CYCLE,
+                                                               " %");
                   if (lineToDisplay == "") {
-                    lineToDisplay = decodeMessageIfNecessary(message,
-                                              "{measuredSteamTemp}/{targetHotWaterDispenseTemp}",
-                                              heaterState.measuredTemp,
-                                              TARGET_HOT_WATER_DISPENSE_TEMP,
-                                              " degrees C");
+                    lineToDisplay = decodeLongMessageIfNecessary(message,
+                                                                 "{measuredSteamTemp}/{targetHotWaterDispenseTemp}",
+                                                                 heaterState.measuredTemp,
+                                                                 TARGET_HOT_WATER_DISPENSE_TEMP,
+                                                                 " degrees C");
                   }
                 }
               }   

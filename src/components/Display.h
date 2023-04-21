@@ -16,10 +16,17 @@ extern SerLCD display; // Initialize the library with default I2C address 0x72
 
 void displayInit();
 
-String decodeMessageIfNecessary(char* _message, 
-                                char* escapeSequence,
-                                long firstValue,
-                                long secondValue,                         
-                                char* units);
+String decodeLongMessageIfNecessary(char* _message, 
+                                    char* escapeSequence,
+                                    long firstValue,
+                                    long secondValue,                         
+                                    char* units);
+
+String decodeFloatMessageIfNecessary(char* _message, 
+                                     char* escapeSequence,
+                                     double firstValue,
+                                     double secondValue,                         
+                                     char* units);
+
 
 #endif                               

@@ -13,24 +13,23 @@ void displayInit() {
   display.clear(); //Clear the display - this moves the cursor to home position as well
 }
 
-// If no decoding is necessary, the original string
-// is returned
 String decodeMessageIfNecessary(char* _message, 
                                 char* escapeSequence,
-                                long firstValue,
-                                long secondValue,                         
-                                char* units) {
+                                double firstValue,
+                                double secondValue,                         
+                                char* units,
+                                String pattern) {
   char *message = _message; 
 
   if (strcmp(message, escapeSequence) == 0) {
     char firstValueString[9];
-    sprintf(firstValueString, "%ld", firstValue);
+    sprintf(firstValueString, pattern, firstValue);
 
     char *decodedMessage;
     char lineBuff[20] = "                   ";
     if (secondValue != 0) {
       char secondValueString[9];
-      sprintf(secondValueString, "%ld", secondValue);
+      sprintf(secondValueString, pattern, secondValue);
 
       decodedMessage = strcat(strcat(strcat(firstValueString, "/"), secondValueString), units);
     } else {
@@ -41,4 +40,26 @@ String decodeMessageIfNecessary(char* _message,
   }
 
   return String("");
+}
+
+// If no decoding is necessary, the original string
+// is returned
+String decodeLongMessageIfNecessary(char* _message, 
+                                    char* escapeSequence,
+                                    long firstValue,
+                                    long secondValue,                         
+                                    char* units) {
+
+    return decodeMessageIfNecessary(_message, escapeSequence, firstValue, secondValue, units, "%ld");
+}
+
+// If no decoding is necessary, the original string
+// is returned
+String decodeFloatMessageIfNecessary(char* _message, 
+                                     char* escapeSequence,
+                                     double firstValue,
+                                     double secondValue,                         
+                                     char* units) {
+                          
+    return decodeMessageIfNecessary(_message, escapeSequence, firstValue, secondValue, units, "%3.1f");
 }
