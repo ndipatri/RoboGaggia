@@ -448,15 +448,6 @@ GaggiaState getNextGaggiaState() {
   return currentGaggiaState;
 }  
 
-
-double filterLowWeight(double weight) {
-  if (abs(weight) < LOW_WEIGHT_THRESHOLD) {
-    return 0;
-  } else {
-    return weight;
-  }
-}
-
 // line starts at 1
 String updateDisplayLine(char *message, 
                          int line,
@@ -468,7 +459,7 @@ String updateDisplayLine(char *message,
   
   lineToDisplay = decodeFloatMessageIfNecessary(message,
                                                "{adjustedWeight}/{targetBeanWeight}",
-                                               filterLowWeight(scaleState.measuredWeight - scaleState.tareWeight),
+                                               scaleState.measuredWeight - scaleState.tareWeight,
                                                TARGET_BEAN_WEIGHT,
                                                " g");
   if (lineToDisplay == "") {
@@ -480,7 +471,7 @@ String updateDisplayLine(char *message,
     if (lineToDisplay == "") {
       lineToDisplay = decodeFloatMessageIfNecessary(message,
                                                     "{adjustedWeight}/{targetBrewWeight}",
-                                                    filterLowWeight(scaleState.measuredWeight - scaleState.tareWeight),
+                                                    scaleState.measuredWeight - scaleState.tareWeight,
                                                     scaleState.targetWeight,
                                                     " g");
       if (lineToDisplay == "") {
@@ -492,7 +483,7 @@ String updateDisplayLine(char *message,
         if (lineToDisplay == "") {
           lineToDisplay = decodeFloatMessageIfNecessary(message,
                                                         "{adjustedWeight}",
-                                                        filterLowWeight(scaleState.measuredWeight - scaleState.tareWeight),
+                                                        scaleState.measuredWeight - scaleState.tareWeight,
                                                         0,
                                                         " g");
           if (lineToDisplay == "") {

@@ -15,11 +15,6 @@ extern double TARGET_BEAN_WEIGHT;
 
 extern float BREW_WEIGHT_TO_BEAN_RATIO;
 
-// Below which we consider weight to be 0
-// Ideally if scale is calibrated properly and has solid connections, this
-// shouldn't be needed.
-extern int LOW_WEIGHT_THRESHOLD;
-
 struct ScaleState {
 
   // The current weight measurement is a sliding average

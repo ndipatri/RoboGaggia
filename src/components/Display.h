@@ -18,8 +18,8 @@ void displayInit();
 
 String decodeLongMessageIfNecessary(char* _message, 
                                     char* escapeSequence,
-                                    long firstValue,
-                                    long secondValue,                         
+                                    double firstValue,
+                                    double secondValue,                         
                                     char* units);
 
 String decodeFloatMessageIfNecessary(char* _message, 

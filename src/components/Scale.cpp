@@ -25,34 +25,29 @@ float BREW_WEIGHT_TO_BEAN_RATIO = 2.0;
 double SCALE_FACTOR = 0.000659; // 3137;  
 double SCALE_OFFSET = 4.92;  // 47;
 
-
-// Below which we consider weight to be 0
-// Ideally if scale is calibrated properly and has solid connections, this
-// shouldn't be needed.
-int LOW_WEIGHT_THRESHOLD = 0;
-
 void readScaleState() {
   scaleState.measuredWeight = 0.0;
 
   if (myScale.available() == true) {
     long scaleReading = myScale.getReading();
 
-    double weightInGrams = (float)scaleReading * SCALE_FACTOR + SCALE_OFFSET;
+    // This is a rotating buffer
+    scaleState.avgWeights[scaleState.avgWeightIndex++] = scaleReading;
+    if(scaleState.avgWeightIndex == SCALE_SAMPLE_SIZE) scaleState.avgWeightIndex = 0;
 
+    double avgReading = 0;
+    for (int index = 0 ; index < SCALE_SAMPLE_SIZE ; index++)
+      avgReading += scaleState.avgWeights[index];
+    avgReading /= SCALE_SAMPLE_SIZE;
+
+    //Log.error("Reading: " + String(avgReading));
+
+    double weightInGrams = (float)avgReading * SCALE_FACTOR + SCALE_OFFSET;
     if (weightInGrams < 0.1) {
       weightInGrams = 0.0;
     }
 
-    // This is a rotating buffer
-    scaleState.avgWeights[scaleState.avgWeightIndex++] = weightInGrams;
-    if(scaleState.avgWeightIndex == SCALE_SAMPLE_SIZE) scaleState.avgWeightIndex = 0;
-
-    float avgWeight = 0;
-    for (int index = 0 ; index < SCALE_SAMPLE_SIZE ; index++)
-      avgWeight += scaleState.avgWeights[index];
-    avgWeight /= SCALE_SAMPLE_SIZE;
-
-    scaleState.measuredWeight = avgWeight;
+    scaleState.measuredWeight = weightInGrams;
   }
 }
 
@@ -63,8 +58,9 @@ void scaleInit() {
     Log.error("Scale not detected!");
   }
 
+  // Gain might not be necessary now that my I2C board is colocated with load cell.
   myScale.setGain(NAU7802_GAIN_64); //Gain can be set to 1, 2, 4, 8, 16, 32, 64, or 128. default is 16
-  myScale.setSampleRate(NAU7802_SPS_80); //Sample rate can be set to 10, 20, 40, 80, or 320Hz. default is 10
+  myScale.setSampleRate(NAU7802_SPS_320); //Sample rate can be set to 10, 20, 40, 80, or 320Hz. default is 10
   myScale.calibrateAFE(); //Does an internal calibration. Recommended after power up, gain changes, sample rate changes, or channel changes.
 
   Particle.variable("tareWeightGrams",  scaleState.tareWeight);
