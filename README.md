@@ -12,8 +12,10 @@
 
 [Video of Shot Extraction Including Telemetry!](https://youtu.be/NSmCpHrQ0_Q)
 
+Front and Back of my custom Printed Circuit Board from [PCBWay.com](http://pcbway.com)
+<img src="media/PCB_top.jpg" alt="PCB Top" width="200"/>
+<img src="media/PCB_bottom.jpg" alt="PCB Top" width="200"/>
 
-<img src="media/PCB_top.jpg" alt="PCB Top" width="300"/>
 
 <img src="media/telemetry.png" alt="Live Telemetry" width="300"/>
 
