@@ -19,6 +19,8 @@ Front and Back of my custom Printed Circuit Board from [PCBWay.com](http://pcbwa
 <img src="media/PCB_bottom.jpg" alt="PCB Top" width="200"/>
 
 
+Live telemetry!
+
 <img src="media/telemetry.png" alt="Live Telemetry" width="300"/>
 
 
