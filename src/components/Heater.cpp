@@ -25,7 +25,7 @@ HeaterState heaterState;
 
 // This measured temperature assures that the extracted temp
 // at the group is around 93C/200F
-double TARGET_BREW_TEMP = 103; 
+double TARGET_BREW_TEMP = 108; 
 
 double TARGET_HOT_WATER_DISPENSE_TEMP = 120; 
 
