@@ -10,7 +10,7 @@ QwiicButton userButton;
 
 // How long the button has to be pressed before it is considered
 // a long press
-float BUTTON_LONG_PRESS_DURATION_MILLIS = 1000;
+float BUTTON_LONG_PRESS_DURATION_MILLIS = 2000;
 
 // This can be considered an 'auto-off' feature as the HOME state represents
 // effectively NO BEHAVIOR (e.g. heater is off, no extraction, no telemetry being sent)

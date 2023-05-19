@@ -935,7 +935,7 @@ void stateInit() {
   measureBeansState.state = MEASURE_BEANS; 
   measureBeansState.display1 =     "Add beans to cup.   ";
   measureBeansState.display2 =     "{adjustedWeight}/{targetBeanWeight}";
-  measureBeansState.display3 =     "{measuredBrewTemp}/{targetBrewTemp}";
+  measureBeansState.display3 =     "                    ";
   measureBeansState.display4 =     "Click when Ready    ";
   measureBeansState.recordWeight = true; 
   measureBeansState.brewHeaterOn = true; 
@@ -958,7 +958,7 @@ void stateInit() {
   preinfusionState.state = PREINFUSION; 
   preinfusionState.display1 =          "Infusing coffee.    ";
   preinfusionState.display2 =          "{measuredBars}/{targetBars}";
-  preinfusionState.display3 =          "{measuredBrewTemp}/{targetBrewTemp}";
+  preinfusionState.display3 =          "                    ";
   preinfusionState.display4 =          "Please wait ...     ";
   preinfusionState.waterThroughGroupHead = true; 
   preinfusionState.brewHeaterOn = true; 
