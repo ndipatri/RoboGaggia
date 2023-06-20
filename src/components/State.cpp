@@ -35,15 +35,14 @@ GaggiaState helloState,
             backflushCycleDoneState,
             joiningNetwork,
             ignoringNetwork,
-            naState,
+            naState;
 
-            currentGaggiaState;
 
 // After brewing, we want to message to the user and indicate that 
 // they can remove their cup, but we don't want for user input
 // before proceeding to heat up for steam... So we just delay a bit in
 // case the uesr is watching.. 
-int DONE_BREWING_LINGER_TIME_SECONDS = 5;
+int DONE_BREWING_LINGER_TIME_SECONDS = 7;
   
 int DONE_PURGE_BEFORE_STEAM_TIME_SECONDS = 3;
 
@@ -51,26 +50,28 @@ int NUMBER_OF_CLEAN_CYCLES = 20; // (10 on and off based on https://youtu.be/lfJ
 int SECONDS_PER_CLEAN_CYCLE = 4; 
 
 // It is possible to manually direct the next station transition
-GaggiaState manualNextGaggiaState;
+GaggiaState* manualNextGaggiaState;
+
+GaggiaState* currentGaggiaState;
 
 // Using all current state, we derive the next state of the system
 // State transitions are documented here:
 // https://docs.google.com/drawings/d/1EcaUzklpJn34cYeWsTnApoJhwBhA1Q4EVMr53Kz9T7I/edit?usp=sharing
-GaggiaState getNextGaggiaState() {
+GaggiaState* getNextGaggiaState() {
 
-  if (manualNextGaggiaState.state != NA) {
-    GaggiaState nextGaggiaState = manualNextGaggiaState;
-    manualNextGaggiaState = naState;
+  if (manualNextGaggiaState->state != NA) {
+    GaggiaState* nextGaggiaState = manualNextGaggiaState;
+    manualNextGaggiaState = &naState;
 
     return nextGaggiaState;
   }
 
-  switch (currentGaggiaState.state) {
+  switch (currentGaggiaState->state) {
 
     case IGNORING_NETWORK :
 
       if (WiFi.isOff()) {
-        return startupHelloState;
+        return &startupHelloState;
       }
 
       break;
@@ -78,11 +79,11 @@ GaggiaState getNextGaggiaState() {
     case JOINING_NETWORK :
 
       if (networkState.connected) {
-        return startupHelloState;
+        return &startupHelloState;
       }
       
       if (userInputState.state == SHORT_PRESS || userInputState.state == LONG_PRESS) {
-        return ignoringNetwork;
+        return &ignoringNetwork;
       }
 
       break;
@@ -92,71 +93,71 @@ GaggiaState getNextGaggiaState() {
 
       // We have to give the scale long enough to tare proper weight
       if (userInputState.state == SHORT_PRESS) {
-        if (heaterState.measuredTemp >= TARGET_BREW_TEMP * 1.20) {
-          return coolStartState;
+        if (heaterState.measuredTemp >= TARGET_BREW_TEMP * 1.50) {
+          return &coolStartState;
         } else {
-          return tareCup1State;
+          return &tareCup1State;
         }
       }
 
       if (userInputState.state == LONG_PRESS) {
-        return featuresState;
+        return &featuresState;
       }
       break;
 
     case FEATURES :
 
       if (userInputState.state == SHORT_PRESS) {
-        return wandFeaturesState;
+        return &wandFeaturesState;
       }
      
       if (userInputState.state == LONG_PRESS) {
-        return cleanOptionsState;
+        return &cleanOptionsState;
       }
       break;      
 
     case WAND_FEATURES :
 
       if (userInputState.state == SHORT_PRESS) {
-        return heatingToDispenseState;
+        return &heatingToDispenseState;
       }
      
       if (userInputState.state == LONG_PRESS) {
-        return purgeBeforeSteam1;
+        return &purgeBeforeSteam1;
       }
       break;    
 
     case PURGE_BEFORE_STEAM_1 :
 
       if (userInputState.state == SHORT_PRESS) {
-        return purgeBeforeSteam2;
+        return &purgeBeforeSteam2;
       }
      
       if (userInputState.state == LONG_PRESS) {
-        return helloState;
+        return &helloState;
       }
       break;   
 
     case PURGE_BEFORE_STEAM_2 :
      
-      if ((millis() - currentGaggiaState.stateEnterTimeMillis) > 
+      if ((millis() - currentGaggiaState->stateEnterTimeMillis) > 
              DONE_PURGE_BEFORE_STEAM_TIME_SECONDS * 1000) {        
-        return purgeBeforeSteam3;
+        return &purgeBeforeSteam3;
       }     
      
       if (userInputState.state == LONG_PRESS) {
-        return helloState;
+        return &helloState;
       }
       break;   
 
     case PURGE_BEFORE_STEAM_3 :
 
       if (userInputState.state == SHORT_PRESS) {
-        return heatingToSteamState;
+        return &heatingToSteamState;
       }
      
       if (userInputState.state == LONG_PRESS) {
-        return helloState;
+        return &helloState;
       }
       break;   
 
@@ -164,51 +165,51 @@ GaggiaState getNextGaggiaState() {
     case TARE_CUP_BEFORE_MEASURE :
 
       if (userInputState.state == SHORT_PRESS) {
-        return measureBeansState;
+        return &measureBeansState;
       }
      
       if (userInputState.state == LONG_PRESS) {
-        return helloState;
+        return &helloState;
       }
       break;
 
     case MEASURE_BEANS :
 
       if (userInputState.state == SHORT_PRESS) {
-        return tareCup2State;
+        return &tareCup2State;
       }
       if (userInputState.state == LONG_PRESS) {
-        return helloState;
+        return &helloState;
       }
       break;  
 
     case TARE_CUP_AFTER_MEASURE :
 
       if (userInputState.state == SHORT_PRESS) {
-        return heatingToBrewState;
+        return &heatingToBrewState;
       }
       if (userInputState.state == LONG_PRESS) {
-        return helloState;
+        return &helloState;
       }
       break;
 
     case HEATING_TO_BREW :
 
       if (heaterState.measuredTemp >= TARGET_BREW_TEMP) {
-        return preinfusionState;
+        return &preinfusionState;
       }
       if (userInputState.state == LONG_PRESS) {
-        return helloState;
+        return &helloState;
       }
       break;
 
     case PREINFUSION :
 
       if(scaleState.measuredWeight - scaleState.tareWeight > PREINFUSION_WEIGHT_THRESHOLD_GRAMS) {
-        return brewingState;
+        return &brewingState;
       }
       if (userInputState.state == LONG_PRESS) {
-        return helloState;
+        return &helloState;
       }
       break;
 
@@ -216,87 +217,87 @@ GaggiaState getNextGaggiaState() {
 
       if ((scaleState.measuredWeight - scaleState.tareWeight) >= 
             scaleState.targetWeight) {
-        return doneBrewingState;
+        return &doneBrewingState;
       }
       if (userInputState.state == LONG_PRESS) {
-        return helloState;
+        return &helloState;
       }
       break;
 
     case DONE_BREWING :
 
-      if ((millis() - currentGaggiaState.stateEnterTimeMillis) > 
+      if ((millis() - currentGaggiaState->stateEnterTimeMillis) > 
              DONE_BREWING_LINGER_TIME_SECONDS * 1000) {        
-        return heatingToSteamState;
+        return &heatingToSteamState;
       }
 
       if (userInputState.state == LONG_PRESS) {
-        return helloState;
+        return &helloState;
       }
       break;
 
     case HEATING_TO_STEAM :
 
       if (heaterState.measuredTemp >= TARGET_STEAM_TEMP) {
-        return steamingState;
+        return &steamingState;
       }
       if (userInputState.state == LONG_PRESS) {
-        return helloState;
+        return &helloState;
       }
       break;
 
     case STEAMING :
 
       if (userInputState.state == SHORT_PRESS) {
-        return helloState;
+        return &helloState;
       }
       if (userInputState.state == LONG_PRESS) {
-        return helloState;
+        return &helloState;
       }
       break;
       
     case HEATING_TO_DISPENSE :
 
       if (heaterState.measuredTemp >= TARGET_HOT_WATER_DISPENSE_TEMP) {
-        return dispenseHotWaterState;
+        return &dispenseHotWaterState;
       }
      
       if (userInputState.state == LONG_PRESS) {
-        return helloState;
+        return &helloState;
       }
       break; 
 
     case DISPENSE_HOT_WATER :
 
       if (userInputState.state == SHORT_PRESS) {
-        return helloState;
+        return &helloState;
       }
       if (userInputState.state == LONG_PRESS) {
-        return helloState;
+        return &helloState;
       }
       break;
      
     case COOL_START :
 
       if (userInputState.state == SHORT_PRESS) {
-        return coolingState;
+        return &coolingState;
       }
       if (userInputState.state == LONG_PRESS) {
-        return helloState;
+        return &helloState;
       }
       break;
 
     case COOLING :
 
       if (userInputState.state == SHORT_PRESS) {
-        return coolDoneState;
+        return &coolDoneState;
       }
 
       if (heaterState.measuredTemp < TARGET_BREW_TEMP) {
-        return coolDoneState;
+        return &coolDoneState;
       }
       if (userInputState.state == LONG_PRESS) {
-        return helloState;
+        return &helloState;
       }
       break;
 
@@ -304,44 +305,44 @@ GaggiaState getNextGaggiaState() {
 
       if (userInputState.state == SHORT_PRESS) {
         if (heaterState.measuredTemp >= TARGET_BREW_TEMP) {
-          return coolStartState;
+          return &coolStartState;
         } else {
-          return helloState;
+          return &helloState;
         }
       }
       if (userInputState.state == LONG_PRESS) {
-        return helloState;
+        return &helloState;
       }
       break;  
   
     case CLEAN_OPTIONS :
 
       if (userInputState.state == SHORT_PRESS) {
-        return backflushCycle1State;
+        return &backflushCycle1State;
       }
       if (userInputState.state == LONG_PRESS) {
-          return groupClean1State;
+          return &groupClean1State;
       }
       break;  
 
     case GROUP_CLEAN_1 :
 
       if (heaterState.measuredTemp >= TARGET_HOT_WATER_DISPENSE_TEMP) {
-        return groupClean2State;
+        return &groupClean2State;
       }
 
       if (userInputState.state == LONG_PRESS) {
-        return helloState;
+        return &helloState;
       }
       break; 
   
     case GROUP_CLEAN_2 :
 
       if (userInputState.state == SHORT_PRESS) {
-          return groupClean3State;
+          return &groupClean3State;
       }
       if (userInputState.state == LONG_PRESS) {
-        return helloState;
+        return &helloState;
       }
       break;  
   
@@ -349,10 +350,10 @@ GaggiaState getNextGaggiaState() {
       case GROUP_CLEAN_3 :
 
       if (userInputState.state == SHORT_PRESS) {
-          return helloState;
+          return &helloState;
       }
       if (userInputState.state == LONG_PRESS) {
-        return helloState;
+        return &helloState;
       }
       break; 
   
@@ -360,66 +361,66 @@ GaggiaState getNextGaggiaState() {
     case BACKFLUSH_INSTRUCTION_1 :
 
       if (userInputState.state == SHORT_PRESS) {
-        return backflushInstructions2State;
+        return &backflushInstructions2State;
       }
      
       if (userInputState.state == LONG_PRESS) {
-        return helloState;
+        return &helloState;
       }
       break;
 
     case BACKFLUSH_INSTRUCTION_2 :
 
       if (userInputState.state == SHORT_PRESS) {
-        return backflushCycle1State;
+        return &backflushCycle1State;
       }
      
       if (userInputState.state == LONG_PRESS) {
-        return helloState;
+        return &helloState;
       }
       break;
 
     case BACKFLUSH_CYCLE_1 :
 
-      if (currentGaggiaState.counter == currentGaggiaState.targetCounter-1) {
-        return backflushInstructions3State;
+      if (currentGaggiaState->counter == currentGaggiaState->targetCounter-1) {
+        return &backflushInstructions3State;
       }
      
       if (userInputState.state == LONG_PRESS) {
-        return helloState;
+        return &helloState;
       }
       break;
 
     case BACKFLUSH_INSTRUCTION_3 :
 
       if (userInputState.state == SHORT_PRESS) {
-        return backflushCycle2State;
+        return &backflushCycle2State;
       }
      
       if (userInputState.state == LONG_PRESS) {
-        return helloState;
+        return &helloState;
       }
       break;
 
     case BACKFLUSH_CYCLE_2 :
 
-      if (currentGaggiaState.counter == currentGaggiaState.targetCounter-1) {
-        return backflushCycleDoneState;
+      if (currentGaggiaState->counter == currentGaggiaState->targetCounter-1) {
+        return &backflushCycleDoneState;
       }
      
       if (userInputState.state == LONG_PRESS) {
-        return helloState;
+        return &helloState;
       }
       break;
   
       case BACKFLUSH_CYCLE_DONE :
 
       if (userInputState.state == SHORT_PRESS) {
-        return helloState;
+        return &helloState;
       }
      
       if (userInputState.state == LONG_PRESS) {
-        return helloState;
+        return &helloState;
       }
       break;
   
@@ -427,7 +428,7 @@ GaggiaState getNextGaggiaState() {
 
   if ((millis() - userInputState.lastUserInteractionTimeMillis) > 
     RETURN_TO_HOME_INACTIVITY_MINUTES * 60 * 1000) {
-        return helloState;
+        return &helloState;
   }
 
   return currentGaggiaState;
@@ -488,8 +489,8 @@ String updateDisplayLine(char *message,
                 // targetCounter/2 total clean passes.
                 lineToDisplay = decodeLongMessageIfNecessary(message,
                                                              "{currentPass}/{targetPass}",
-                                                             (currentGaggiaState.counter/2)+1,
-                                                             (currentGaggiaState.targetCounter)/2,
+                                                             (currentGaggiaState->counter/2)+1,
+                                                             (currentGaggiaState->targetCounter)/2,
                                                              " pass");
                 if (lineToDisplay == "") {
                   // One count consists of both the clean and rest... so we only have
@@ -509,7 +510,7 @@ String updateDisplayLine(char *message,
                       if (lineToDisplay == "") {
                       lineToDisplay = decodeLongMessageIfNecessary(message,
                                                                  "{elapsedTimeSeconds}",
-                                                                 (millis() - currentGaggiaState.stateEnterTimeMillis)/1000,
+                                                                 (millis() - currentGaggiaState->stateEnterTimeMillis)/1000,
                                                                  0,
                                                                  " seconds");
                       }
@@ -517,7 +518,7 @@ String updateDisplayLine(char *message,
                             double preinfusionTimeSeconds = (preinfusionState.stateExitTimeMillis - preinfusionState.stateEnterTimeMillis)/1000.0;
                             double brewTimeSeconds = (brewingState.stateExitTimeMillis - brewingState.stateEnterTimeMillis)/1000.0;
                           
-                            Log.error("****" + String(preinfusionState.stateExitTimeMillis) + "," + String(preinfusionState.stateEnterTimeMillis));
+                            Log.error("****" + String(preinfusionTimeSeconds) + "," + String(brewTimeSeconds));
 
                             lineToDisplay = decodeLongMessageIfNecessary(message,
                                                                  "{extractionTimes}",
@@ -615,19 +616,19 @@ void processCurrentGaggiaState() {
   // 
   // Process Display
   //
-  displayState.display1 = updateDisplayLine(currentGaggiaState.display1, 
+  displayState.display1 = updateDisplayLine(currentGaggiaState->display1, 
                                              1, 
                                              displayState.display1);
 
-  displayState.display2 = updateDisplayLine(currentGaggiaState.display2, 
+  displayState.display2 = updateDisplayLine(currentGaggiaState->display2, 
                                              2, 
                                              displayState.display2);
 
-  displayState.display3 = updateDisplayLine(currentGaggiaState.display3, 
+  displayState.display3 = updateDisplayLine(currentGaggiaState->display3, 
                                              3, 
                                              displayState.display3);
 
-  displayState.display4 = updateDisplayLine(currentGaggiaState.display4, 
+  displayState.display4 = updateDisplayLine(currentGaggiaState->display4, 
                                              4, 
                                              displayState.display4);
 
@@ -638,7 +639,7 @@ void processCurrentGaggiaState() {
   // Even though a heater may be 'on' during this state, the control system
   // for the heater turns it off and on intermittently in an attempt to regulate
   // the temperature around the target temp.
-  if (currentGaggiaState.brewHeaterOn) {
+  if (currentGaggiaState->brewHeaterOn) {
     readBrewHeaterState();  
 
     if (shouldTurnOnHeater()) {
@@ -647,7 +648,7 @@ void processCurrentGaggiaState() {
       turnHeaterOff();
     } 
   }
-  if (currentGaggiaState.steamHeaterOn) {
+  if (currentGaggiaState->steamHeaterOn) {
     readSteamHeaterState(); 
 
     if (shouldTurnOnHeater()) {
@@ -656,7 +657,7 @@ void processCurrentGaggiaState() {
       turnHeaterOff();
     } 
   }
-  if (currentGaggiaState.hotWaterDispenseHeaterOn) {
+  if (currentGaggiaState->hotWaterDispenseHeaterOn) {
     readSteamHeaterState(); 
 
     if (shouldTurnOnHeater()) {
@@ -665,11 +666,11 @@ void processCurrentGaggiaState() {
       turnHeaterOff();
     } 
   }
-  if (!currentGaggiaState.brewHeaterOn && !currentGaggiaState.steamHeaterOn && !currentGaggiaState.hotWaterDispenseHeaterOn) {
+  if (!currentGaggiaState->brewHeaterOn && !currentGaggiaState->steamHeaterOn && !currentGaggiaState->hotWaterDispenseHeaterOn) {
       turnHeaterOff();
   }
 
-  if (currentGaggiaState.fillingReservoir) {
+  if (currentGaggiaState->fillingReservoir) {
 
     if (doesWaterReservoirNeedFilling()) {
       waterReservoirState.isSolenoidOn = true;
@@ -683,17 +684,17 @@ void processCurrentGaggiaState() {
     turnWaterReservoirSolenoidOff();
   }
 
-  if (currentGaggiaState.measureTemp) {
+  if (currentGaggiaState->measureTemp) {
     readBrewHeaterState();
   }
 
-  if (currentGaggiaState.waterThroughGroupHead || currentGaggiaState.waterThroughWand) {
-    if (currentGaggiaState.state == BACKFLUSH_CYCLE_1 || currentGaggiaState.state == BACKFLUSH_CYCLE_2) {
+  if (currentGaggiaState->waterThroughGroupHead || currentGaggiaState->waterThroughWand) {
+    if (currentGaggiaState->state == BACKFLUSH_CYCLE_1 || currentGaggiaState->state == BACKFLUSH_CYCLE_2) {
       // whether or not we dispense water depends on where we are in the clean cycle...      
 
-      currentGaggiaState.targetCounter = NUMBER_OF_CLEAN_CYCLES;
+      currentGaggiaState->targetCounter = NUMBER_OF_CLEAN_CYCLES;
 
-      if (currentGaggiaState.counter % 2 == 0) { // 0, and even counts 0, 2, 4...
+      if (currentGaggiaState->counter % 2 == 0) { // 0, and even counts 0, 2, 4...
         // we dispense water.. this fills portafilter with pressured hot water...
         startDispensingWater(true); // going through grouphead
       } else { // odd counts 1,3,5...
@@ -702,28 +703,28 @@ void processCurrentGaggiaState() {
       }
   
       // when we first enter state, stopTimeMillis is -1, so this condition is true
-      if (nowTimeMillis > currentGaggiaState.stopTimeMillis) {
+      if (nowTimeMillis > currentGaggiaState->stopTimeMillis) {
                 
         // when we first enter this state, counter is -1, so it gets bumped to 0.
-        currentGaggiaState.counter = currentGaggiaState.counter + 1; 
+        currentGaggiaState->counter = currentGaggiaState->counter + 1; 
         
         // start new cleaning cycle
         double timeMultiplier = 1;
-        if (currentGaggiaState.counter % 2 != 0) {
+        if (currentGaggiaState->counter % 2 != 0) {
           // odd, or off, cycles should be shorter
           timeMultiplier = .2;
         }
-        currentGaggiaState.stopTimeMillis = nowTimeMillis + SECONDS_PER_CLEAN_CYCLE*timeMultiplier*1000;
+        currentGaggiaState->stopTimeMillis = nowTimeMillis + SECONDS_PER_CLEAN_CYCLE*timeMultiplier*1000;
       }
     } else {
       // normal dispense state
-      startDispensingWater(currentGaggiaState.waterThroughGroupHead);
+      startDispensingWater(currentGaggiaState->waterThroughGroupHead);
     }
   } else {
     stopDispensingWater();
   }
 
-  if (currentGaggiaState.state == IGNORING_NETWORK) {
+  if (currentGaggiaState->state == IGNORING_NETWORK) {
 
     // we do this just incase we spipped network AFTER
     // we achieved a connection.
@@ -732,7 +733,7 @@ void processCurrentGaggiaState() {
     WiFi.off();
   }
 
-  if (currentGaggiaState.state == JOINING_NETWORK) {
+  if (currentGaggiaState->state == JOINING_NETWORK) {
 
     if (WiFi.connecting()) {
       return;
@@ -745,14 +746,14 @@ void processCurrentGaggiaState() {
     }
   }
 
-  if (currentGaggiaState.state == BREWING || currentGaggiaState.state == PREINFUSION) {
+  if (currentGaggiaState->state == BREWING || currentGaggiaState->state == PREINFUSION) {
     if (updateFlowRateMetricIfNecessary()) {
       calculateAndSendTelemetryIfNecessary();
     }
   }
 
   #ifdef AIO_USERNAME
-    if (currentGaggiaState.state == HELLO || currentGaggiaState.state == STARTUP_HELLO) {
+    if (currentGaggiaState->state == HELLO || currentGaggiaState->state == STARTUP_HELLO) {
       // when we enter hello, we disconnect from MQTT broker for telemetry...
       if (networkState.connected) {
         // recall the system returns to hello after 15 minutes of inactivity.
@@ -785,31 +786,31 @@ void processOutgoingGaggiaState() {
   // }
 
   // Process Tare Scale
-  if (currentGaggiaState.tareScale) {
+  if (currentGaggiaState->tareScale) {
     scaleState.tareWeight = scaleState.measuredWeight;
   }
 
   // Process Record Weight 
-  if (currentGaggiaState.recordWeight) {
+  if (currentGaggiaState->recordWeight) {
     scaleState.targetWeight = 
       (scaleState.measuredWeight - scaleState.tareWeight)*BREW_WEIGHT_TO_BEAN_RATIO; 
   }
 
   // This gives our current state one last chance to log any telemetry.
-  if (currentGaggiaState.state == BREWING) {
+  if (currentGaggiaState->state == BREWING) {
     if (updateFlowRateMetricIfNecessary()) {
       calculateAndSendTelemetryIfNecessary();
     }
   }
 
   // Things we always reset when leaving a state...
-  currentGaggiaState.stopTimeMillis = -1;
-  currentGaggiaState.counter = -1;
+  currentGaggiaState->stopTimeMillis = -1;
+  currentGaggiaState->counter = -1;
   nextFlowRateSampleMillis = -1;
 }
 
 String readCurrentState() {
-  return String(currentGaggiaState.state);
+  return String(currentGaggiaState->state);
 }
 
 int setHeatingState(String _) {
@@ -819,22 +820,22 @@ int setHeatingState(String _) {
   scaleState.tareWeight = 320;
   scaleState.targetWeight = 100;
 
-  manualNextGaggiaState = heatingToBrewState;
+  manualNextGaggiaState = &heatingToBrewState;
   return 1;
 }
 
 int setCoolingState(String _) {
-  manualNextGaggiaState = coolingState;
+  manualNextGaggiaState = &coolingState;
   return 1;
 }
 
 int setSteamingState(String _) {
-  manualNextGaggiaState = steamingState;
+  manualNextGaggiaState = &steamingState;
   return 1;
 }
 
 int setHelloState(String _) {
-  manualNextGaggiaState = helloState;
+  manualNextGaggiaState = &helloState;
   return 1;
 }
 
@@ -845,7 +846,7 @@ int setBrewingState(String _) {
   scaleState.tareWeight = 320;
   scaleState.targetWeight = 100;
 
-  manualNextGaggiaState = brewingState;
+  manualNextGaggiaState = &brewingState;
   return 1;
 }
 
@@ -856,12 +857,12 @@ int setPreInfusionState(String _) {
   scaleState.tareWeight = 320;
   scaleState.targetWeight = 100;
 
-  manualNextGaggiaState = preinfusionState;
+  manualNextGaggiaState = &preinfusionState;
   return 1;
 }
 
 int setDispenseHotWater(String _) {
-  manualNextGaggiaState = dispenseHotWaterState;
+  manualNextGaggiaState = &dispenseHotWaterState;
   return 1;
 }
 
@@ -1141,6 +1142,6 @@ void stateInit() {
 
   naState.state = NA;
 
-  currentGaggiaState = joiningNetwork;
-  manualNextGaggiaState = naState;
+  currentGaggiaState = &joiningNetwork;
+  manualNextGaggiaState = &naState;
 }

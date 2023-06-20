@@ -93,9 +93,9 @@ void loop() {
 
   // Determine next Gaggia state based on inputs and current state ...
   // (e.g. move to 'Done Brewing' state once target weight is achieved, etc.)
-  GaggiaState nextGaggiaState = getNextGaggiaState();
+  GaggiaState* nextGaggiaState = getNextGaggiaState();
 
-  if (first || nextGaggiaState.state != currentGaggiaState.state) {
+  if (first || nextGaggiaState->state != currentGaggiaState->state) {
 
     // Perform actions given current Gaggia state and input ...
     // This step does also mutate current state
@@ -105,10 +105,10 @@ void loop() {
     processOutgoingGaggiaState();
   
       // Things we do when we enter a state
-    processIncomingGaggiaState(&nextGaggiaState);
+    processIncomingGaggiaState(nextGaggiaState);
   
-    nextGaggiaState.stateEnterTimeMillis = millis();
-    currentGaggiaState.stateExitTimeMillis = millis();
+    nextGaggiaState->stateEnterTimeMillis = millis();
+    currentGaggiaState->stateExitTimeMillis = millis();
   }
 
   currentGaggiaState = nextGaggiaState;

@@ -11,8 +11,6 @@
 #include "UserInput.h"
 #include "Display.h"
 
-extern GaggiaState manualNextGaggiaState;
-
 extern GaggiaState  helloState,
                     startupHelloState,
                     featuresState,
@@ -45,12 +43,13 @@ extern GaggiaState  helloState,
                     backflushCycleDoneState,
                     joiningNetwork,
                     ignoringNetwork,
-                    naState,
+                    naState;
 
-                    currentGaggiaState;
+extern GaggiaState* manualNextGaggiaState;
+extern GaggiaState* currentGaggiaState;
 
 // Using all current state, we derive the next state of the system
-GaggiaState getNextGaggiaState();
+GaggiaState* getNextGaggiaState();
 
 // Once we know the state, we affect appropriate change in our
 // system attributes (e.g. temp, display)
@@ -61,7 +60,7 @@ void processCurrentGaggiaState();
 void processOutgoingGaggiaState();
 
 // Things we do when we enter a state
-void processIncomingGaggiaState(GaggiaState *nextGaggiaState);
+void processIncomingGaggiaState(GaggiaState* nextGaggiaState);
 
 void stateInit();
 

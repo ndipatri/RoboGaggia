@@ -17,7 +17,7 @@ void calculateAndSendTelemetryIfNecessary() {
                               String(pressure_PID_kP) + ":" +
                               String(pressure_PID_kI) + ":" +
                               String(pressure_PID_kD) + ")";
-    telemetry.stateName = getStateName(currentGaggiaState.state);
+    telemetry.stateName = getStateName(currentGaggiaState->state);
     telemetry.measuredWeightGrams = abs(scaleState.measuredWeight - scaleState.tareWeight);
     telemetry.measuredPressureBars = waterPumpState.measuredPressureInBars;
     telemetry.pumpDutyCycle = waterPumpState.pumpDutyCycle;
@@ -49,7 +49,7 @@ void calculateAndSendTelemetryIfNecessary() {
 
         Telemetry averageTelemetry;
           // will use last value
-        averageTelemetry.stateName = getStateName(currentGaggiaState.state);
+        averageTelemetry.stateName = getStateName(currentGaggiaState->state);
         averageTelemetry.measuredWeightGrams = weightSum/TELEMETRY_SEND_INTERVAL;
         averageTelemetry.measuredPressureBars = barsSum/TELEMETRY_SEND_INTERVAL;
         averageTelemetry.pumpDutyCycle = dutyCycleSum/TELEMETRY_SEND_INTERVAL;
