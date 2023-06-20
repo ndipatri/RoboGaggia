@@ -24,10 +24,10 @@ void calculateAndSendTelemetryIfNecessary() {
     telemetry.flowRateGPS = waterPumpState.flowRateGPS;
     telemetry.brewTempC = heaterState.measuredTemp;
 
-    Log.error(String(telemetry.measuredWeightGrams) + "," +
-      String(telemetry.measuredPressureBars) + "," +
-      String(telemetry.pumpDutyCycle) + "," +
-      String(telemetry.flowRateGPS));
+    // Log.error(String(telemetry.measuredWeightGrams) + "," +
+    //   String(telemetry.measuredPressureBars) + "," +
+    //   String(telemetry.pumpDutyCycle) + "," +
+    //   String(telemetry.flowRateGPS));
   
     // build up a queue...
     telemetryHistory.push_back(telemetry);

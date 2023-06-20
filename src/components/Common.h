@@ -41,15 +41,13 @@ enum GaggiaStateEnum {
   NA // indicates developer is NOT explicitly setting a test state through web interface
 };
 
+// Specific details about the particular state we are in.  
 struct GaggiaState {
    int state;   
    char *display1 = "";
    char *display2 = "";
    char *display3 = "";
    char *display4 = "";
-   
-   // NJD TODO - do we need this anymore?
-   boolean waterReservoirSolenoidOn = false;
    
    // ************
    // WARNING: this cannot be done at the same time (or even in an adjacent state)
@@ -66,13 +64,14 @@ struct GaggiaState {
    boolean  waterThroughWand = false;
    boolean  recordWeight = false;
 
-   float stateEnterTimeMillis = -1;
+   long stateEnterTimeMillis = -1;
+   long stateExitTimeMillis = -1;
    
    // an arbitrary timer that can be used to schedule
-   // future events.
+   // future events within a state.
    float stopTimeMillis = -1;
 
-   // An arbitrary counter that can be used
+   // An arbitrary counter that can be used within a state.
    int counter = -1;
    int targetCounter = -1;
 };

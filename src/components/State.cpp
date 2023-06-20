@@ -88,21 +88,6 @@ GaggiaState getNextGaggiaState() {
       break;
 
     case HELLO :
-
-      // We have to give the scale long enough to tare proper weight
-      if (userInputState.state == SHORT_PRESS) {
-        if (heaterState.measuredTemp >= TARGET_BREW_TEMP * 1.20) {
-          return coolStartState;
-        } else {
-          return tareCup1State;
-        }
-      }
-
-      if (userInputState.state == LONG_PRESS) {
-        return featuresState;
-      }
-      break;
-
     case STARTUP_HELLO :
 
       // We have to give the scale long enough to tare proper weight
@@ -520,6 +505,26 @@ String updateDisplayLine(char *message,
                                                                  heaterState.measuredTemp,
                                                                  TARGET_HOT_WATER_DISPENSE_TEMP,
                                                                  " degrees C");
+                  
+                      if (lineToDisplay == "") {
+                      lineToDisplay = decodeLongMessageIfNecessary(message,
+                                                                 "{elapsedTimeSeconds}",
+                                                                 (millis() - currentGaggiaState.stateEnterTimeMillis)/1000,
+                                                                 0,
+                                                                 " seconds");
+                      }
+                          if (lineToDisplay == "") {
+                            double preinfusionTimeSeconds = (preinfusionState.stateExitTimeMillis - preinfusionState.stateEnterTimeMillis)/1000.0;
+                            double brewTimeSeconds = (brewingState.stateExitTimeMillis - brewingState.stateEnterTimeMillis)/1000.0;
+                          
+                            Log.error("****" + String(preinfusionState.stateExitTimeMillis) + "," + String(preinfusionState.stateEnterTimeMillis));
+
+                            lineToDisplay = decodeLongMessageIfNecessary(message,
+                                                                 "{extractionTimes}",
+                                                                 preinfusionTimeSeconds,
+                                                                 brewTimeSeconds,
+                                                                 " seconds");
+                       } 
                   }
                 }
               }   
@@ -950,24 +955,24 @@ void stateInit() {
 
   heatingToBrewState.state = HEATING_TO_BREW; 
   heatingToBrewState.display1 =    "Heating to brew.    ";
-  heatingToBrewState.display2 =    "Leave cup on tray.  ";
-  heatingToBrewState.display3 =    "{measuredBrewTemp}/{targetBrewTemp}";
+  heatingToBrewState.display2 =    "{measuredBrewTemp}/{targetBrewTemp}";
+  heatingToBrewState.display3 =    "                    ";
   heatingToBrewState.display4 =    "Please wait ...     ";
   heatingToBrewState.brewHeaterOn = true; 
 
   preinfusionState.state = PREINFUSION; 
-  preinfusionState.display1 =          "Infusing coffee.    ";
-  preinfusionState.display2 =          "{measuredBars}/{targetBars}";
-  preinfusionState.display3 =          "                    ";
-  preinfusionState.display4 =          "Please wait ...     ";
+  preinfusionState.display1 =      "Infusing coffee.    ";
+  preinfusionState.display2 =      "{measuredBars}/{targetBars}";
+  preinfusionState.display3 =      "                    ";
+  preinfusionState.display4 =      "{elapsedTimeSeconds}";
   preinfusionState.waterThroughGroupHead = true; 
   preinfusionState.brewHeaterOn = true; 
 
   brewingState.state = BREWING; 
   brewingState.display1 =          "Brewing.            ";
-  brewingState.display2 =          "{adjustedWeight}/{targetBrewWeight}";
-  brewingState.display3 =          "{measuredBars}/{targetBars}";
-  brewingState.display4 =          "{pumpDutyCycle}/{maxDutyCycle}";
+  brewingState.display2 =          "{measuredBars}/{targetBars}";
+  brewingState.display3 =          "{adjustedWeight}/{targetBrewWeight}";
+  brewingState.display4 =          "{elapsedTimeSeconds}";
   brewingState.brewHeaterOn = true; 
   brewingState.waterThroughGroupHead = true; 
 
@@ -988,7 +993,7 @@ void stateInit() {
 
   doneBrewingState.state = DONE_BREWING; 
   doneBrewingState.display1 =     "Done brewing.       ";
-  doneBrewingState.display2 =     "                    ";
+  doneBrewingState.display2 =     "{extractionTimes}";
   doneBrewingState.display3 =     "Remove cup.         ";
   doneBrewingState.display4 =     "Please wait ...     ";
   doneBrewingState.brewHeaterOn = true; 

@@ -108,6 +108,7 @@ void loop() {
     processIncomingGaggiaState(&nextGaggiaState);
   
     nextGaggiaState.stateEnterTimeMillis = millis();
+    currentGaggiaState.stateExitTimeMillis = millis();
   }
 
   currentGaggiaState = nextGaggiaState;
