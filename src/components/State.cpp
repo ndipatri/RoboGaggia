@@ -2,8 +2,8 @@
 
 #include <Qwiic_Scale_NAU7802_Arduino_Library.h>
 
-GaggiaState helloState,
-            startupHelloState,
+GaggiaState sleepState,
+            preheatState,
             featuresState,
             wandFeaturesState,
             tareCup1State,
@@ -71,7 +71,7 @@ GaggiaState* getNextGaggiaState() {
     case IGNORING_NETWORK :
 
       if (WiFi.isOff()) {
-        return &startupHelloState;
+        return &preheatState;
       }
 
       break;
@@ -79,7 +79,7 @@ GaggiaState* getNextGaggiaState() {
     case JOINING_NETWORK :
 
       if (networkState.connected) {
-        return &startupHelloState;
+        return &preheatState;
       }
       
       if (userInputState.state == SHORT_PRESS || userInputState.state == LONG_PRESS) {
@@ -88,8 +88,18 @@ GaggiaState* getNextGaggiaState() {
 
       break;
 
-    case HELLO :
-    case STARTUP_HELLO :
+    case SLEEP :
+
+      if (userInputState.state == SHORT_PRESS) {
+        return &preheatState;
+      }
+     
+      if (userInputState.state == LONG_PRESS) {
+        return &preheatState;
+      }
+      break; 
+
+    case PREHEAT :
 
       // We have to give the scale long enough to tare proper weight
       if (userInputState.state == SHORT_PRESS) {
@@ -134,7 +144,7 @@ GaggiaState* getNextGaggiaState() {
       }
      
       if (userInputState.state == LONG_PRESS) {
-        return &helloState;
+        return &preheatState;
       }
       break;   
 
@@ -146,7 +156,7 @@ GaggiaState* getNextGaggiaState() {
       }     
      
       if (userInputState.state == LONG_PRESS) {
-        return &helloState;
+        return &preheatState;
       }
       break;   
 
@@ -157,7 +167,7 @@ GaggiaState* getNextGaggiaState() {
       }
      
       if (userInputState.state == LONG_PRESS) {
-        return &helloState;
+        return &preheatState;
       }
       break;   
 
@@ -169,7 +179,7 @@ GaggiaState* getNextGaggiaState() {
       }
      
       if (userInputState.state == LONG_PRESS) {
-        return &helloState;
+        return &preheatState;
       }
       break;
 
@@ -179,7 +189,7 @@ GaggiaState* getNextGaggiaState() {
         return &tareCup2State;
       }
       if (userInputState.state == LONG_PRESS) {
-        return &helloState;
+        return &preheatState;
       }
       break;  
 
@@ -189,7 +199,7 @@ GaggiaState* getNextGaggiaState() {
         return &heatingToBrewState;
       }
       if (userInputState.state == LONG_PRESS) {
-        return &helloState;
+        return &preheatState;
       }
       break;
 
@@ -199,7 +209,7 @@ GaggiaState* getNextGaggiaState() {
         return &preinfusionState;
       }
       if (userInputState.state == LONG_PRESS) {
-        return &helloState;
+        return &preheatState;
       }
       break;
 
@@ -209,7 +219,7 @@ GaggiaState* getNextGaggiaState() {
         return &brewingState;
       }
       if (userInputState.state == LONG_PRESS) {
-        return &helloState;
+        return &preheatState;
       }
       break;
 
@@ -220,7 +230,7 @@ GaggiaState* getNextGaggiaState() {
         return &doneBrewingState;
       }
       if (userInputState.state == LONG_PRESS) {
-        return &helloState;
+        return &preheatState;
       }
       break;
 
@@ -232,7 +242,7 @@ GaggiaState* getNextGaggiaState() {
       }
 
       if (userInputState.state == LONG_PRESS) {
-        return &helloState;
+        return &preheatState;
       }
       break;
 
@@ -242,17 +252,17 @@ GaggiaState* getNextGaggiaState() {
         return &steamingState;
       }
       if (userInputState.state == LONG_PRESS) {
-        return &helloState;
+        return &preheatState;
       }
       break;
 
     case STEAMING :
 
       if (userInputState.state == SHORT_PRESS) {
-        return &helloState;
+        return &preheatState;
       }
       if (userInputState.state == LONG_PRESS) {
-        return &helloState;
+        return &preheatState;
       }
       break;
       
@@ -263,17 +273,17 @@ GaggiaState* getNextGaggiaState() {
       }
      
       if (userInputState.state == LONG_PRESS) {
-        return &helloState;
+        return &preheatState;
       }
       break; 
 
     case DISPENSE_HOT_WATER :
 
       if (userInputState.state == SHORT_PRESS) {
-        return &helloState;
+        return &preheatState;
       }
       if (userInputState.state == LONG_PRESS) {
-        return &helloState;
+        return &preheatState;
       }
       break;
      
@@ -283,7 +293,7 @@ GaggiaState* getNextGaggiaState() {
         return &coolingState;
       }
       if (userInputState.state == LONG_PRESS) {
-        return &helloState;
+        return &preheatState;
       }
       break;
 
@@ -297,7 +307,7 @@ GaggiaState* getNextGaggiaState() {
         return &coolDoneState;
       }
       if (userInputState.state == LONG_PRESS) {
-        return &helloState;
+        return &preheatState;
       }
       break;
 
@@ -307,11 +317,11 @@ GaggiaState* getNextGaggiaState() {
         if (heaterState.measuredTemp >= TARGET_BREW_TEMP) {
           return &coolStartState;
         } else {
-          return &helloState;
+          return &preheatState;
         }
       }
       if (userInputState.state == LONG_PRESS) {
-        return &helloState;
+        return &preheatState;
       }
       break;  
   
@@ -332,7 +342,7 @@ GaggiaState* getNextGaggiaState() {
       }
 
       if (userInputState.state == LONG_PRESS) {
-        return &helloState;
+        return &preheatState;
       }
       break; 
   
@@ -342,7 +352,7 @@ GaggiaState* getNextGaggiaState() {
           return &groupClean3State;
       }
       if (userInputState.state == LONG_PRESS) {
-        return &helloState;
+        return &preheatState;
       }
       break;  
   
@@ -350,10 +360,10 @@ GaggiaState* getNextGaggiaState() {
       case GROUP_CLEAN_3 :
 
       if (userInputState.state == SHORT_PRESS) {
-          return &helloState;
+          return &preheatState;
       }
       if (userInputState.state == LONG_PRESS) {
-        return &helloState;
+        return &preheatState;
       }
       break; 
   
@@ -365,7 +375,7 @@ GaggiaState* getNextGaggiaState() {
       }
      
       if (userInputState.state == LONG_PRESS) {
-        return &helloState;
+        return &preheatState;
       }
       break;
 
@@ -376,7 +386,7 @@ GaggiaState* getNextGaggiaState() {
       }
      
       if (userInputState.state == LONG_PRESS) {
-        return &helloState;
+        return &preheatState;
       }
       break;
 
@@ -387,7 +397,7 @@ GaggiaState* getNextGaggiaState() {
       }
      
       if (userInputState.state == LONG_PRESS) {
-        return &helloState;
+        return &preheatState;
       }
       break;
 
@@ -398,7 +408,7 @@ GaggiaState* getNextGaggiaState() {
       }
      
       if (userInputState.state == LONG_PRESS) {
-        return &helloState;
+        return &preheatState;
       }
       break;
 
@@ -409,26 +419,27 @@ GaggiaState* getNextGaggiaState() {
       }
      
       if (userInputState.state == LONG_PRESS) {
-        return &helloState;
+        return &preheatState;
       }
       break;
   
       case BACKFLUSH_CYCLE_DONE :
 
       if (userInputState.state == SHORT_PRESS) {
-        return &helloState;
+        return &preheatState;
       }
      
       if (userInputState.state == LONG_PRESS) {
-        return &helloState;
+        return &preheatState;
       }
       break;
   
   } 
 
+  // Here we decide to put the system in standby with no heater
   if ((millis() - userInputState.lastUserInteractionTimeMillis) > 
     RETURN_TO_HOME_INACTIVITY_MINUTES * 60 * 1000) {
-        return &helloState;
+        return &sleepState;
   }
 
   return currentGaggiaState;
@@ -558,8 +569,8 @@ String updateDisplayLine(char *message,
 
 char* getStateName(int stateEnum) {
    switch (stateEnum) {
-    case HELLO: return "hello";
-    case STARTUP_HELLO: return "startupHello";
+    case SLEEP: return "sleep";
+    case PREHEAT: return "preheat";
     case FEATURES: return "features";
     case WAND_FEATURES: return "wandFeatures";
     case TARE_CUP_BEFORE_MEASURE: return "tareCupBeforeMeasure";
@@ -753,8 +764,9 @@ void processCurrentGaggiaState() {
   }
 
   #ifdef AIO_USERNAME
-    if (currentGaggiaState->state == HELLO || currentGaggiaState->state == STARTUP_HELLO) {
-      // when we enter hello, we disconnect from MQTT broker for telemetry...
+    if (currentGaggiaState->state == PREHEAT || 
+        currentGaggiaState->state == SLEEP) {
+      // we disconnect from MQTT broker for telemetry...
       if (networkState.connected) {
         // recall the system returns to hello after 15 minutes of inactivity.
         MQTTDisconnect();
@@ -834,11 +846,6 @@ int setSteamingState(String _) {
   return 1;
 }
 
-int setHelloState(String _) {
-  manualNextGaggiaState = &helloState;
-  return 1;
-}
-
 int setBrewingState(String _) {
   
   // by jumping to this state, we are bypassing earlier states.. so we need to
@@ -876,43 +883,33 @@ void stateInit() {
   Particle.function("setHeatingState", setHeatingState);
   Particle.function("setBrewingState", setBrewingState);
   Particle.function("setSteamingState", setSteamingState);
-  //Particle.function("setCoolingState", setCoolingState);
-  Particle.function("setHelloState", setHelloState);
 
  // Define all possible states of RoboGaggia
-  helloState.state = HELLO;
-  //helloState.state = HELLO; 
-  helloState.display1 =            "Hi.                 ";
-  helloState.display2 =            "Clear scale surface.";
-  helloState.display3 =            "Click to Brew,      ";
-  helloState.display4 =            "Hold for Features   ";
+
+  sleepState.state = SLEEP;
+  sleepState.display1 =            "Hi.                 ";
+  sleepState.display2 =            "I'm sleeping (yawn) ";
+  sleepState.display3 =            " .                  ";
+  sleepState.display4 =            "Click to wake me up ";
   
+  // entry point when first power on if leaving sleep
+  preheatState.state = PREHEAT;
+  preheatState.display1 =            "Hi.                 ";
+  preheatState.display2 =            "Clear scale surface.";
+  preheatState.display3 =            "Click to Brew,      ";
+  preheatState.display4 =            "Hold for Features   ";
+
   // We need to measure temp when leaving to know if we need to
   // do cooling phase first...
-  helloState.measureTemp = true;
+  preheatState.measureTemp = true;
 
   // we don't want to heat here in case the unit was turned on and
   // person walked away for a few days ...
-  helloState.brewHeaterOn = false; 
+  preheatState.brewHeaterOn = true; 
 
   // we tare here so the weight of the scale itself isn't shown
   // when we are measuring things...
-  helloState.tareScale = true; 
-
-  // This is the same as HELLO, except it preheats.. we only
-  // do this when we first power up the Gaggia.. otherwise, the
-  // quiescent 'hello' state is non-heated for safety reasons.
-  startupHelloState.state = STARTUP_HELLO;
-  startupHelloState.display1 =            "Hi.                 ";
-  startupHelloState.display2 =            "Clear scale surface.";
-  startupHelloState.display3 =            "Click to Brew,      ";
-  startupHelloState.display4 =            "Hold for Features   ";
-  startupHelloState.measureTemp = true;
-
-  // this is the only unique thing about the STARTUP_HELLO vs. HELLO
-  startupHelloState.brewHeaterOn = true; 
-
-  startupHelloState.tareScale = true; 
+  preheatState.tareScale = true; 
 
 
   featuresState.state = FEATURES; 

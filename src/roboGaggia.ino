@@ -95,16 +95,13 @@ void loop() {
   // (e.g. move to 'Done Brewing' state once target weight is achieved, etc.)
   GaggiaState* nextGaggiaState = getNextGaggiaState();
 
+  // If a state change has happened
   if (first || nextGaggiaState->state != currentGaggiaState->state) {
-
-    // Perform actions given current Gaggia state and input ...
-    // This step does also mutate current state
-    // (e.g. record weight of beans, tare measuring cup)
 
     // Things we do when we leave a state
     processOutgoingGaggiaState();
   
-      // Things we do when we enter a state
+    // Things we do when we enter a state
     processIncomingGaggiaState(nextGaggiaState);
   
     nextGaggiaState->stateEnterTimeMillis = millis();
@@ -113,7 +110,9 @@ void loop() {
 
   currentGaggiaState = nextGaggiaState;
 
-  // Things we do when we are within a state 
+  // Perform actions given current Gaggia state and input ...
+  // This step does also mutate current state
+  // (e.g. record weight of beans, tare measuring cup)
   processCurrentGaggiaState();
 
   // resume service loop

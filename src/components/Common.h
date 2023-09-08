@@ -5,8 +5,8 @@
 #include "Secrets.h"
 
 enum GaggiaStateEnum {
-  STARTUP_HELLO , 
-  HELLO , 
+  SLEEP,
+  PREHEAT, 
   FEATURES , 
   WAND_FEATURES, 
   TARE_CUP_BEFORE_MEASURE , 

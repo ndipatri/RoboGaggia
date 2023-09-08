@@ -11,8 +11,8 @@
 #include "UserInput.h"
 #include "Display.h"
 
-extern GaggiaState  helloState,
-                    startupHelloState,
+extern GaggiaState  sleepState,
+                    preheatState,
                     featuresState,
                     wandFeaturesState,
                     tareCup1State,
