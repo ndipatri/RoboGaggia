@@ -558,6 +558,13 @@ String updateDisplayLine(char *message,
     }
   }
 
+   if (line == 2) {
+    // inject 'low water' indicator
+    if (doesWaterReservoirNeedFilling()) {
+      lineToDisplay.setCharAt(19, 'W');
+    }
+  }
+
   // This prevents flashing
   if (lineToDisplay != previousLineDisplayed) {
     display.print(lineToDisplay);
