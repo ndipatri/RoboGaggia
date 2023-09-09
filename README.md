@@ -271,6 +271,6 @@ This is a solenoid that auto-fills the RoboGaggia's water reservoir based on fee
 
 I've never been very good at C++, so please forgive this code :-)  I'm somewhat of an experienced software architect, so I do try to follow [SOLID Software Principles](https://en.wikipedia.org/wiki/SOLID) such as single-responsibility, etc.
 
-TODO
+To start understanding this code, begin with the [roboGaggia.ino](https://github.com/ndipatri/RoboGaggia/blob/main/src/roboGaggia.ino) file. This contains the [standard Arduino setup()/loop()](https://www.arduino.cc/en/Guide) configuration.  The [State.cpp](https://github.com/ndipatri/RoboGaggia/blob/main/src/components/State.cpp) file is the next most high-level software component.  It manages the overall state of RoboGaggia.
 
 
