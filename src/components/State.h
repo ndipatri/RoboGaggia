@@ -10,6 +10,8 @@
 #include "WaterReservoir.h"
 #include "UserInput.h"
 #include "Display.h"
+#include "Cleaning.h"
+
 
 extern GaggiaState  sleepState,
                     preheatState,

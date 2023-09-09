@@ -556,10 +556,17 @@ String updateDisplayLine(char *message,
     }
   }
 
-   if (line == 2) {
+  if (line == 2) {
     // inject 'low water' indicator
     if (doesWaterReservoirNeedFilling()) {
       lineToDisplay.setCharAt(19, 'W');
+    }
+  }
+
+  if (line == 3) {
+    // inject 'backflush' indicator
+    if (shouldBackflush()) {
+      lineToDisplay.setCharAt(19, 'B');
     }
   }
 
@@ -818,7 +825,14 @@ void processOutgoingGaggiaState() {
     if (updateFlowRateMetricIfNecessary()) {
       calculateAndSendTelemetryIfNecessary();
     }
+
+    increaseBrewCountForBackflush();
   }
+
+  if (currentGaggiaState->state == BACKFLUSH_CYCLE_DONE) {
+    clearBrewCountForBackflush();
+  }
+
 
   // Things we always reset when leaving a state...
   currentGaggiaState->stopTimeMillis = -1;
