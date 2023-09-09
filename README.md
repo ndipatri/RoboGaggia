@@ -50,12 +50,13 @@ In an attempt to mitigate the above Gaggia short comings, I've implemented the f
 2. Dual PID temperature controllers
 3. PID flow-rate controller that implements Pre-Infusion and a fixed Flow Profile.  
 4. Live flow telemetry sent to Adafruit.IO for flow analytics
-5. Auto-Fill water reservoir
+5. Auto-Fill water reservoir and 'Low Water' indicator.  When the water level is below a certain level, the display will show 'W'.
 6. Auto-Shutoff
 7. Microcontroller-based automated brew process that eliminates the need for the Brew or Steam buttons.
 8. Cool-down feature to assist in cooling down the heater for alternating between brewing and steaming.  This is important for single-boiler machines such as the Gaggia.
-9. Clean feature which automates much of the rather tedious process of backflushing the Gaggia's grouphead with Cafiza cleaner.
-10. All additional electrical features are installed on a separate printed circuit board (PCB) which is attached on the back of the Gaggia.  The designs for this PCB are included in this repo with instructions on how to get the board fabricated.
+9. 'Backflush Recommended' feature that maintains a 'shot count'.  When the shot count exceeds a set limit, the display will show 'B'.  
+10. Backflush feature which automates much of the rather tedious process of backflushing the Gaggia's grouphead with Cafiza cleaner.  When a backflush is performed, the 'shot count' is reset.
+11. All additional electrical features are installed on a separate printed circuit board (PCB) which is attached on the back of the Gaggia.  The designs for this PCB are included in this repo with instructions on how to get the board fabricated.
 
 
 # Disclaimer
