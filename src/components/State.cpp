@@ -529,8 +529,6 @@ String updateDisplayLine(char *message,
                             double preinfusionTimeSeconds = (preinfusionState.stateExitTimeMillis - preinfusionState.stateEnterTimeMillis)/1000.0;
                             double brewTimeSeconds = (brewingState.stateExitTimeMillis - brewingState.stateEnterTimeMillis)/1000.0;
                           
-                            Log.error("****" + String(preinfusionTimeSeconds) + "," + String(brewTimeSeconds));
-
                             lineToDisplay = decodeLongMessageIfNecessary(message,
                                                                  "{extractionTimes}",
                                                                  preinfusionTimeSeconds,
@@ -977,7 +975,7 @@ void stateInit() {
   brewingState.display1 =          "Brewing.            ";
   brewingState.display2 =          "{measuredBars}/{targetBars}";
   brewingState.display3 =          "{adjustedWeight}/{targetBrewWeight}";
-  brewingState.display4 =          "{elapsedTimeSeconds}";
+  brewingState.display4 =          "{extractionTimes}";
   brewingState.brewHeaterOn = true; 
   brewingState.waterThroughGroupHead = true; 
 
