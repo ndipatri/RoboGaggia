@@ -264,3 +264,13 @@ You can visit my [RoboGaggiaAndroid](https://github.com/ndipatri/RoboGaggiaAndro
 ## Water Valve
 
 This is a solenoid that auto-fills the RoboGaggia's water reservoir based on feedback from the water level sensor. If you do not have plumbing available at your RoboGaggia location, you can consider purchasing a [Water Bottle Dispenser Pump System](https://www.amazon.com/Dispenser-Dispensing-Compatible-Dispensers-Refrigerators/dp/B07QZJXPX1/ref=sr_1_31?crid=3JOVGUGUE7Y0I&keywords=water+sending+unit+coffee+machine&qid=1693234504&sprefix=water+sending+unit+coffee+machine%2Caps%2C106&sr=8-31&ufe=app_do%3Aamzn1.fos.006c50ae-5d4c-4777-9bc0-4513d670b6bc).  This is a standard five gallons of filtered water with a small pump that provides pressure equivalent to that in standard residential plumbing.  You can attach the output of this pump system to the water valve in the RoboGaggia.
+
+
+
+## Software Architecture
+
+I've never been very good at C++, so please forgive this code :-)  I'm somewhat of an experienced software architect, so I do try to follow [SOLID Software Principles](https://en.wikipedia.org/wiki/SOLID) such as single-responsibility, etc.
+
+TODO
+
+
