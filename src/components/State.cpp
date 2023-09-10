@@ -527,14 +527,23 @@ String updateDisplayLine(char *message,
                       }
                           if (lineToDisplay == "") {
                             double preinfusionTimeSeconds = (preinfusionState.stateExitTimeMillis - preinfusionState.stateEnterTimeMillis)/1000.0;
-                            double brewTimeSeconds = (brewingState.stateExitTimeMillis - brewingState.stateEnterTimeMillis)/1000.0;
                           
                             lineToDisplay = decodeLongMessageIfNecessary(message,
+                                                                 "{liveExtractionTimes}",
+                                                                 preinfusionTimeSeconds,
+                                                                 (millis() - currentGaggiaState->stateEnterTimeMillis)/1000,
+                                                                 " seconds");
+                          } 
+                              if (lineToDisplay == "") {
+                                double preinfusionTimeSeconds = (preinfusionState.stateExitTimeMillis - preinfusionState.stateEnterTimeMillis)/1000.0;
+                                double brewTimeSeconds = (brewingState.stateExitTimeMillis - brewingState.stateEnterTimeMillis)/1000.0;
+                          
+                                lineToDisplay = decodeLongMessageIfNecessary(message,
                                                                  "{extractionTimes}",
                                                                  preinfusionTimeSeconds,
                                                                  brewTimeSeconds,
                                                                  " seconds");
-                       } 
+                              } 
                   }
                 }
               }   
@@ -553,20 +562,6 @@ String updateDisplayLine(char *message,
     // inject 'heating' indicator
     if (isHeaterOn()) {
       lineToDisplay.setCharAt(19, '*');
-    }
-  }
-
-  if (line == 2) {
-    // inject 'low water' indicator
-    if (doesWaterReservoirNeedFilling()) {
-      lineToDisplay.setCharAt(19, 'W');
-    }
-  }
-
-  if (line == 3) {
-    // inject 'backflush' indicator
-    if (shouldBackflush()) {
-      lineToDisplay.setCharAt(19, 'B');
     }
   }
 
@@ -908,10 +903,10 @@ void stateInit() {
   sleepState.state = SLEEP;
   sleepState.display1 =            "Hi.                 ";
   sleepState.display2 =            "I'm sleeping (yawn) ";
-  sleepState.display3 =            " .                  ";
+  sleepState.display3 =            "                    ";
   sleepState.display4 =            "Click to wake me up ";
   
-  // entry point when first power on if leaving sleep
+  // entry point when first power or if leaving sleep
   preheatState.state = PREHEAT;
   preheatState.display1 =            "Hi.                 ";
   preheatState.display2 =            "Clear scale surface.";
@@ -989,7 +984,7 @@ void stateInit() {
   brewingState.display1 =          "Brewing.            ";
   brewingState.display2 =          "{measuredBars}/{targetBars}";
   brewingState.display3 =          "{adjustedWeight}/{targetBrewWeight}";
-  brewingState.display4 =          "{extractionTimes}";
+  brewingState.display4 =          "{liveExtractionTimes}";
   brewingState.brewHeaterOn = true; 
   brewingState.waterThroughGroupHead = true; 
 
