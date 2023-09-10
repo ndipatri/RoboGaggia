@@ -445,6 +445,8 @@ GaggiaState* getNextGaggiaState() {
   return currentGaggiaState;
 }  
 
+// this is possibly the stupidest function i've ever written in my life...
+// but i suck at C++
 // line starts at 1
 String updateDisplayLine(char *message, 
                          int line,
@@ -544,6 +546,20 @@ String updateDisplayLine(char *message,
                                                                  brewTimeSeconds,
                                                                  " seconds");
                               } 
+                                if (lineToDisplay == "") {
+                                  if (strcmp(message, "{helloMessage}") == 0) {
+                                    if (shouldBackflush()) {
+                                      lineToDisplay = "Hi. Backflush Time!";
+                                    } else {
+                                      lineToDisplay= String("Hi. (");
+                                      lineToDisplay.concat(shotsUntilBackflush());
+                                      lineToDisplay.concat(",");
+                                      lineToDisplay.concat(readTotalBrewCount());
+                                      lineToDisplay.concat(") shots");
+                                      lineToDisplay.concat(String("                    ").substring(0, 20 - lineToDisplay.length()));
+                                    }
+                                  }
+                                } 
                   }
                 }
               }   
@@ -821,11 +837,11 @@ void processOutgoingGaggiaState() {
       calculateAndSendTelemetryIfNecessary();
     }
 
-    increaseBrewCountForBackflush();
+    increaseBrewCount();
   }
 
   if (currentGaggiaState->state == BACKFLUSH_CYCLE_DONE) {
-    clearBrewCountForBackflush();
+    clearBackflushBrewCount();
   }
 
 
@@ -908,7 +924,7 @@ void stateInit() {
   
   // entry point when first power or if leaving sleep
   preheatState.state = PREHEAT;
-  preheatState.display1 =            "Hi.                 ";
+  preheatState.display1 =            "{helloMessage}";
   preheatState.display2 =            "Clear scale surface.";
   preheatState.display3 =            "Click to Brew,      ";
   preheatState.display4 =            "Hold for Features   ";
