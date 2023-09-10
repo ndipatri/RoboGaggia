@@ -901,10 +901,10 @@ void stateInit() {
  // Define all possible states of RoboGaggia
 
   sleepState.state = SLEEP;
-  sleepState.display1 =            "Hi.                 ";
-  sleepState.display2 =            "I'm sleeping (yawn) ";
+  sleepState.display1 =            "Hi (yawn).          ";
+  sleepState.display2 =            "I'm sleeping.       ";
   sleepState.display3 =            "                    ";
-  sleepState.display4 =            "Click to wake me up ";
+  sleepState.display4 =            "Click to wake me up.";
   
   // entry point when first power or if leaving sleep
   preheatState.state = PREHEAT;
