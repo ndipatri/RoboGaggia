@@ -16,6 +16,8 @@ extern SerLCD display; // Initialize the library with default I2C address 0x72
 
 void displayInit();
 
+String renderDoubleValue(double _value);
+
 String decodeLongMessageIfNecessary(char* _message, 
                                     char* escapeSequence,
                                     double firstValue,

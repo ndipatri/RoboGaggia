@@ -44,10 +44,10 @@ enum GaggiaStateEnum {
 // Specific details about the particular state we are in.  
 struct GaggiaState {
    int state;   
-   char *display1 = "";
-   char *display2 = "";
-   char *display3 = "";
-   char *display4 = "";
+   String display1 = String();
+   String display2 = String();
+   String display3 = String();
+   String display4 = String();
    
    // ************
    // WARNING: this cannot be done at the same time (or even in an adjacent state)

@@ -445,136 +445,156 @@ GaggiaState* getNextGaggiaState() {
   return currentGaggiaState;
 }  
 
-// this is possibly the stupidest function i've ever written in my life...
-// but i suck at C++
-// line starts at 1
-String updateDisplayLine(char *message, 
-                         int line,
+String updateDisplayLine(String message, 
+                         int lineNumber,
                          String previousLineDisplayed) {
 
-  display.setCursor(0,line-1);
+  display.setCursor(0,lineNumber-1);
+  String lineToDisplay;
   
-  String lineToDisplay; 
+  // Mostly, the passed message IS what will be displayed, but there
+  // are 'escape' values that, if present, need to be replaced with
+  // state information....
+  boolean lineHandled = false; 
   
-  lineToDisplay = decodeFloatMessageIfNecessary(message,
-                                               "{adjustedWeight}/{targetBeanWeight}",
-                                               scaleState.measuredWeight - scaleState.tareWeight,
-                                               TARGET_BEAN_WEIGHT,
-                                               " g");
-  if (lineToDisplay == "") {
-    lineToDisplay = decodeLongMessageIfNecessary(message,
-                                                 "{measuredBrewTemp}/{targetBrewTemp}",
-                                                 heaterState.measuredTemp,
-                                                 TARGET_BREW_TEMP,
-                                                 " degrees C");
-    if (lineToDisplay == "") {
-      lineToDisplay = decodeFloatMessageIfNecessary(message,
-                                                    "{adjustedWeight}/{targetBrewWeight}",
-                                                    scaleState.measuredWeight - scaleState.tareWeight,
-                                                    scaleState.targetWeight,
-                                                    " g");
-      if (lineToDisplay == "") {
-        lineToDisplay = decodeLongMessageIfNecessary(message,
-                                                     "{measuredSteamTemp}/{targetSteamTemp}",
-                                                     heaterState.measuredTemp,
-                                                     TARGET_STEAM_TEMP,
-                                                     " degrees C");
-        if (lineToDisplay == "") {
-          lineToDisplay = decodeFloatMessageIfNecessary(message,
-                                                        "{adjustedWeight}",
-                                                        scaleState.measuredWeight - scaleState.tareWeight,
-                                                        0,
-                                                        " g");
-          if (lineToDisplay == "") {
-            lineToDisplay = decodeLongMessageIfNecessary(message,
-                                                         "{flowRate}",
-                                                         waterPumpState.flowRateGPS,
-                                                         0,
-                                                         " g/30sec");
-            if (lineToDisplay == "") {
-              lineToDisplay = decodeLongMessageIfNecessary(message,
-                                                           "{measuredBars}/{targetBars}",
-                                                           waterPumpState.measuredPressureInBars,
-                                                           waterPumpState.targetPressureInBars,
-                                                           " bars");
-              if (lineToDisplay == "") {
-                // One count consists of both the clean and rest... so we only have
-                // targetCounter/2 total clean passes.
-                lineToDisplay = decodeLongMessageIfNecessary(message,
-                                                             "{currentPass}/{targetPass}",
-                                                             (currentGaggiaState->counter/2)+1,
-                                                             (currentGaggiaState->targetCounter)/2,
-                                                             " pass");
-                if (lineToDisplay == "") {
-                  // One count consists of both the clean and rest... so we only have
-                  // targetCounter/2 total clean passes.
-                  lineToDisplay = decodeLongMessageIfNecessary(message,
-                                                               "{pumpDutyCycle}/{maxDutyCycle}",
-                                                               waterPumpState.pumpDutyCycle,
-                                                               MAX_PUMP_DUTY_CYCLE,
-                                                               " %");
-                  if (lineToDisplay == "") {
-                    lineToDisplay = decodeLongMessageIfNecessary(message,
-                                                                 "{measuredSteamTemp}/{targetHotWaterDispenseTemp}",
-                                                                 heaterState.measuredTemp,
-                                                                 TARGET_HOT_WATER_DISPENSE_TEMP,
-                                                                 " degrees C");
-                  
-                      if (lineToDisplay == "") {
-                      lineToDisplay = decodeLongMessageIfNecessary(message,
-                                                                 "{elapsedTimeSeconds}",
-                                                                 (millis() - currentGaggiaState->stateEnterTimeMillis)/1000,
-                                                                 0,
-                                                                 " seconds");
-                      }
-                          if (lineToDisplay == "") {
-                            double preinfusionTimeSeconds = (preinfusionState.stateExitTimeMillis - preinfusionState.stateEnterTimeMillis)/1000.0;
-                          
-                            lineToDisplay = decodeLongMessageIfNecessary(message,
-                                                                 "{liveExtractionTimes}",
-                                                                 preinfusionTimeSeconds,
-                                                                 (millis() - currentGaggiaState->stateEnterTimeMillis)/1000,
-                                                                 " seconds");
-                          } 
-                              if (lineToDisplay == "") {
-                                double preinfusionTimeSeconds = (preinfusionState.stateExitTimeMillis - preinfusionState.stateEnterTimeMillis)/1000.0;
-                                double brewTimeSeconds = (brewingState.stateExitTimeMillis - brewingState.stateEnterTimeMillis)/1000.0;
-                          
-                                lineToDisplay = decodeLongMessageIfNecessary(message,
-                                                                 "{extractionTimes}",
-                                                                 preinfusionTimeSeconds,
-                                                                 brewTimeSeconds,
-                                                                 " seconds");
-                              } 
-                                if (lineToDisplay == "") {
-                                  if (strcmp(message, "{helloMessage}") == 0) {
-                                    if (shouldBackflush()) {
-                                      lineToDisplay = "Hi. Backflush Time!";
-                                    } else {
-                                      lineToDisplay= String("Hi. (");
-                                      lineToDisplay.concat(shotsUntilBackflush());
-                                      lineToDisplay.concat(",");
-                                      lineToDisplay.concat(readTotalBrewCount());
-                                      lineToDisplay.concat(") shots");
-                                      lineToDisplay.concat(String("                    ").substring(0, 20 - lineToDisplay.length()));
-                                    }
-                                  }
-                                } 
-                  }
-                }
-              }   
-            }          
-          }
-        }      
-      }
+  if (!lineHandled && message.indexOf("{helloMessage}") != -1) {
+    lineHandled = true;
+
+    if (shouldBackflush()) {
+      lineToDisplay = "Hi. Backflush Time!";
+    } else {
+      lineToDisplay = String("Hi. (");
+      lineToDisplay.concat(shotsUntilBackflush());
+      lineToDisplay.concat(",");
+      lineToDisplay.concat(readTotalBrewCount());
+      lineToDisplay.concat(") shots");
     }
   }
 
-  if (lineToDisplay == "") {
+  if (!lineHandled && message.indexOf("{adjustedWeight}/{targetBeanWeight}") != -1) {
+    lineHandled = true;
+
+    lineToDisplay = renderDoubleValue(scaleState.measuredWeight - scaleState.tareWeight);
+    lineToDisplay.concat("/");
+    lineToDisplay.concat(renderDoubleValue(TARGET_BEAN_WEIGHT));
+    lineToDisplay.concat(" g");
+  }
+  
+  if (!lineHandled && message.indexOf("{measuredBrewTemp}/{targetBrewTemp}") != -1) {
+    lineHandled = true;
+
+    lineToDisplay = String((long)heaterState.measuredTemp);
+    lineToDisplay.concat("/");
+    lineToDisplay.concat((long)TARGET_BREW_TEMP);
+    lineToDisplay.concat(" degrees C");
+  }
+
+  if (!lineHandled && message.indexOf("{adjustedWeight}/{targetBrewWeight}") != -1) {
+    lineHandled = true;
+
+    lineToDisplay = renderDoubleValue(scaleState.measuredWeight - scaleState.tareWeight);
+    lineToDisplay.concat("/");
+    lineToDisplay.concat(renderDoubleValue(scaleState.targetWeight));
+    lineToDisplay.concat(" g");
+  }
+
+  if (!lineHandled && message.indexOf("{measuredSteamTemp}/{targetSteamTemp}") != -1) {
+    lineHandled = true;
+
+    lineToDisplay = String((long)heaterState.measuredTemp);
+    lineToDisplay.concat("/");
+    lineToDisplay.concat((long)TARGET_STEAM_TEMP);
+    lineToDisplay.concat(" degrees C");
+  }
+
+  if (!lineHandled && message.indexOf("{adjustedWeight}") != -1) {
+    lineHandled = true;
+
+    lineToDisplay = renderDoubleValue(scaleState.measuredWeight - scaleState.tareWeight);
+    lineToDisplay.concat(" g");
+  }  
+
+  if (!lineHandled && message.indexOf("{flowRate}") != -1) {
+    lineHandled = true;
+
+    lineToDisplay = String((long)waterPumpState.flowRateGPS);
+    lineToDisplay.concat(" g/30sec");
+  }  
+
+  if (!lineHandled && message.indexOf("{measuredBars}/{targetBars}") != -1) {
+    lineHandled = true;
+
+    lineToDisplay = String((long)waterPumpState.measuredPressureInBars);
+    lineToDisplay.concat("/");
+    lineToDisplay.concat((long)waterPumpState.targetPressureInBars);
+    lineToDisplay.concat(" bars");
+  } 
+
+  if (!lineHandled && message.indexOf("{currentPass}/{targetPass}") != -1) {
+    lineHandled = true;
+
+    // One count consists of both the clean and rest... so we only have
+    // targetCounter/2 total clean passes.
+    lineToDisplay = String((long)(currentGaggiaState->counter/2)+1);
+    lineToDisplay.concat("/");
+    lineToDisplay.concat((long)(currentGaggiaState->targetCounter)/2);
+    lineToDisplay.concat(" pass");
+  } 
+
+  if (!lineHandled && message.indexOf("{pumpDutyCycle}/{maxDutyCycle}") != -1) {
+    lineHandled = true;
+
+    lineToDisplay = String((long)waterPumpState.pumpDutyCycle);
+    lineToDisplay.concat("/");
+    lineToDisplay.concat((long)MAX_PUMP_DUTY_CYCLE);
+    lineToDisplay.concat(" %");
+  } 
+
+  if (!lineHandled && message.indexOf("{measuredSteamTemp}/{targetHotWaterDispenseTemp}") != -1) {
+    lineHandled = true;
+
+    lineToDisplay = String((long)heaterState.measuredTemp);
+    lineToDisplay.concat("/");
+    lineToDisplay.concat((long)TARGET_HOT_WATER_DISPENSE_TEMP);
+    lineToDisplay.concat(" degrees C");
+  } 
+
+  if (!lineHandled && message.indexOf("{elapsedTimeSeconds}") != -1) {
+    lineHandled = true;
+
+    lineToDisplay = String((long)(millis() - currentGaggiaState->stateEnterTimeMillis)/1000);
+    lineToDisplay.concat(" seconds");
+  }  
+
+  if (!lineHandled && message.indexOf("{liveExtractionTimes}") != -1) {
+    lineHandled = true;
+
+    double preinfusionTimeSeconds = (preinfusionState.stateExitTimeMillis - preinfusionState.stateEnterTimeMillis)/1000.0;
+    lineToDisplay = String((long)preinfusionTimeSeconds);
+    lineToDisplay.concat("/");
+    lineToDisplay.concat((long)(millis() - currentGaggiaState->stateEnterTimeMillis)/1000);
+    lineToDisplay.concat(" seconds");
+  } 
+
+  if (!lineHandled && message.indexOf("{extractionTimes}") != -1) {
+    lineHandled = true;
+
+    double preinfusionTimeSeconds = (preinfusionState.stateExitTimeMillis - preinfusionState.stateEnterTimeMillis)/1000.0;
+    double brewTimeSeconds = (brewingState.stateExitTimeMillis - brewingState.stateEnterTimeMillis)/1000.0;
+    lineToDisplay = String((long)preinfusionTimeSeconds);
+    lineToDisplay.concat("/");
+    lineToDisplay.concat((long)brewTimeSeconds);
+    lineToDisplay.concat(" seconds");
+  } 
+                  
+  if (!lineHandled) {
     lineToDisplay = String(message);
   }
 
-  if (line == 1) {
+  // For the display, you must display a length of 20
+  lineToDisplay.concat(String("                    ").substring(0, 20 - lineToDisplay.length()));
+
+  if (lineNumber == 1) {
     // inject 'heating' indicator
     if (isHeaterOn()) {
       lineToDisplay.setCharAt(19, '*');
@@ -586,6 +606,8 @@ String updateDisplayLine(char *message,
     display.print(lineToDisplay);
   }
 
+  // Need to return this so we can check for changes 
+  // next time
   return lineToDisplay;
 }
 
