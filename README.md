@@ -4,6 +4,7 @@
 
 [LinkedIn](https://www.linkedin.com/in/ndipatri/)
 
+Follow me on my [RoboGaggia Twitter Feed](https://twitter.com/RoboGaggia)
 
 # Robo Gaggia in Action!
 [Video of RoboGaggia!](https://youtu.be/2jmbiQQChrA)
