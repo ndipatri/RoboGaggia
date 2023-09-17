@@ -98,6 +98,9 @@ void loop() {
   // If a state change has happened
   if (first || nextGaggiaState->state != currentGaggiaState->state) {
 
+    // force a telemetry update since we're changing state
+    sendTelemetryUpdateNow();
+
     // Things we do when we leave a state
     processOutgoingGaggiaState();
   

@@ -20,6 +20,8 @@ struct Telemetry {
   double brewTempC = 0.0;
 };
 
+void sendTelemetryUpdateNow();
+
 // Return value indicates telemetry measurement was taken
 void calculateAndSendTelemetryIfNecessary();
 

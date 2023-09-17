@@ -1,7 +1,7 @@
 #include "Statistics.h"
 
 // TODO - Need to increase this after testing.
-int MAX_BREW_COUNT_BEFORE_CLEANING = 10;
+int MAX_BREW_COUNT_BEFORE_CLEANING = 15;
 
 int BACKFLUSH_BREW_COUNT_EEPROM_ADDRESS = 0;
 int TOTAL_BREW_COUNT_EEPROM_ADDRESS = 5;
@@ -31,7 +31,7 @@ int readTotalBrewCount() {
 boolean shouldBackflush() {
   int currentBrewCount = readBackflushBrewCount();  
 
-  return (currentBrewCount > MAX_BREW_COUNT_BEFORE_CLEANING);
+  return (currentBrewCount >= MAX_BREW_COUNT_BEFORE_CLEANING);
 }
 
 int shotsUntilBackflush() {

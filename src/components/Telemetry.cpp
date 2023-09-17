@@ -5,12 +5,12 @@ using namespace tc; // Import tc::* into the global namespace
 // This is the interval of time between when we send telemetry values
 // to adafruit.io.  Adafruit IO will block this client if we send
 // these more frequently that once every second.
-// This * TELEMETRY_COLLECT_PERIOD_MILLIS must be >= 1200!
+// This * FLOW_RATE_SAMPLE_PERIOD_MILLIS (200ms) must be >= 1200!
 int TELEMETRY_SEND_INTERVAL = 6; 
 
 vector<Telemetry> telemetryHistory;
 
-void calculateAndSendTelemetryIfNecessary() {
+void sendTelemetry(boolean force) {
 
     Telemetry telemetry;
     telemetry.description = "PID(" + 
@@ -33,7 +33,7 @@ void calculateAndSendTelemetryIfNecessary() {
     telemetryHistory.push_back(telemetry);
 
     // and if we have to send telemetry, we average queue and send results ...
-    if (telemetryHistory.size() >= TELEMETRY_SEND_INTERVAL) {
+    if (force || telemetryHistory.size() >= TELEMETRY_SEND_INTERVAL) {
         double weightSum = 0;
         double barsSum = 0;
         double dutyCycleSum = 0;
@@ -77,6 +77,13 @@ void calculateAndSendTelemetryIfNecessary() {
             String(averageTelemetry.flowRateGPS)  + String(", ") +
             String(averageTelemetry.brewTempC));
       #endif
-
+    }
   }
+
+void sendTelemetryUpdateNow() {
+  sendTelemetry(true);
+}
+
+void calculateAndSendTelemetryIfNecessary() {
+  sendTelemetry(false);
 }
