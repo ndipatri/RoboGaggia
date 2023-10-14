@@ -1,6 +1,8 @@
 
 #include "UserInput.h"
 
+String SHORT_BUTTON_COMMAND = String("short");
+String LONG_BUTTON_COMMAND = String("long");
 
 // Based on the physical button, we derive one of three
 // input states
@@ -55,9 +57,38 @@ void readUserInputState() {
     }
   }
 
+  // no physical inputs.. now check for commands from MQTT...
+  char* _incomingMQTTCommand = checkForMQTTCommand();
+  if (_incomingMQTTCommand != NULL) {
+    String incomingMQTTCommand = String(_incomingMQTTCommand); 
+    
+    publishParticleLog("mqttCommand", incomingMQTTCommand);
+
+    if (incomingMQTTCommand.equals(SHORT_BUTTON_COMMAND)) {
+      publishParticleLog("mqttCommand", "SHORT_PRESS detected");
+
+      userInputState.state = SHORT_PRESS;
+      userInputState.buttonPressStartTimeMillis = -1;
+      userInputState.lastUserInteractionTimeMillis = nowTimeMillis;
+    
+      return;
+    } else 
+    if (incomingMQTTCommand.equals(LONG_BUTTON_COMMAND)) {
+      publishParticleLog("mqttCommand", "LONG_PRESS detected");
+
+      userInputState.state = LONG_PRESS;
+      userInputState.buttonPressStartTimeMillis = 0; 
+      userInputState.lastUserInteractionTimeMillis = nowTimeMillis;
+    
+      return;
+    } 
+  }
+
   // if here, fallback is IDLE
   userInputState.state = IDLE;
 }
+
+
 
 void userInputInit() {
   if (userButton.begin() == false) {

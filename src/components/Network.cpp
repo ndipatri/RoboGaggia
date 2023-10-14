@@ -18,6 +18,9 @@ Adafruit_MQTT_SPARK mqtt(&client, AIO_SERVER, AIO_SERVERPORT, AIO_USERNAME, AIO_
 String mqttRoboGaggiaTelemetryTopicName = String(AIO_USERNAME) + "/feeds/roboGaggiaTelemetry"; 
 Adafruit_MQTT_Publish mqttRoboGaggiaTelemetryTopic = Adafruit_MQTT_Publish(&mqtt,  mqttRoboGaggiaTelemetryTopicName);
 
+String mqttRoboGaggiaCommandTopicName = String(AIO_USERNAME) + "/feeds/robogaggiacommand"; 
+Adafruit_MQTT_Subscribe commandsSubscription = Adafruit_MQTT_Subscribe(&mqtt, mqttRoboGaggiaCommandTopicName);
+
 Adafruit_MQTT_Subscribe errors = Adafruit_MQTT_Subscribe(&mqtt, String(AIO_USERNAME) + "/errors");
 Adafruit_MQTT_Subscribe throttle = Adafruit_MQTT_Subscribe(&mqtt, String(AIO_USERNAME) + "/throttle");
 
@@ -26,8 +29,10 @@ Adafruit_MQTT_Subscribe throttle = Adafruit_MQTT_Subscribe(&mqtt, String(AIO_USE
 void sendMessageToCloud(const char* message) {
   if (networkState.connected) {
     if (mqttRoboGaggiaTelemetryTopic.publish(message)) {
+        Log.error("Message SUCCESS (" + String(message) + ").");
         publishParticleLog("mqtt", "Message SUCCESS (" + String(message) + ").");
     } else {
+        Log.error("Message FAIL (" + String(message) + ").");
         publishParticleLog("mqtt", "Message FAIL (" + String(message) + ").");
     }
   }
@@ -65,6 +70,10 @@ void MQTTConnect() {
       }
     }
 
+    // connected!
+
+    mqtt.subscribe(&commandsSubscription);
+
     // give up for now...
     // while ((ret = mqtt.connect()) != 0) { // connect will return 0 for connected
     //     publishParticleLog("mqtt", "Retrying MQTT connect from error: " + String(mqtt.connectErrorString(ret)));
@@ -90,6 +99,19 @@ String readCurrentMQTTState() {
   }
 }
 
+char* checkForMQTTCommand() {
+  Adafruit_MQTT_Subscribe *subscription;
+  subscription = mqtt.readSubscription(100);
+  if (subscription == &commandsSubscription) {
+
+    return (char *)commandsSubscription.lastread;
+  } else {
+    return NULL;
+  }
+}
+
 void networkInit() {
   Particle.variable("mqttState", readCurrentMQTTState);
+
+  mqtt.subscribe(&commandsSubscription);
 }

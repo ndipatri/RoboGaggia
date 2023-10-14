@@ -267,9 +267,7 @@ String getPumpState() {
 // Altough we preserve the last measure so we can come up with
 // an average flow rate, the interval between these times are
 // determined elsewhere.
-boolean updateFlowRateMetricIfNecessary() {
-
-  boolean flowRateUpdated = false;
+void updateFlowRateMetricIfNecessary() {
 
   if (millis() > nextFlowRateSampleMillis) {
     double measuredWeightNow = scaleState.measuredWeight - scaleState.tareWeight;
@@ -287,12 +285,8 @@ boolean updateFlowRateMetricIfNecessary() {
     waterPumpState.measuredWeightAtFlowRate = measuredWeightNow;
 
     nextFlowRateSampleMillis = millis() + FLOW_RATE_SAMPLE_PERIOD_MILLIS;
-    flowRateUpdated = true;
   }
-
-  return flowRateUpdated;
 }
-
 
 void waterPumpInit() {
   ads1115.begin();// Initialize ads1015 at the default address 0x48

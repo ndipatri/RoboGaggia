@@ -2,6 +2,7 @@
 #define USER_INPUT_H
 
 #include "Common.h"
+#include "Network.h"
 
 #include <SparkFun_Qwiic_Button.h>
 

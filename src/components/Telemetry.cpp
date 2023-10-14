@@ -2,13 +2,24 @@
 
 using namespace tc; // Import tc::* into the global namespace
 
+int TELEMETRY_SAMPLE_PERIOD_MILLIS = 200; 
+
 // This is the interval of time between when we send telemetry values
 // to adafruit.io.  Adafruit IO will block this client if we send
 // these more frequently that once every second.
-// This * FLOW_RATE_SAMPLE_PERIOD_MILLIS (200ms) must be >= 1200!
+// This * TELEMETRY_SAMPLE_PERIOD_MILLIS (200ms) must be <= 1200!
 int TELEMETRY_SEND_INTERVAL = 6; 
 
+// The telemetry that we send to the cloud is a discrete window average.
+// The window size in seconds is defined by 
+// TELEMETRY_SEND_INTERVAL * TELEMETRY_SAMPLE_PERIOD_MILLIS
+// It emits a new telemetry every ^^ seconds...
+
 vector<Telemetry> telemetryHistory;
+
+String lastMessageSentToCloud = "";
+
+float nextTelemetrySampleMillis = -1;
 
 void sendTelemetry(boolean force) {
 
@@ -56,26 +67,35 @@ void sendTelemetry(boolean force) {
         averageTelemetry.flowRateGPS = flowRateSum/TELEMETRY_SEND_INTERVAL;
         averageTelemetry.brewTempC = brewTempSum/TELEMETRY_SEND_INTERVAL;
 
-
-        Log.error("avg:" + String(averageTelemetry.measuredWeightGrams) + "," +
-          String(averageTelemetry.measuredPressureBars) + "," +
-          String(averageTelemetry.pumpDutyCycle) + "," +
-          String(averageTelemetry.flowRateGPS));
-
         // This is a simplistic, finite queue that simply spans the duration
         // of telementry send events...
         telemetryHistory.clear();
 
       // only way this send will succeed
       #ifdef AIO_USERNAME
-        sendMessageToCloud(
+        char measuredWeightGramsBuf[256];
+        snprintf(measuredWeightGramsBuf, 
+                 sizeof(measuredWeightGramsBuf), 
+                 "%.1lf", 
+                 (float)averageTelemetry.measuredWeightGrams);
+
+        String messageToSendToCloud =             
             String(averageTelemetry.stateName) + String(", ") + 
             String(averageTelemetry.description) + String(", ") + 
-            String(averageTelemetry.measuredWeightGrams) + String(", ") + 
-            String(averageTelemetry.measuredPressureBars) + String(", ") +  
-            String(averageTelemetry.pumpDutyCycle) + String(", ") +
-            String(averageTelemetry.flowRateGPS)  + String(", ") +
-            String(averageTelemetry.brewTempC));
+            String(measuredWeightGramsBuf) + String(", ") + 
+            String((int)floor(averageTelemetry.measuredPressureBars)) + String(", ") +  
+            String((int)floor(averageTelemetry.pumpDutyCycle)) + String(", ") +
+            String((int)floor(averageTelemetry.flowRateGPS)) + String(", ") +
+            String((int)floor(averageTelemetry.brewTempC));        
+
+        if (!messageToSendToCloud.equals(lastMessageSentToCloud)) {
+          Log.error(String(millis()) + String(":") + messageToSendToCloud);
+
+          sendMessageToCloud(messageToSendToCloud);
+        
+          lastMessageSentToCloud = messageToSendToCloud;
+        }
+
       #endif
     }
   }
@@ -85,5 +105,9 @@ void sendTelemetryUpdateNow() {
 }
 
 void calculateAndSendTelemetryIfNecessary() {
-  sendTelemetry(false);
+  if (millis() > nextTelemetrySampleMillis) {
+    sendTelemetry(false);
+
+    nextTelemetrySampleMillis = millis() + TELEMETRY_SAMPLE_PERIOD_MILLIS;
+  }
 }

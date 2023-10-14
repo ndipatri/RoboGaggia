@@ -19,6 +19,8 @@
         "utility": "cpp",
         "chrono": "cpp",
         "__locale": "cpp",
-        "cstring": "cpp"
+        "cstring": "cpp",
+        "algorithm": "cpp",
+        "complex": "cpp"
     }
 }

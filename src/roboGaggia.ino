@@ -118,6 +118,9 @@ void loop() {
   // (e.g. record weight of beans, tare measuring cup)
   processCurrentGaggiaState();
 
+  // We trust that telemetry will only be sent if it has changed...
+  calculateAndSendTelemetryIfNecessary();
+
   // resume service loop
   if (networkState.connected) {
     Particle.process();

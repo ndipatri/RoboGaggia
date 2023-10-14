@@ -115,62 +115,6 @@ GaggiaState* getNextGaggiaState() {
       }
       break;
 
-    case FEATURES :
-
-      if (userInputState.state == SHORT_PRESS) {
-        return &wandFeaturesState;
-      }
-     
-      if (userInputState.state == LONG_PRESS) {
-        return &cleanOptionsState;
-      }
-      break;      
-
-    case WAND_FEATURES :
-
-      if (userInputState.state == SHORT_PRESS) {
-        return &heatingToDispenseState;
-      }
-     
-      if (userInputState.state == LONG_PRESS) {
-        return &purgeBeforeSteam1;
-      }
-      break;    
-
-    case PURGE_BEFORE_STEAM_1 :
-
-      if (userInputState.state == SHORT_PRESS) {
-        return &purgeBeforeSteam2;
-      }
-     
-      if (userInputState.state == LONG_PRESS) {
-        return &preheatState;
-      }
-      break;   
-
-    case PURGE_BEFORE_STEAM_2 :
-     
-      if ((millis() - currentGaggiaState->stateEnterTimeMillis) > 
-             DONE_PURGE_BEFORE_STEAM_TIME_SECONDS * 1000) {        
-        return &purgeBeforeSteam3;
-      }     
-     
-      if (userInputState.state == LONG_PRESS) {
-        return &preheatState;
-      }
-      break;   
-
-    case PURGE_BEFORE_STEAM_3 :
-
-      if (userInputState.state == SHORT_PRESS) {
-        return &heatingToSteamState;
-      }
-     
-      if (userInputState.state == LONG_PRESS) {
-        return &preheatState;
-      }
-      break;   
-
 
     case TARE_CUP_BEFORE_MEASURE :
 
@@ -367,7 +311,6 @@ GaggiaState* getNextGaggiaState() {
       }
       break; 
   
-  
     case BACKFLUSH_INSTRUCTION_1 :
 
       if (userInputState.state == SHORT_PRESS) {
@@ -434,6 +377,61 @@ GaggiaState* getNextGaggiaState() {
       }
       break;
   
+    case FEATURES :
+
+      if (userInputState.state == SHORT_PRESS) {
+        return &wandFeaturesState;
+      }
+     
+      if (userInputState.state == LONG_PRESS) {
+        return &cleanOptionsState;
+      }
+      break;      
+
+    case WAND_FEATURES :
+
+      if (userInputState.state == SHORT_PRESS) {
+        return &heatingToDispenseState;
+      }
+     
+      if (userInputState.state == LONG_PRESS) {
+        return &purgeBeforeSteam1;
+      }
+      break;    
+
+    case PURGE_BEFORE_STEAM_1 :
+
+      if (userInputState.state == SHORT_PRESS) {
+        return &purgeBeforeSteam2;
+      }
+     
+      if (userInputState.state == LONG_PRESS) {
+        return &preheatState;
+      }
+      break;   
+
+    case PURGE_BEFORE_STEAM_2 :
+     
+      if ((millis() - currentGaggiaState->stateEnterTimeMillis) > 
+             DONE_PURGE_BEFORE_STEAM_TIME_SECONDS * 1000) {        
+        return &purgeBeforeSteam3;
+      }     
+     
+      if (userInputState.state == LONG_PRESS) {
+        return &preheatState;
+      }
+      break;   
+
+    case PURGE_BEFORE_STEAM_3 :
+
+      if (userInputState.state == SHORT_PRESS) {
+        return &heatingToSteamState;
+      }
+     
+      if (userInputState.state == LONG_PRESS) {
+        return &preheatState;
+      }
+      break;  
   } 
 
   // Here we decide to put the system in standby with no heater
@@ -615,9 +613,9 @@ String updateDisplayLine(String message,
 char* getStateName(int stateEnum) {
    switch (stateEnum) {
     case SLEEP: return "sleep";
+    case IGNORING_NETWORK: return "ignoringNetwork";
+    case JOINING_NETWORK: return "joiningNetwork";
     case PREHEAT: return "preheat";
-    case FEATURES: return "features";
-    case WAND_FEATURES: return "wandFeatures";
     case TARE_CUP_BEFORE_MEASURE: return "tareCupBeforeMeasure";
     case MEASURE_BEANS: return "measureBeans";
     case TARE_CUP_AFTER_MEASURE: return "tareCupAfterMeasure";
@@ -638,8 +636,8 @@ char* getStateName(int stateEnum) {
     case BACKFLUSH_CYCLE_DONE: return "cleanDone";
     case HEATING_TO_DISPENSE: return "heatingToDispense";
     case DISPENSE_HOT_WATER: return "dispenseHotWater";
-    case IGNORING_NETWORK: return "ignoringNetwork";
-    case JOINING_NETWORK: return "joingingNetwork";
+    case FEATURES: return "features";
+    case WAND_FEATURES: return "wandFeatures";
     case NA: return "na";
   }
   
@@ -803,14 +801,11 @@ void processCurrentGaggiaState() {
   }
 
   if (currentGaggiaState->state == BREWING || currentGaggiaState->state == PREINFUSION) {
-    if (updateFlowRateMetricIfNecessary()) {
-      calculateAndSendTelemetryIfNecessary();
-    }
+    updateFlowRateMetricIfNecessary();
   }
 
   #ifdef AIO_USERNAME
-    if (currentGaggiaState->state == PREHEAT || 
-        currentGaggiaState->state == SLEEP) {
+    if (currentGaggiaState->state == SLEEP) {
       // we disconnect from MQTT broker for telemetry...
       if (networkState.connected) {
         // recall the system returns to hello after 15 minutes of inactivity.
@@ -818,7 +813,7 @@ void processCurrentGaggiaState() {
       }
     } else {
       // we want telemetry to be available for all non-rest states...
-      if (networkState.connected) {
+      if (!networkState.connected) {
         MQTTConnect();
       }
     }
@@ -855,11 +850,11 @@ void processOutgoingGaggiaState() {
 
   // This gives our current state one last chance to log any telemetry.
   if (currentGaggiaState->state == BREWING) {
-    if (updateFlowRateMetricIfNecessary()) {
-      calculateAndSendTelemetryIfNecessary();
-    }
+    updateFlowRateMetricIfNecessary();
 
     increaseBrewCount();
+  
+    scaleState.tareWeight = 0.0;
   }
 
   if (currentGaggiaState->state == BACKFLUSH_CYCLE_DONE) {
@@ -944,6 +939,18 @@ void stateInit() {
   sleepState.display3 =            "                    ";
   sleepState.display4 =            "Click to wake me up.";
   
+  joiningNetwork.state = JOINING_NETWORK;
+  joiningNetwork.display1 =            "Joining network ... ";
+  joiningNetwork.display2 =            "                    ";
+  joiningNetwork.display3 =            "                    ";
+  joiningNetwork.display4 =            "Click to Skip       ";
+
+  ignoringNetwork.state = IGNORING_NETWORK;
+  ignoringNetwork.display1 =            "Ignoring Network    ";
+  ignoringNetwork.display2 =            "                    ";
+  ignoringNetwork.display3 =            "                    ";
+  ignoringNetwork.display4 =            "Please wait ...     ";
+  
   // entry point when first power or if leaving sleep
   preheatState.state = PREHEAT;
   preheatState.display1 =            "{helloMessage}";
@@ -962,21 +969,6 @@ void stateInit() {
   // we tare here so the weight of the scale itself isn't shown
   // when we are measuring things...
   preheatState.tareScale = true; 
-
-
-  featuresState.state = FEATURES; 
-  featuresState.display1 =            "Select Feature      ";
-  featuresState.display2 =            "                    ";
-  featuresState.display3 =            "Click for wand,     ";
-  featuresState.display4 =            "Hold for Clean      ";
-  featuresState.fillingReservoir = true;
-
-  wandFeaturesState.state = WAND_FEATURES; 
-  wandFeaturesState.display1 =        "Select Wand Feature ";
-  wandFeaturesState.display2 =        "Click for           ";
-  wandFeaturesState.display3 =        "  hot water,        ";
-  wandFeaturesState.display4 =        "Hold for Steam      ";
-  wandFeaturesState.fillingReservoir = true;
 
   tareCup1State.state = TARE_CUP_BEFORE_MEASURE; 
   tareCup1State.display1 =         "Place empty cup     ";
@@ -1026,6 +1018,28 @@ void stateInit() {
   brewingState.brewHeaterOn = true; 
   brewingState.waterThroughGroupHead = true; 
 
+  doneBrewingState.state = DONE_BREWING; 
+  doneBrewingState.display1 =     "Done brewing.       ";
+  doneBrewingState.display2 =     "{extractionTimes}";
+  doneBrewingState.display3 =     "Remove cup.         ";
+  doneBrewingState.display4 =     "Please wait ...     ";
+  doneBrewingState.brewHeaterOn = true; 
+  doneBrewingState.fillingReservoir = true;
+
+  heatingToSteamState.state = HEATING_TO_STEAM; 
+  heatingToSteamState.display1 =   "Heating to steam.   ";
+  heatingToSteamState.display2 =   "{measuredSteamTemp}/{targetSteamTemp}";
+  heatingToSteamState.display3 =   "                    ";
+  heatingToSteamState.display4 =   "Please wait ...     ";
+  heatingToSteamState.steamHeaterOn = true; 
+
+  steamingState.state = STEAMING; 
+  steamingState.display1 =         "Operate steam wand. ";
+  steamingState.display2 =         "{measuredSteamTemp}/{targetSteamTemp}";
+  steamingState.display3 =         "                    ";
+  steamingState.display4 =         "Click when Done     ";
+  steamingState.steamHeaterOn = true; 
+
   heatingToDispenseState.state = HEATING_TO_DISPENSE; 
   heatingToDispenseState.display1 =   "Heating to dispense ";
   heatingToDispenseState.display2 =   "          hot water.";
@@ -1040,14 +1054,6 @@ void stateInit() {
   dispenseHotWaterState.display4 =    "Click when Done     ";
   dispenseHotWaterState.hotWaterDispenseHeaterOn = true; 
   dispenseHotWaterState.waterThroughWand = true; 
-
-  doneBrewingState.state = DONE_BREWING; 
-  doneBrewingState.display1 =     "Done brewing.       ";
-  doneBrewingState.display2 =     "{extractionTimes}";
-  doneBrewingState.display3 =     "Remove cup.         ";
-  doneBrewingState.display4 =     "Please wait ...     ";
-  doneBrewingState.brewHeaterOn = true; 
-  doneBrewingState.fillingReservoir = true;
 
   purgeBeforeSteam1.state = PURGE_BEFORE_STEAM_1; 
   purgeBeforeSteam1.display1 =   "Boiler needs water. ";
@@ -1070,20 +1076,6 @@ void stateInit() {
   purgeBeforeSteam3.display3 =   "                    ";
   purgeBeforeSteam3.display4 =   "Click when Ready    ";
   purgeBeforeSteam3.steamHeaterOn = true; 
-
-  heatingToSteamState.state = HEATING_TO_STEAM; 
-  heatingToSteamState.display1 =   "Heating to steam.   ";
-  heatingToSteamState.display2 =   "{measuredSteamTemp}/{targetSteamTemp}";
-  heatingToSteamState.display3 =   "                    ";
-  heatingToSteamState.display4 =   "Please wait ...     ";
-  heatingToSteamState.steamHeaterOn = true; 
-
-  steamingState.state = STEAMING; 
-  steamingState.display1 =         "Operate steam wand. ";
-  steamingState.display2 =         "{measuredSteamTemp}/{targetSteamTemp}";
-  steamingState.display3 =         "                    ";
-  steamingState.display4 =         "Click when Done     ";
-  steamingState.steamHeaterOn = true; 
 
   coolStartState.state = COOL_START; 
   coolStartState.display1 =        "Too hot to brew,    ";
@@ -1176,17 +1168,19 @@ void stateInit() {
   backflushCycleDoneState.display3 =            "Return scale.       ";
   backflushCycleDoneState.display4 =            "Click when Done     ";
 
-  joiningNetwork.state = JOINING_NETWORK;
-  joiningNetwork.display1 =            "Joining network ... ";
-  joiningNetwork.display2 =            "                    ";
-  joiningNetwork.display3 =            "                    ";
-  joiningNetwork.display4 =            "Click to Skip       ";
+ featuresState.state = FEATURES; 
+  featuresState.display1 =            "Select Feature      ";
+  featuresState.display2 =            "                    ";
+  featuresState.display3 =            "Click for wand,     ";
+  featuresState.display4 =            "Hold for Clean      ";
+  featuresState.fillingReservoir = true;
 
-  ignoringNetwork.state = IGNORING_NETWORK;
-  ignoringNetwork.display1 =            "Ignoring Network    ";
-  ignoringNetwork.display2 =            "                    ";
-  ignoringNetwork.display3 =            "                    ";
-  ignoringNetwork.display4 =            "Please wait ...     ";
+  wandFeaturesState.state = WAND_FEATURES; 
+  wandFeaturesState.display1 =        "Select Wand Feature ";
+  wandFeaturesState.display2 =        "Click for           ";
+  wandFeaturesState.display3 =        "  hot water,        ";
+  wandFeaturesState.display4 =        "Hold for Steam      ";
+  wandFeaturesState.fillingReservoir = true;
 
 
   naState.state = NA;

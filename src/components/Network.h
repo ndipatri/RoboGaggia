@@ -23,4 +23,6 @@ void MQTTConnect();
 
 void networkInit();
 
+char* checkForMQTTCommand();
+
 #endif
