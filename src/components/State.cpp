@@ -6,7 +6,6 @@ GaggiaState sleepState,
             preheatState,
             featuresState,
             wandFeaturesState,
-            tareCup1State,
             measureBeansState,
             tareCup2State,
             heatingToBrewState,
@@ -106,24 +105,12 @@ GaggiaState* getNextGaggiaState() {
         if (heaterState.measuredTemp >= TARGET_BREW_TEMP * 1.50) {
           return &coolStartState;
         } else {
-          return &tareCup1State;
+          return &measureBeansState;
         }
       }
 
       if (userInputState.state == LONG_PRESS) {
         return &featuresState;
-      }
-      break;
-
-
-    case TARE_CUP_BEFORE_MEASURE :
-
-      if (userInputState.state == SHORT_PRESS) {
-        return &measureBeansState;
-      }
-     
-      if (userInputState.state == LONG_PRESS) {
-        return &preheatState;
       }
       break;
 
@@ -616,7 +603,6 @@ char* getStateName(int stateEnum) {
     case IGNORING_NETWORK: return "ignoringNetwork";
     case JOINING_NETWORK: return "joiningNetwork";
     case PREHEAT: return "preheat";
-    case TARE_CUP_BEFORE_MEASURE: return "tareCupBeforeMeasure";
     case MEASURE_BEANS: return "measureBeans";
     case TARE_CUP_AFTER_MEASURE: return "tareCupAfterMeasure";
     case HEATING_TO_BREW: return "heating";
@@ -954,7 +940,7 @@ void stateInit() {
   // entry point when first power or if leaving sleep
   preheatState.state = PREHEAT;
   preheatState.display1 =            "{helloMessage}";
-  preheatState.display2 =            "Clear scale surface.";
+  preheatState.display2 =            "Empty cup on scale. ";
   preheatState.display3 =            "Click to Brew,      ";
   preheatState.display4 =            "Hold for Features   ";
 
@@ -970,15 +956,6 @@ void stateInit() {
   // when we are measuring things...
   preheatState.tareScale = true; 
 
-  tareCup1State.state = TARE_CUP_BEFORE_MEASURE; 
-  tareCup1State.display1 =         "Place empty cup     ";
-  tareCup1State.display2 =         "on tray.            ";
-  tareCup1State.display3 =         "{adjustedWeight}";
-  tareCup1State.display4 =         "Click when Ready    ";
-  tareCup1State.tareScale = true; 
-  tareCup1State.brewHeaterOn = true; 
-  tareCup1State.fillingReservoir = true;
-
   measureBeansState.state = MEASURE_BEANS; 
   measureBeansState.display1 =     "Add beans to cup.   ";
   measureBeansState.display2 =     "{adjustedWeight}/{targetBeanWeight}";
@@ -986,6 +963,7 @@ void stateInit() {
   measureBeansState.display4 =     "Click when Ready    ";
   measureBeansState.recordWeight = true; 
   measureBeansState.brewHeaterOn = true; 
+  measureBeansState.fillingReservoir = true;
 
   tareCup2State.state = TARE_CUP_AFTER_MEASURE; 
   tareCup2State.display1 =         "Grind & load beans, ";
