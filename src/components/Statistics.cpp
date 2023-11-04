@@ -1,7 +1,7 @@
 #include "Statistics.h"
 
 // TODO - Need to increase this after testing.
-int MAX_BREW_COUNT_BEFORE_CLEANING = 15;
+int MAX_BREW_COUNT_BEFORE_CLEANING = 25;
 
 int BACKFLUSH_BREW_COUNT_EEPROM_ADDRESS = 0;
 int TOTAL_BREW_COUNT_EEPROM_ADDRESS = 5;

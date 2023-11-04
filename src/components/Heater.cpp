@@ -25,12 +25,12 @@ HeaterState heaterState;
 
 // This measured temperature assures that the extracted temp
 // at the group is around 93C/200F
-double TARGET_BREW_TEMP = 108; 
+double TARGET_BREW_TEMP = 120; 
+double TOO_HOT_TO_BREW_TEMP = 130; 
 
 double TARGET_HOT_WATER_DISPENSE_TEMP = 120; 
 
 // This will trigger the COOLING feature
-double TOO_HOT_TO_BREW_TEMP = 110; 
 double TARGET_STEAM_TEMP = 140; 
 
 // These were emperically derived.  They are highly dependent on the actual system , but should now work
