@@ -190,10 +190,12 @@ GaggiaState* getNextGaggiaState() {
     case STEAMING :
 
       if (userInputState.state == SHORT_PRESS) {
-        return &preheatState;
+        // We want to always clean the group after brewing
+        return &groupClean2State;
       }
       if (userInputState.state == LONG_PRESS) {
-        return &preheatState;
+        // We want to always clean the group after brewing
+        return &groupClean2State;
       }
       break;
       
