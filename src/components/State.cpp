@@ -613,6 +613,8 @@ char* getStateName(int stateEnum) {
     case DONE_BREWING: return "doneBrewing";
     case HEATING_TO_STEAM: return "heatingToSteam";
     case STEAMING: return "steaming";
+    case GROUP_CLEAN_2: return "cleanGroupReady";
+    case GROUP_CLEAN_3: return "cleanGroupDone";
     case COOL_START: return "coolStart";
     case COOLING: return "cooling";
     case COOL_DONE: return "coolDone";
@@ -1148,7 +1150,7 @@ void stateInit() {
   backflushCycleDoneState.display3 =            "Return scale.       ";
   backflushCycleDoneState.display4 =            "Click when Done     ";
 
- featuresState.state = FEATURES; 
+  featuresState.state = FEATURES; 
   featuresState.display1 =            "Select Feature      ";
   featuresState.display2 =            "                    ";
   featuresState.display3 =            "Click for wand,     ";
