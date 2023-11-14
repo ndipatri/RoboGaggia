@@ -24,6 +24,7 @@ float nextTelemetrySampleMillis = -1;
 void sendTelemetry(boolean force) {
 
     Telemetry telemetry;
+    telemetry.id = currentGaggiaState->state;
     telemetry.description = "PID(" + 
                               String(pressure_PID_kP) + ":" +
                               String(pressure_PID_kI) + ":" +
@@ -60,6 +61,7 @@ void sendTelemetry(boolean force) {
 
         Telemetry averageTelemetry;
           // will use last value
+        averageTelemetry.id = currentGaggiaState->state;
         averageTelemetry.stateName = getStateName(currentGaggiaState->state);
         averageTelemetry.measuredWeightGrams = weightSum/TELEMETRY_SEND_INTERVAL;
         averageTelemetry.measuredPressureBars = barsSum/TELEMETRY_SEND_INTERVAL;
@@ -92,6 +94,16 @@ void sendTelemetry(boolean force) {
           Log.error(String(millis()) + String(":") + messageToSendToCloud);
 
           sendMessageToCloud(messageToSendToCloud);
+          
+          String messageToSendToBluetooth =             
+            String(averageTelemetry.id) + String(", ") + 
+            String(measuredWeightGramsBuf) + String(", ") + 
+            String((int)floor(averageTelemetry.measuredPressureBars)) + String(", ") +  
+            String((int)floor(averageTelemetry.pumpDutyCycle)) + String(", ") +
+            String((int)floor(averageTelemetry.flowRateGPS)) + String(", ") +
+            String((int)floor(averageTelemetry.brewTempC));   
+
+          sendMessageOverBLE(messageToSendToCloud);
         
           lastMessageSentToCloud = messageToSendToCloud;
         }

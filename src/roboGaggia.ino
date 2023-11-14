@@ -27,6 +27,7 @@ Copyright (c) 2016 SparkFun Electronics
 #include "components/WaterReservoir.h"
 #include "components/Display.h"
 #include "components/State.h"
+#include "components/Bluetooth.h"
 
 
 #define LOOP_INTERVAL_MILLIS 75
@@ -79,6 +80,8 @@ void setup() {
 
   // Provides core data types and logging
   commonInit();
+
+  bluetoothInit();
 
   // Wait for a USB serial connection for up to 3 seconds
   waitFor(Serial.isConnected, 3000);
