@@ -11,7 +11,7 @@ void sendMessageOverBLE(const char* message);
 
 void bluetoothInit();
 
-char* checkForIncomingCommand();
+char* checkForBLECommand();
 
 void onDataReceived(const uint8_t* data, size_t len, const BlePeerDevice& peer, void* context);
 

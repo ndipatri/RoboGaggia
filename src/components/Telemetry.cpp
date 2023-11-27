@@ -83,7 +83,6 @@ void sendTelemetry(boolean force) {
 
         String messageToSendToCloud =             
             String(averageTelemetry.stateName) + String(", ") + 
-            String(averageTelemetry.description) + String(", ") + 
             String(measuredWeightGramsBuf) + String(", ") + 
             String((int)floor(averageTelemetry.measuredPressureBars)) + String(", ") +  
             String((int)floor(averageTelemetry.pumpDutyCycle)) + String(", ") +
@@ -94,15 +93,6 @@ void sendTelemetry(boolean force) {
           Log.error(String(millis()) + String(":") + messageToSendToCloud);
 
           sendMessageToCloud(messageToSendToCloud);
-          
-          String messageToSendToBluetooth =             
-            String(averageTelemetry.id) + String(", ") + 
-            String(measuredWeightGramsBuf) + String(", ") + 
-            String((int)floor(averageTelemetry.measuredPressureBars)) + String(", ") +  
-            String((int)floor(averageTelemetry.pumpDutyCycle)) + String(", ") +
-            String((int)floor(averageTelemetry.flowRateGPS)) + String(", ") +
-            String((int)floor(averageTelemetry.brewTempC));   
-
           sendMessageOverBLE(messageToSendToCloud);
         
           lastMessageSentToCloud = messageToSendToCloud;

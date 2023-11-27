@@ -3,6 +3,7 @@
 
 #include "Common.h"
 #include "Network.h"
+#include "Bluetooth.h"
 
 #include <SparkFun_Qwiic_Button.h>
 
