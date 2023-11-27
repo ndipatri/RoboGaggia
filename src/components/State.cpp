@@ -261,7 +261,7 @@ GaggiaState* getNextGaggiaState() {
     case CLEAN_OPTIONS :
 
       if (userInputState.state == SHORT_PRESS) {
-        return &backflushCycle1State;
+        return &backflushInstructions1State;
       }
       if (userInputState.state == LONG_PRESS) {
           return &groupClean1State;
