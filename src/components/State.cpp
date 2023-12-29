@@ -803,7 +803,7 @@ void processCurrentGaggiaState() {
       }
     } else {
       // we want telemetry to be available for all non-rest states...
-      if (!networkState.connected) {
+      if (networkState.connected) {
         MQTTConnect();
       }
     }
