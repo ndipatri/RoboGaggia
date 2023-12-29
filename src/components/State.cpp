@@ -45,6 +45,8 @@ int DONE_BREWING_LINGER_TIME_SECONDS = 7;
   
 int DONE_PURGE_BEFORE_STEAM_TIME_SECONDS = 3;
 
+int DONE_CLEANING_GROUP_HEAD_SECONDS = 3;
+
 int NUMBER_OF_CLEAN_CYCLES = 20; // (10 on and off based on https://youtu.be/lfJgabTJ-bM?t=38)
 int SECONDS_PER_CLEAN_CYCLE = 4; 
 
@@ -292,9 +294,11 @@ GaggiaState* getNextGaggiaState() {
   
       case GROUP_CLEAN_3 :
 
-      if (userInputState.state == SHORT_PRESS) {
-          return &preheatState;
-      }
+      if ((millis() - currentGaggiaState->stateEnterTimeMillis) > 
+             DONE_CLEANING_GROUP_HEAD_SECONDS * 1000) {        
+        return &preheatState;
+      }     
+
       if (userInputState.state == LONG_PRESS) {
         return &preheatState;
       }
@@ -1104,7 +1108,7 @@ void stateInit() {
   groupClean3State.display1 =   "Cleaning Group Head ";
   groupClean3State.display2 =   "                    ";
   groupClean3State.display3 =   "                    ";
-  groupClean3State.display4 =   "Click when Done     ";
+  groupClean3State.display4 =   "Please wait ...     ";
   groupClean3State.hotWaterDispenseHeaterOn = true; 
   groupClean3State.waterThroughGroupHead = true; 
 
