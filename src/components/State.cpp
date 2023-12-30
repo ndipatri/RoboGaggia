@@ -803,6 +803,7 @@ void processCurrentGaggiaState() {
       // we disconnect from MQTT broker for telemetry...
       if (networkState.connected) {
         // recall the system returns to hello after 15 minutes of inactivity.
+        sendTelemetryUpdateNow();
         MQTTDisconnect();
       }
     } else {
