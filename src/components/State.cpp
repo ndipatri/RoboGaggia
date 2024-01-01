@@ -45,7 +45,7 @@ int DONE_BREWING_LINGER_TIME_SECONDS = 7;
   
 int DONE_PURGE_BEFORE_STEAM_TIME_SECONDS = 3;
 
-int DONE_CLEANING_GROUP_HEAD_SECONDS = 3;
+int DONE_CLEANING_GROUP_HEAD_SECONDS = 2;
 
 int NUMBER_OF_CLEAN_CYCLES = 20; // (10 on and off based on https://youtu.be/lfJgabTJ-bM?t=38)
 int SECONDS_PER_CLEAN_CYCLE = 4; 
@@ -657,6 +657,10 @@ void processIncomingGaggiaState(GaggiaState *nextGaggiaState) {
   if (nextGaggiaState->hotWaterDispenseHeaterOn) {
     configureHotWaterDispenseHeater();
   }
+
+  if (nextGaggiaState->state == PREHEAT) {
+      scaleState.tareWeight = 0.0;
+  }
 }
 
 void processCurrentGaggiaState() { 
@@ -848,8 +852,6 @@ void processOutgoingGaggiaState() {
     updateFlowRateMetricIfNecessary();
 
     increaseBrewCount();
-  
-    scaleState.tareWeight = 0.0;
   }
 
   if (currentGaggiaState->state == BACKFLUSH_CYCLE_DONE) {
