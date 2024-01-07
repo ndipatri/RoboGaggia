@@ -361,11 +361,11 @@ GaggiaState* getNextGaggiaState() {
     case CLEAN_OPTIONS :
 
       if (userInputState.state == SHORT_PRESS) {
-        return &heatingToSteamState;
+        return &backflushInstructions1State;
       }
      
       if (userInputState.state == LONG_PRESS) {
-        return &backflushInstructions1State;
+        return &steamingState;
       }
       break;      
 
