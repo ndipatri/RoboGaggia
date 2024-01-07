@@ -18,6 +18,7 @@ GaggiaState sleepState,
             purgeBeforeSteam3, 
             heatingToSteamState, 
             steamingState,
+            descaleState,
             coolStartState,
             coolingState,
             coolDoneState,
@@ -199,6 +200,16 @@ GaggiaState* getNextGaggiaState() {
       }
       break;
       
+    case DESCALE :
+
+      if (userInputState.state == SHORT_PRESS) {
+        return &heatingToDispenseState;
+      }
+      if (userInputState.state == LONG_PRESS) {
+        return &preheatState;
+      }
+      break;
+      
     case HEATING_TO_DISPENSE :
 
       if (heaterState.measuredTemp >= TARGET_HOT_WATER_DISPENSE_TEMP) {
@@ -365,7 +376,7 @@ GaggiaState* getNextGaggiaState() {
       }
      
       if (userInputState.state == LONG_PRESS) {
-        return &steamingState;
+        return &descaleState;
       }
       break;      
 
@@ -594,6 +605,7 @@ char* getStateName(int stateEnum) {
     case DONE_BREWING: return "doneBrewing";
     case HEATING_TO_STEAM: return "heatingToSteam";
     case STEAMING: return "steaming";
+    case DESCALE: return "descale";
     case GROUP_CLEAN_2: return "cleanGroupReady";
     case GROUP_CLEAN_3: return "cleanGroupDone";
     case COOL_START: return "coolStart";
@@ -1004,6 +1016,12 @@ void stateInit() {
   steamingState.display3 =         "                    ";
   steamingState.display4 =         "Click when Done     ";
   steamingState.steamHeaterOn = true; 
+
+  descaleState.state = DESCALE; 
+  descaleState.display1 =         "Fill the reservoir  ";
+  descaleState.display2 =         "with descale liquid ";
+  descaleState.display3 =         "or water and        ";
+  descaleState.display4 =         "Click when Ready    ";
 
   heatingToDispenseState.state = HEATING_TO_DISPENSE; 
   heatingToDispenseState.display1 =   "Heating to dispense ";

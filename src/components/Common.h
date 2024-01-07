@@ -19,6 +19,7 @@ enum GaggiaStateEnum {
   PURGE_BEFORE_STEAM_3, 
   HEATING_TO_STEAM , 
   STEAMING , 
+  DESCALE,
   COOL_START , 
   COOLING , 
   COOL_DONE , 
