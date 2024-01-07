@@ -7,8 +7,7 @@
 enum GaggiaStateEnum {
   SLEEP,
   PREHEAT, 
-  FEATURES , 
-  WAND_FEATURES, 
+  CLEAN_OPTIONS , 
   MEASURE_BEANS ,  
   TARE_CUP_AFTER_MEASURE , 
   HEATING_TO_BREW , 
@@ -23,7 +22,6 @@ enum GaggiaStateEnum {
   COOL_START , 
   COOLING , 
   COOL_DONE , 
-  CLEAN_OPTIONS, 
   GROUP_CLEAN_1, 
   GROUP_CLEAN_2, 
   GROUP_CLEAN_3, 

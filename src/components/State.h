@@ -15,8 +15,7 @@
 
 extern GaggiaState  sleepState,
                     preheatState,
-                    featuresState,
-                    wandFeaturesState,
+                    cleanOptionsState,
                     measureBeansState,
                     tareCup2State,
                     heatingToBrewState,

@@ -4,8 +4,7 @@
 
 GaggiaState sleepState,
             preheatState,
-            featuresState,
-            wandFeaturesState,
+            cleanOptionsState,
             measureBeansState,
             tareCup2State,
             heatingToBrewState,
@@ -22,7 +21,6 @@ GaggiaState sleepState,
             coolStartState,
             coolingState,
             coolDoneState,
-            cleanOptionsState,
             groupClean1State,
             groupClean2State,
             groupClean3State,
@@ -112,7 +110,7 @@ GaggiaState* getNextGaggiaState() {
       }
 
       if (userInputState.state == LONG_PRESS) {
-        return &featuresState;
+        return &cleanOptionsState;
       }
       break;
 
@@ -260,16 +258,6 @@ GaggiaState* getNextGaggiaState() {
       }
       break;  
   
-    case CLEAN_OPTIONS :
-
-      if (userInputState.state == SHORT_PRESS) {
-        return &backflushInstructions1State;
-      }
-      if (userInputState.state == LONG_PRESS) {
-          return &groupClean1State;
-      }
-      break;  
-
     case GROUP_CLEAN_1 :
 
       if (heaterState.measuredTemp >= TARGET_HOT_WATER_DISPENSE_TEMP) {
@@ -370,27 +358,16 @@ GaggiaState* getNextGaggiaState() {
       }
       break;
   
-    case FEATURES :
+    case CLEAN_OPTIONS :
 
       if (userInputState.state == SHORT_PRESS) {
-        return &wandFeaturesState;
+        return &heatingToSteamState;
       }
      
       if (userInputState.state == LONG_PRESS) {
-        return &cleanOptionsState;
+        return &backflushInstructions1State;
       }
       break;      
-
-    case WAND_FEATURES :
-
-      if (userInputState.state == SHORT_PRESS) {
-        return &heatingToDispenseState;
-      }
-     
-      if (userInputState.state == LONG_PRESS) {
-        return &purgeBeforeSteam1;
-      }
-      break;    
 
     case PURGE_BEFORE_STEAM_1 :
 
@@ -630,8 +607,7 @@ char* getStateName(int stateEnum) {
     case BACKFLUSH_CYCLE_DONE: return "cleanDone";
     case HEATING_TO_DISPENSE: return "heatingToDispense";
     case DISPENSE_HOT_WATER: return "dispenseHotWater";
-    case FEATURES: return "features";
-    case WAND_FEATURES: return "wandFeatures";
+    case CLEAN_OPTIONS: return "cleanOptions";
     case NA: return "na";
   }
   
@@ -953,7 +929,7 @@ void stateInit() {
   preheatState.display1 =            "{helloMessage}";
   preheatState.display2 =            "Empty cup on scale. ";
   preheatState.display3 =            "Click to Brew,      ";
-  preheatState.display4 =            "Hold for Features   ";
+  preheatState.display4 =            "Hold for Clean      ";
 
   // We need to measure temp when leaving to know if we need to
   // do cooling phase first...
@@ -1087,12 +1063,6 @@ void stateInit() {
   coolDoneState.display3 =         "                    ";
   coolDoneState.display4 =         "Click when Ready    ";
 
-  cleanOptionsState.state = CLEAN_OPTIONS;
-  cleanOptionsState.display1 =  "Pick clean option   ";
-  cleanOptionsState.display2 =  "                    ";
-  cleanOptionsState.display3 =  "Click for Backflush  ";
-  cleanOptionsState.display4 =  "Hold for Group,    ";
-
   groupClean1State.state = GROUP_CLEAN_1; 
   groupClean1State.display1 =   "Heating to Clean    ";
   groupClean1State.display2 =   "Group               ";
@@ -1157,20 +1127,12 @@ void stateInit() {
   backflushCycleDoneState.display3 =            "Return scale.       ";
   backflushCycleDoneState.display4 =            "Click when Done     ";
 
-  featuresState.state = FEATURES; 
-  featuresState.display1 =            "Select Feature      ";
-  featuresState.display2 =            "                    ";
-  featuresState.display3 =            "Click for wand,     ";
-  featuresState.display4 =            "Hold for Clean      ";
-  featuresState.fillingReservoir = true;
-
-  wandFeaturesState.state = WAND_FEATURES; 
-  wandFeaturesState.display1 =        "Select Wand Feature ";
-  wandFeaturesState.display2 =        "Click for           ";
-  wandFeaturesState.display3 =        "  hot water,        ";
-  wandFeaturesState.display4 =        "Hold for Steam      ";
-  wandFeaturesState.fillingReservoir = true;
-
+  cleanOptionsState.state = CLEAN_OPTIONS; 
+  cleanOptionsState.display1 =            "Select Clean Option ";
+  cleanOptionsState.display2 =            "                    ";
+  cleanOptionsState.display3 =            "Click for Descale,  ";
+  cleanOptionsState.display4 =            "Hold for Backflush  ";
+  cleanOptionsState.fillingReservoir = true;
 
   naState.state = NA;
 
