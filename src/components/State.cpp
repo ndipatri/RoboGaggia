@@ -1022,12 +1022,15 @@ void stateInit() {
   descaleState.display2 =         "with descale liquid ";
   descaleState.display3 =         "or water and        ";
   descaleState.display4 =         "Click when Ready    ";
+  descaleState.hotWaterDispenseHeaterOn = true; 
 
   heatingToDispenseState.state = HEATING_TO_DISPENSE; 
   heatingToDispenseState.display1 =   "Heating to dispense ";
   heatingToDispenseState.display2 =   "          hot water.";
   heatingToDispenseState.display3 =   "{measuredSteamTemp}/{targetHotWaterDispenseTemp}";
   heatingToDispenseState.display4 =   "Please wait ...     ";
+  // NJD TODO - This seems strange but we need to keep the heater goign in order to keep 
+  // updated telemetry publishing.. I should fix this so telemtry goes out regardless
   heatingToDispenseState.hotWaterDispenseHeaterOn = true; 
 
   dispenseHotWaterState.state = DISPENSE_HOT_WATER; 
@@ -1151,6 +1154,9 @@ void stateInit() {
   cleanOptionsState.display3 =            "Click for Descale,  ";
   cleanOptionsState.display4 =            "Hold for Backflush  ";
   cleanOptionsState.fillingReservoir = true;
+  // NJD TODO - This seems strange but we need to keep the heater goign in order to keep 
+  // updated telemetry publishing.. I should fix this so telemtry goes out regardless
+  cleanOptionsState.hotWaterDispenseHeaterOn = true; 
 
   naState.state = NA;
 
