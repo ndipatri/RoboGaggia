@@ -36,6 +36,17 @@ void sendTelemetry(boolean force) {
     telemetry.flowRateGPS = waterPumpState.flowRateGPS;
     telemetry.brewTempC = heaterState.measuredTemp;
 
+    // We encode different values based on state...
+    if (currentGaggiaState->state == BACKFLUSH_CYCLE_1 ||
+        currentGaggiaState->state == BACKFLUSH_CYCLE_2) {
+
+      // weight is mapped to 'current pass'
+      telemetry.measuredWeightGrams = (long)(currentGaggiaState->counter/2)+1;
+
+      // pressure is maped to the 'target pass count'
+      telemetry.measuredPressureBars = (long)(currentGaggiaState->targetCounter)/2;
+    }
+
     // Log.error(String(telemetry.measuredWeightGrams) + "," +
     //   String(telemetry.measuredPressureBars) + "," +
     //   String(telemetry.pumpDutyCycle) + "," +
@@ -63,6 +74,7 @@ void sendTelemetry(boolean force) {
           // will use last value
         averageTelemetry.id = currentGaggiaState->state;
         averageTelemetry.stateName = getStateName(currentGaggiaState->state);
+
         averageTelemetry.measuredWeightGrams = weightSum/TELEMETRY_SEND_INTERVAL;
         averageTelemetry.measuredPressureBars = barsSum/TELEMETRY_SEND_INTERVAL;
         averageTelemetry.pumpDutyCycle = dutyCycleSum/TELEMETRY_SEND_INTERVAL;
