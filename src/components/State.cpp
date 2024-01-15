@@ -795,7 +795,7 @@ void processCurrentGaggiaState() {
       // we disconnect from MQTT broker for telemetry...
       if (networkState.connected) {
         // recall the system returns to hello after 15 minutes of inactivity.
-        sendTelemetryUpdateNow();
+        sendTelemetryIfNecessary(true);
         MQTTDisconnect();
       }
     } else {
@@ -850,7 +850,6 @@ void processOutgoingGaggiaState() {
   // Things we always reset when leaving a state...
   currentGaggiaState->stopTimeMillis = -1;
   currentGaggiaState->counter = -1;
-  nextFlowRateSampleMillis = -1;
 }
 
 String readCurrentState() {

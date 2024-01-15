@@ -4,31 +4,30 @@
 // These were emperically derived.  They are highly dependent on the actual system , but should now work
 // for any RoboGaggia.
 // see https://en.wikipedia.org/wiki/PID_controller#Loop_tuning
-double pressure_PID_kP = 0.2;
-double pressure_PID_kI = 1.0;
-double pressure_PID_kD = 2.0;
+double pressure_PID_kP = 0.06;
+double pressure_PID_kI = 0.3;
+double pressure_PID_kD = .09;
 
 //double pressure_PID_kP = 0.5;  main gain is too high.. way too much overshooting
 //double pressure_PID_kI = 8.0;
 //double pressure_PID_kD = 0.0;
 
-double TARGET_FLOW_RATE = 3.0;
+double TARGET_FLOW_RATE = 4.0;
 
 // We do 'Pressure Profiling', meaning we modulate the water pump power based
 // on the measure pressure, only during PREINFUSION and CLEANING
 double PRE_INFUSION_TARGET_BAR = 3.0;
 
-int FLOW_RATE_SAMPLE_PERIOD_MILLIS = 200; 
-
-double MIN_PUMP_DUTY_CYCLE = 40.0;
+double MIN_PUMP_DUTY_CYCLE = 35.0;
 double MAX_PUMP_DUTY_CYCLE = 100.0;
-
-float nextFlowRateSampleMillis = -1;
 
 WaterPumpState waterPumpState;
 
 Adafruit_ADS1115 ads1115;  // the adc for the pressure sensor
 
+// This is a reasonable mount of time to update flow rate given the scale
+// takes almost 2 seconds to settle
+int FLOW_RATE_SAMPLE_PERIOD_MILLIS = 2000; 
 
 // The TRIAC on/off signal for the AC Potentiometer
 // https://rocketcontroller.com/product/1-channel-high-load-ac-dimmer-for-use-witch-micro-controller-3-3v-5v-logic-ac-50-60hz/
@@ -93,11 +92,12 @@ void configureWaterPump(int gaggiaState) {
                                       &waterPumpState.targetFlowRateGPS,  // target
                                       pressure_PID_kP, pressure_PID_kI, pressure_PID_kD, PID::DIRECT);
     
-      // The Gaggia water pump doesn't energize at all below 30 duty cycle.
-      // This number range is the 'dutyCycle' of the power we are sending to the water
-      // pump.
       thisWaterPumpPID->SetOutputLimits(MIN_PUMP_DUTY_CYCLE, MAX_PUMP_DUTY_CYCLE);
-      thisWaterPumpPID->SetSampleTime(200);
+      
+      // we only want the PID to calculcate when we've manually updated the flow rate
+      // and call Compute().. so we should make this number very small so it always computes
+      // when we tell it to.
+      thisWaterPumpPID->SetSampleTime(10);
       thisWaterPumpPID->SetMode(PID::AUTOMATIC);
 
       delete waterPumpState.waterPumpPID;
@@ -137,8 +137,13 @@ void configureWaterPump(int gaggiaState) {
         // call if min and max are identical.
         maxOutput = MIN_PUMP_DUTY_CYCLE + MIN_PUMP_DUTY_CYCLE*.01;
       }
+      
       thisWaterPumpPID->SetOutputLimits(MIN_PUMP_DUTY_CYCLE, maxOutput);
-      thisWaterPumpPID->SetSampleTime(200);
+      
+      // we only want the PID to calculcate when we've manually updated the flow rate
+      // and call Compute().. so we should make this number very small so it always computes
+      // when we tell it to.
+      thisWaterPumpPID->SetSampleTime(10);
       thisWaterPumpPID->SetMode(PID::AUTOMATIC);
 
       delete waterPumpState.waterPumpPID;
@@ -155,50 +160,71 @@ void stopDispensingWater() {
   digitalWrite(DISPENSE_POT, LOW);
 }
 
-// This is an Interrupt Service Routine (ISR) so it cannot take any arguments
-// nor return any values.
-//
-// We consider our current
-void turnOnDispensePotISR() {
-  digitalWrite(DISPENSE_POT, HIGH);
-}
-Timer timer(0, turnOnDispensePotISR, true);
+// Pulse Skip Modulation means you choose an arbitrary sequence of AC
+// cycles to send to the vibe pump, and the rest you 'skip'.
+// We'll call this arbitrary sequence of cycles an 'epoch'..
+// https://www.instructables.com/Arduino-controlled-light-dimmer-The-circuit/
+
+// total cycles in epoch
+volatile int cyclesInEpoch = 10;
+
+// We track number of cycles within an epoch so we can decide 
+// which should be on or off depending on duty cycle.
+volatile int cycleCount = 1;
+
+// -1 means new cycle
+// 1 means TRIAC was ON for first zero crossing within this cycle
+// 0 means TRIAC was OFF for first zero crossing within this cycle
+volatile int currentCycleValue = -1;
+
+volatile int dutyCycle = 0;
+
 void handleZeroCrossingInterrupt() {
-  // IMPORTANT!: the Triac will automatically shut off at every zero
-  // crossing.. so it's best to start the cycle with teh triac off and
-  // then turn it on for the remainder of the cycle  
+  // At each zero cross, the TRIAC automatically turns off.. so we need
+  // to always turn it on for a cycle that is meant to be 'on' 
 
-  digitalWrite(DISPENSE_POT, LOW);
-  delayMicroseconds(10);
-  
-  // We assume 60Hz cycle (1000ms/60 = 16ms per cycle.)
-  // If we wait 8ms before turning on, the next cycle will happen immediately
-  // and shut off.. so 8ms is essentially 0% duty cycle
-  // If we wait 4ms before turning on, that's half the cycle.. so that's 50%
-  // If we wait 0ms before turning on, that's 100% duty cycle.
-
-  // ok for some reason, only values of 40 and 100 work
-
-  // NOTE: dutyCycle below 30 is kinda useless.. doesn't really energize water
-  // pump
-  
-  double regulatedPumpDutyCycle = waterPumpState.pumpDutyCycle;
-
-  if (waterPumpState.measuredPressureInBars >= MAX_BAR) {
-    // primative means of clamping pressure
-    regulatedPumpDutyCycle /= 3.0;
+  if (cycleCount > cyclesInEpoch) {
+    // New Epic!
+    cycleCount = 1;
+    dutyCycle = waterPumpState.pumpDutyCycle;
   }
 
-  int offIntervalMs = 8 - round((8*(regulatedPumpDutyCycle/100.0)));
+  volatile bool shouldTurnOnTRIAC = false;
+  if (currentCycleValue < 0) {
+    // new cycle! need to calculate new value based on duty cycle and current cycle count
+    // within the epoch
 
-  // There needs to be a minimal delay between LOW and HIGH for the TRIAC
-  offIntervalMs = max(offIntervalMs, 1);
+    // This should be between 0 and 100
+    // 0 would mean NO cycles are on during epoch,
+    // 50 would mean half of cycles are on during epoch,
+    // 100 would be ALL cycles on during epoch.
 
-  // 'FromISR' is critical otherwise, the timer hangs the ISR.
-  timer.changePeriodFromISR(offIntervalMs);
-  timer.startFromISR();  
+    int pivot = cyclesInEpoch * (dutyCycle/100.0);
+    if(cycleCount <= pivot) {
+      shouldTurnOnTRIAC = true;
+      currentCycleValue = 1;
+    } else {
+      shouldTurnOnTRIAC = false;
+      currentCycleValue = 0;
+    }
+    
+  } else {
+    // just copy value from first zero crossing in this cycle..
+    shouldTurnOnTRIAC = (currentCycleValue == 1);
+  
+    // Now that we've completed a cycle, reset...
+    currentCycleValue = -1;
+    cycleCount += 1;
+  }
+  
+  if (shouldTurnOnTRIAC) {
+    digitalWrite(DISPENSE_POT, HIGH);
+  } else {
+    digitalWrite(DISPENSE_POT, LOW);
+  }
+
+  delayMicroseconds(10);
 }
-
 // The solenoid valve allows water to through to grouphead.
 void startDispensingWater(boolean turnOnSolenoidValve) {
   publishParticleLog("dispenser", "dispensingOn");
@@ -208,15 +234,6 @@ void startDispensingWater(boolean turnOnSolenoidValve) {
   } else {
     digitalWrite(SOLENOID_VALVE_SSR, LOW);
   }
-
-  readPumpState();  
-
-  // This triggers the PID to use previous and current
-  // measured values to calculate the current required
-  // dutyCycle of the water pump
-  // By default, it will update output values every 200ms, regardless
-  // of how often we call Compute()
-  waterPumpState.waterPumpPID->Compute();
 
   publishParticleLog("dispenser", "pumpDutyCycle: " + String(waterPumpState.pumpDutyCycle));
 
@@ -264,27 +281,44 @@ String getPumpState() {
   return String(waterPumpState.measuredPressureInBars);
 }
 
-// Altough we preserve the last measure so we can come up with
-// an average flow rate, the interval between these times are
-// determined elsewhere.
+// This will calculate based on the last time this function was called
 void updateFlowRateMetricIfNecessary() {
+  if (millis() > waterPumpState.nextSampleMillis) {
 
-  if (millis() > nextFlowRateSampleMillis) {
     double measuredWeightNow = scaleState.measuredWeight - scaleState.tareWeight;
 
-    double newFlowRateGPS = ( // current extracted weight
-                            measuredWeightNow -
-                             // previous extracted weight
-                            waterPumpState.measuredWeightAtFlowRate) /
-                            (FLOW_RATE_SAMPLE_PERIOD_MILLIS/1000.0); 
+    double newFlowRateGPS = 0.0;
+    if (waterPumpState.nextSampleMillis > 0) {
 
+      // This is the difference between when we thought we were ending this sampling
+      // interval and when we did + the length of the sampling interval
+      int flowRateInterval = millis() - waterPumpState.nextSampleMillis + FLOW_RATE_SAMPLE_PERIOD_MILLIS;
+
+      newFlowRateGPS = ( // current extracted weight
+                              measuredWeightNow -
+                              // previous extracted weight
+                              waterPumpState.previousMeasuredWeight) /
+                              (flowRateInterval/1000.0); 
+    }
     // This is observed by the PID
     waterPumpState.flowRateGPS = newFlowRateGPS;
-      
-    // This is used for the next rate calculation.
-    waterPumpState.measuredWeightAtFlowRate = measuredWeightNow;
 
-    nextFlowRateSampleMillis = millis() + FLOW_RATE_SAMPLE_PERIOD_MILLIS;
+
+    Log.error("FlowRate Reading: " + String(waterPumpState.flowRateGPS));
+
+    // Now that we have new flow rate, recalculate PID..
+
+    // This triggers the PID to use previous and current
+    // measured values to calculate the current required
+    // dutyCycle of the water pump
+  
+    // NJD for testing
+    //waterPumpState.pumpDutyCycle = 80;
+
+    waterPumpState.waterPumpPID->Compute();
+
+    waterPumpState.nextSampleMillis = millis() + FLOW_RATE_SAMPLE_PERIOD_MILLIS;
+    waterPumpState.previousMeasuredWeight = measuredWeightNow;
   }
 }
 

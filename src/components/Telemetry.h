@@ -8,9 +8,6 @@
 #include "State.h"
 #include "tiny-collections.h"
 
-void sendTelemetryUpdateNow();
-
-// Return value indicates telemetry measurement was taken
-void calculateAndSendTelemetryIfNecessary();
+void sendTelemetryIfNecessary(boolean force);
 
 #endif

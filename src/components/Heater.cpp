@@ -90,8 +90,6 @@ void readSteamHeaterState() {
 
 boolean shouldTurnOnHeater() {
                         
-  // By default, it will update output values every 200ms, regardless
-  // of how often we call Compute()
   heaterState.heaterPID->Compute();
 
   if (heaterState.heaterShouldBeOn > 0 ) {

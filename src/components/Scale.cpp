@@ -40,12 +40,11 @@ void readScaleState() {
       avgReading += scaleState.avgWeights[index];
     avgReading /= SCALE_SAMPLE_SIZE;
 
-    //Log.error("Reading: " + String(avgReading));
-
     double weightInGrams = (float)avgReading * SCALE_FACTOR + SCALE_OFFSET;
     if (weightInGrams < 0.1) {
       weightInGrams = 0.0;
     }
+    Log.error("Scale Reading: " + String(weightInGrams));
 
     scaleState.measuredWeight = weightInGrams;
   }

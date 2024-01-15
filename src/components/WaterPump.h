@@ -11,10 +11,6 @@ extern double pressure_PID_kP;
 extern double pressure_PID_kI;
 extern double pressure_PID_kD;
 
-extern float nextFlowRateSampleMillis;
-
-extern int FLOW_RATE_SAMPLE_PERIOD_MILLIS;
-
 extern double MAX_PUMP_DUTY_CYCLE;
 extern double MIN_PUMP_DUTY_CYCLE;
 
@@ -40,10 +36,11 @@ struct WaterPumpState {
   PID *waterPumpPID;
 
   double flowRateGPS = 0.0;
-  
-  // The measured weight at the time the flowRateGPS was
-  // calculated.
-  double measuredWeightAtFlowRate = 0.0;
+
+  float nextSampleMillis = -1;
+
+  // used to calculate flowRate
+  double previousMeasuredWeight = 0.0;
 };
 
 extern WaterPumpState waterPumpState;

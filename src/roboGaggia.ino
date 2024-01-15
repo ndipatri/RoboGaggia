@@ -102,7 +102,7 @@ void loop() {
   if (first || nextGaggiaState->state != currentGaggiaState->state) {
 
     // force a telemetry update since we're changing state
-    sendTelemetryUpdateNow();
+    sendTelemetryIfNecessary(true);
 
     // Things we do when we leave a state
     processOutgoingGaggiaState();
@@ -121,8 +121,7 @@ void loop() {
   // (e.g. record weight of beans, tare measuring cup)
   processCurrentGaggiaState();
 
-  // We trust that telemetry will only be sent if it has changed...
-  calculateAndSendTelemetryIfNecessary();
+  sendTelemetryIfNecessary(false);
 
   // resume service loop
   if (networkState.connected) {
