@@ -168,8 +168,7 @@ GaggiaState* getNextGaggiaState() {
 
     case DONE_BREWING :
 
-      if ((millis() - currentGaggiaState->stateEnterTimeMillis) > 
-             DONE_BREWING_LINGER_TIME_SECONDS * 1000) {        
+      if (userInputState.state == SHORT_PRESS) {
         return &heatingToSteamState;
       }
 
@@ -996,9 +995,9 @@ void stateInit() {
 
   doneBrewingState.state = DONE_BREWING; 
   doneBrewingState.display1 =     "Done brewing.       ";
-  doneBrewingState.display2 =     "{extractionTimes}";
+  doneBrewingState.display2 =     "{extractionTimes}   ";
   doneBrewingState.display3 =     "Remove cup.         ";
-  doneBrewingState.display4 =     "Please wait ...     ";
+  doneBrewingState.display4 =     "Click to steam ...  ";
   doneBrewingState.brewHeaterOn = true; 
   doneBrewingState.fillingReservoir = true;
 

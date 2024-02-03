@@ -5,8 +5,8 @@
 // for any RoboGaggia.
 // see https://en.wikipedia.org/wiki/PID_controller#Loop_tuning
 double pressure_PID_kP = 0.06;
-double pressure_PID_kI = 0.3;
-double pressure_PID_kD = .09;
+double pressure_PID_kI = 1.0;
+double pressure_PID_kD = 2.0;
 
 //double pressure_PID_kP = 0.5;  main gain is too high.. way too much overshooting
 //double pressure_PID_kI = 8.0;
