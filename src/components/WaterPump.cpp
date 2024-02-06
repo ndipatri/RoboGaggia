@@ -4,9 +4,9 @@
 // These were emperically derived.  They are highly dependent on the actual system , but should now work
 // for any RoboGaggia.
 // see https://en.wikipedia.org/wiki/PID_controller#Loop_tuning
-double pressure_PID_kP = 0.06;
-double pressure_PID_kI = 1.0;
-double pressure_PID_kD = 2.0;
+double pressure_PID_kP = 0.03;
+double pressure_PID_kI = 2.0;
+double pressure_PID_kD = 1.0;
 
 //double pressure_PID_kP = 0.5;  main gain is too high.. way too much overshooting
 //double pressure_PID_kI = 8.0;
@@ -285,7 +285,7 @@ String getPumpState() {
 void updateFlowRateMetricIfNecessary() {
   if (millis() > waterPumpState.nextSampleMillis) {
 
-    double measuredWeightNow = scaleState.measuredWeight - scaleState.tareWeight;
+    double measuredWeightNow = scaleState.measuredWeight;
 
     double newFlowRateGPS = 0.0;
     if (waterPumpState.nextSampleMillis > 0) {
@@ -293,6 +293,9 @@ void updateFlowRateMetricIfNecessary() {
       // This is the difference between when we thought we were ending this sampling
       // interval and when we did + the length of the sampling interval
       int flowRateInterval = millis() - waterPumpState.nextSampleMillis + FLOW_RATE_SAMPLE_PERIOD_MILLIS;
+      Log.error("FlowRate Interval: " + String(flowRateInterval));
+      Log.error("FlowRate weight: " + String(measuredWeightNow));
+      Log.error("FlowRate previousWeight: " + String(waterPumpState.previousMeasuredWeight));
 
       newFlowRateGPS = ( // current extracted weight
                               measuredWeightNow -

@@ -6,7 +6,7 @@
 #include "WaterPump.h"
 #include "Network.h"
 
-#define SCALE_SAMPLE_SIZE 10 
+#define SCALE_SAMPLE_SIZE 20 
 
 extern int PREINFUSION_WEIGHT_THRESHOLD_GRAMS;
 
