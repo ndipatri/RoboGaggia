@@ -235,6 +235,8 @@ void startDispensingWater(boolean turnOnSolenoidValve) {
     digitalWrite(SOLENOID_VALVE_SSR, LOW);
   }
 
+  readPumpState();  
+
   publishParticleLog("dispenser", "pumpDutyCycle: " + String(waterPumpState.pumpDutyCycle));
 
   // The zero crossings from the incoming AC sinewave will trigger
