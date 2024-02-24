@@ -26,6 +26,7 @@ void onDataReceived(const uint8_t* data, size_t len, const BlePeerDevice& peer, 
 
 char* checkForBLECommand() {
   if (receivedBLEMessage != NULL) {
+    Log.error("BLE Message found:" + String(receivedBLEMessage));
     char* _receivedBLEMessage = receivedBLEMessage;
     receivedBLEMessage = NULL;
 

@@ -371,11 +371,11 @@ GaggiaState* getNextGaggiaState() {
     case CLEAN_OPTIONS :
 
       if (userInputState.state == SHORT_PRESS) {
-        return &backflushInstructions1State;
+        return &descaleState;
       }
      
       if (userInputState.state == LONG_PRESS) {
-        return &descaleState;
+        return &backflushInstructions1State;
       }
       break;      
 

@@ -57,7 +57,7 @@ void readUserInputState() {
     }
   }
 
-  // no physical inputs.. now check for commands from MQTT...
+  // no physical inputs.. now check for commands from MQTT or BLE ...
   char* incomingCommand = NULL;  
 
   char* _incomingMQTTCommand = checkForMQTTCommand();
@@ -73,10 +73,10 @@ void readUserInputState() {
   if (incomingCommand != NULL) {
     String incomingCommandString = String(incomingCommand);
     
-    publishParticleLog("mqttCommand", incomingCommandString);
+    publishParticleLog("incomingCommand", incomingCommandString);
 
     if (incomingCommandString.equals(SHORT_BUTTON_COMMAND)) {
-      publishParticleLog("mqttCommand", "SHORT_PRESS detected");
+      publishParticleLog("incomingCommand", "SHORT_PRESS detected");
 
       userInputState.state = SHORT_PRESS;
       userInputState.buttonPressStartTimeMillis = -1;

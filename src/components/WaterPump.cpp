@@ -4,13 +4,13 @@
 // These were emperically derived.  They are highly dependent on the actual system , but should now work
 // for any RoboGaggia.
 // see https://en.wikipedia.org/wiki/PID_controller#Loop_tuning
-double pressure_PID_kP = 0.03;
-double pressure_PID_kI = 2.0;
-double pressure_PID_kD = 1.0;
+double flow_PID_kP = 0.03;
+double flow_PID_kI = 2.0;
+double flow_PID_kD = 1.0;
 
-//double pressure_PID_kP = 0.5;  main gain is too high.. way too much overshooting
-//double pressure_PID_kI = 8.0;
-//double pressure_PID_kD = 0.0;
+double pressure_PID_kP = 4.0;  
+double pressure_PID_kI = 8.0;
+double pressure_PID_kD = 0.0;
 
 double TARGET_FLOW_RATE = 4.0;
 
@@ -47,7 +47,7 @@ int FLOW_RATE_SAMPLE_PERIOD_MILLIS = 2000;
 
 // For all unspecified states while dispensing, such as 
 // push water out of steam wand.
-double DEFAULT_DISPENSE_TARGET_BAR = 3.0;
+double DEFAULT_DISPENSE_TARGET_BAR = 5.0;
 
 
 double BACKFLUSH_TARGET_BAR = 4.0;
@@ -90,7 +90,7 @@ void configureWaterPump(int gaggiaState) {
       PID *thisWaterPumpPID = new PID(&waterPumpState.flowRateGPS,  // input
                                       &waterPumpState.pumpDutyCycle,  // output
                                       &waterPumpState.targetFlowRateGPS,  // target
-                                      pressure_PID_kP, pressure_PID_kI, pressure_PID_kD, PID::DIRECT);
+                                      flow_PID_kP, flow_PID_kI, flow_PID_kD, PID::DIRECT);
     
       thisWaterPumpPID->SetOutputLimits(MIN_PUMP_DUTY_CYCLE, MAX_PUMP_DUTY_CYCLE);
       
@@ -145,6 +145,12 @@ void configureWaterPump(int gaggiaState) {
       // when we tell it to.
       thisWaterPumpPID->SetSampleTime(10);
       thisWaterPumpPID->SetMode(PID::AUTOMATIC);
+
+      if (gaggiaState != PREINFUSION && gaggiaState != BREWING) {
+        // while brewing, the compute is done when we determine flow rate
+        // elsewhere...
+        thisWaterPumpPID->Compute();
+      }
 
       delete waterPumpState.waterPumpPID;
       waterPumpState.waterPumpPID = thisWaterPumpPID;
@@ -307,7 +313,6 @@ void updateFlowRateMetricIfNecessary() {
     }
     // This is observed by the PID
     waterPumpState.flowRateGPS = newFlowRateGPS;
-
 
     Log.error("FlowRate Reading: " + String(waterPumpState.flowRateGPS));
 
