@@ -74,8 +74,9 @@ void readUserInputState() {
     String incomingCommandString = String(incomingCommand);
     
     publishParticleLog("incomingCommand", incomingCommandString);
+    Log.error("incomingCommand: " + String(incomingCommandString));
 
-    if (incomingCommandString.equals(SHORT_BUTTON_COMMAND)) {
+    if (incomingCommandString.startsWith(SHORT_BUTTON_COMMAND)) {
       publishParticleLog("incomingCommand", "SHORT_PRESS detected");
 
       userInputState.state = SHORT_PRESS;
@@ -84,7 +85,7 @@ void readUserInputState() {
     
       return;
     } else 
-    if (incomingCommandString.equals(LONG_BUTTON_COMMAND)) {
+    if (incomingCommandString.startsWith(LONG_BUTTON_COMMAND)) {
       publishParticleLog("mqttCommand", "LONG_PRESS detected");
 
       userInputState.state = LONG_PRESS;

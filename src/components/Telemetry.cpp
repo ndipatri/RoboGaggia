@@ -12,7 +12,12 @@ String lastMessageSentToCloud = "";
 // way down...
 float nextTelemetrySendMillis = -1;
 
-int SEND_TELEMETRY_INTERVAL_MILLIS = 1200; 
+#if defined(AIO_USERNAME)
+  int SEND_TELEMETRY_INTERVAL_MILLIS = 1200; 
+#else
+  // BLE is fallback 
+  int SEND_TELEMETRY_INTERVAL_MILLIS = 250; 
+#endif
 
 void sendTelemetry(boolean force) {
 
@@ -40,31 +45,29 @@ void sendTelemetry(boolean force) {
       telemetry.measuredPressureBars = (long)(currentGaggiaState->targetCounter)/2;
   }
 
-    // only way this send will succeed
-  #ifdef AIO_USERNAME
-      char measuredWeightGramsBuf[256];
-      snprintf(measuredWeightGramsBuf, 
-               sizeof(measuredWeightGramsBuf), 
-               "%.1lf", 
-               (float)telemetry.measuredWeightGrams);
+  // only way this send will succeed
+  char measuredWeightGramsBuf[256];
+  snprintf(measuredWeightGramsBuf, 
+           sizeof(measuredWeightGramsBuf), 
+           "%.1lf", 
+           (float)telemetry.measuredWeightGrams);
 
-        String messageToSendToCloud =             
-            String(telemetry.stateName) + String(", ") + 
-            String(measuredWeightGramsBuf) + String(", ") + 
-            String((int)floor(telemetry.measuredPressureBars)) + String(", ") +  
-            String((int)floor(telemetry.pumpDutyCycle)) + String(", ") +
-            String((int)floor(telemetry.flowRateGPS)) + String(", ") +
-            String((int)floor(telemetry.brewTempC));        
+  String messageToSendToCloud =             
+    String(telemetry.stateName) + String(", ") + 
+    String(measuredWeightGramsBuf) + String(", ") + 
+    String((int)floor(telemetry.measuredPressureBars)) + String(", ") +  
+    String((int)floor(telemetry.pumpDutyCycle)) + String(", ") +
+    String((int)floor(telemetry.flowRateGPS)) + String(", ") +
+    String((int)floor(telemetry.brewTempC));        
 
-        if (force || (!messageToSendToCloud.equals(lastMessageSentToCloud))) {
-          Log.error(String(millis()) + String(":") + messageToSendToCloud);
+    if (force || (!messageToSendToCloud.equals(lastMessageSentToCloud))) {
+      Log.error(String(millis()) + String(":") + messageToSendToCloud);
 
-          sendMessageToCloud(messageToSendToCloud);
-          sendMessageOverBLE(messageToSendToCloud);
-        
-          lastMessageSentToCloud = messageToSendToCloud;
-        }
-  #endif
+      sendMessageToCloud(messageToSendToCloud);
+      sendMessageOverBLE(messageToSendToCloud);
+
+      lastMessageSentToCloud = messageToSendToCloud;
+    }
 }
 
 void sendTelemetryIfNecessary(boolean force) {

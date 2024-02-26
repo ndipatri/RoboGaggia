@@ -9,6 +9,8 @@ NetworkState networkState;
 #define AIO_SERVER      "io.adafruit.com"
 #define AIO_SERVERPORT  1883                   // use 8883 for SSL
 
+#if defined(AIO_USERNAME)
+
 int MAX_MQTT_RECONNECT_ATTEMPS = 2;
 
 TCPClient client; // TCP Client used by Adafruit IO library
@@ -24,32 +26,38 @@ Adafruit_MQTT_Subscribe commandsSubscription = Adafruit_MQTT_Subscribe(&mqtt, mq
 Adafruit_MQTT_Subscribe errors = Adafruit_MQTT_Subscribe(&mqtt, String(AIO_USERNAME) + "/errors");
 Adafruit_MQTT_Subscribe throttle = Adafruit_MQTT_Subscribe(&mqtt, String(AIO_USERNAME) + "/throttle");
 
+#endif
 
 // this assume MQTT connection is already created
 void sendMessageToCloud(const char* message) {
-  if (networkState.connected) {
-    if (mqttRoboGaggiaTelemetryTopic.publish(message)) {
-        Log.error("Message SUCCESS (" + String(message) + ").");
-        publishParticleLog("mqtt", "Message SUCCESS (" + String(message) + ").");
-    } else {
-        Log.error("Message FAIL (" + String(message) + ").");
-        publishParticleLog("mqtt", "Message FAIL (" + String(message) + ").");
+  #if defined(AIO_USERNAME)
+    if (networkState.connected) {
+      if (mqttRoboGaggiaTelemetryTopic.publish(message)) {
+          Log.error("Message SUCCESS (" + String(message) + ").");
+          publishParticleLog("mqtt", "Message SUCCESS (" + String(message) + ").");
+      } else {
+          Log.error("Message FAIL (" + String(message) + ").");
+          publishParticleLog("mqtt", "Message FAIL (" + String(message) + ").");
+      }
     }
-  }
+  #endif
 }
 
 void pingMQTTIfNecessary() {
-  if (mqtt.connected()) {
-    if (millis() - networkState.lastMQTTPingTimeMillis > MQTT_CONN_KEEPALIVE*1000) {
-      networkState.lastMQTTPingTimeMillis = millis();   
-      if(!mqtt.ping()) {
-        mqtt.disconnect();
+  #if defined(AIO_USERNAME)
+    if (mqtt.connected()) {
+      if (millis() - networkState.lastMQTTPingTimeMillis > MQTT_CONN_KEEPALIVE*1000) {
+        networkState.lastMQTTPingTimeMillis = millis();   
+        if(!mqtt.ping()) {
+          mqtt.disconnect();
+        }
       }
     }
-  }
+  #endif
 }
 
 void MQTTConnect() {
+  #if defined(AIO_USERNAME)
     int8_t ret;
 
     // Stop if already connected.
@@ -80,38 +88,49 @@ void MQTTConnect() {
     //     mqtt.disconnect();
     //     delay(250); 
     // }
+  #endif
 }
 
 void MQTTDisconnect() {
-    
+  #if defined(AIO_USERNAME)
     if (!mqtt.connected()) {
-        return;
+      return;
     }
 
     mqtt.disconnect();
+  #endif
 }
 
 String readCurrentMQTTState() {
-  if (mqtt.connected()) {
-    return "connected";
-  } else {
+  #if defined(AIO_USERNAME)
+    if (mqtt.connected()) {
+      return "connected";
+    } else {
+      return "disconnected";
+    }
+  #else
     return "disconnected";
-  }
+  #endif
 }
 
 char* checkForMQTTCommand() {
-  Adafruit_MQTT_Subscribe *subscription;
-  subscription = mqtt.readSubscription(100);
-  if (subscription == &commandsSubscription) {
+  #if defined(AIO_USERNAME)
+    Adafruit_MQTT_Subscribe *subscription;
+    subscription = mqtt.readSubscription(100);
+    if (subscription == &commandsSubscription) {
 
-    return (char *)commandsSubscription.lastread;
-  } else {
+      return (char *)commandsSubscription.lastread;
+    } else {
+      return NULL;
+    }
+  #else
     return NULL;
-  }
+  #endif
 }
 
 void networkInit() {
-  Particle.variable("mqttState", readCurrentMQTTState);
-
-  mqtt.subscribe(&commandsSubscription);
+  #if defined(AIO_USERNAME)
+    Particle.variable("mqttState", readCurrentMQTTState);
+    mqtt.subscribe(&commandsSubscription);
+  #endif
 }

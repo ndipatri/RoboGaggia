@@ -789,21 +789,19 @@ void processCurrentGaggiaState() {
     updateFlowRateMetricIfNecessary();
   }
 
-  #ifdef AIO_USERNAME
-    if (currentGaggiaState->state == SLEEP) {
-      // we disconnect from MQTT broker for telemetry...
-      if (networkState.connected) {
-        // recall the system returns to hello after 15 minutes of inactivity.
-        sendTelemetryIfNecessary(true);
-        MQTTDisconnect();
-      }
-    } else {
-      // we want telemetry to be available for all non-rest states...
-      if (networkState.connected) {
-        MQTTConnect();
-      }
+  if (currentGaggiaState->state == SLEEP) {
+    // we disconnect from MQTT broker for telemetry...
+    if (networkState.connected) {
+      // recall the system returns to hello after 15 minutes of inactivity.
+      sendTelemetryIfNecessary(true);
+      MQTTDisconnect();
     }
-  #endif
+  } else {
+    // we want telemetry to be available for all non-rest states...
+    if (networkState.connected) {
+      MQTTConnect();
+    }
+  }
 }
 
 
@@ -1158,6 +1156,11 @@ void stateInit() {
 
   naState.state = NA;
 
-  currentGaggiaState = &joiningNetwork;
+  #if defined(AIO_USERNAME)
+    currentGaggiaState = &joiningNetwork;
+  #else
+    currentGaggiaState = &preheatState;
+  #endif
+
   manualNextGaggiaState = &naState;
 }
