@@ -1156,11 +1156,7 @@ void stateInit() {
 
   naState.state = NA;
 
-  #if defined(AIO_USERNAME)
-    currentGaggiaState = &joiningNetwork;
-  #else
-    currentGaggiaState = &preheatState;
-  #endif
+  currentGaggiaState = &joiningNetwork;
 
   manualNextGaggiaState = &naState;
 }
