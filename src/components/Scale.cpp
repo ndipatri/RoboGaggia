@@ -12,7 +12,7 @@ NAU7802 myScale; //Create instance of the NAU7802 class
 double TARGET_BEAN_WEIGHT = 19; // grams
 
 // The extraction weight which triggers the end of PREINFUSION
-int PREINFUSION_WEIGHT_THRESHOLD_GRAMS = 2;
+int PREINFUSION_WEIGHT_THRESHOLD_GRAMS = 4;
 
 // This is the ration of final espresso weight compared to
 // that of the ground beans.  Typically this is 2-to-1

@@ -4,8 +4,8 @@
 // These were emperically derived.  They are highly dependent on the actual system , but should now work
 // for any RoboGaggia.
 // see https://en.wikipedia.org/wiki/PID_controller#Loop_tuning
-double flow_PID_kP = 0.03;
-double flow_PID_kI = 2.0;
+double flow_PID_kP = 0.01;
+double flow_PID_kI = .5;
 double flow_PID_kD = 1.0;
 
 double pressure_PID_kP = 4.0;  

@@ -22,17 +22,22 @@ float nextTelemetrySendMillis = -1;
 void sendTelemetry(boolean force) {
 
   Telemetry telemetry;
-    telemetry.id = currentGaggiaState->state;
-    telemetry.description = "PID(" + 
-                              String(pressure_PID_kP) + ":" +
-                              String(pressure_PID_kI) + ":" +
-                              String(pressure_PID_kD) + ")";
-    telemetry.stateName = getStateName(currentGaggiaState->state);
-    telemetry.measuredWeightGrams = scaleState.measuredWeight - scaleState.tareWeight;
-    telemetry.measuredPressureBars = waterPumpState.measuredPressureInBars;
-    telemetry.pumpDutyCycle = waterPumpState.pumpDutyCycle;
-    telemetry.flowRateGPS = waterPumpState.flowRateGPS;
-    telemetry.brewTempC = heaterState.measuredTemp;
+
+  telemetry.id = currentGaggiaState->state;
+  telemetry.stateName = getStateName(currentGaggiaState->state);
+  telemetry.measuredWeightGrams = scaleState.measuredWeight - scaleState.tareWeight;
+  telemetry.measuredPressureBars = waterPumpState.measuredPressureInBars;
+  telemetry.pumpDutyCycle = waterPumpState.pumpDutyCycle;
+  telemetry.flowRateGPS = waterPumpState.flowRateGPS;
+  telemetry.brewTempC = heaterState.measuredTemp;
+  telemetry.shotsUntilBackflush = shotsUntilBackflush();
+  telemetry.totalShots = readTotalBrewCount();
+
+  if (isHeaterOn()) {
+    telemetry.boilerState = 1; 
+  } else {
+    telemetry.boilerState = 0; 
+  }
 
     // We encode different values based on state...
   if (currentGaggiaState->state == BACKFLUSH_CYCLE_1 ||
@@ -58,7 +63,10 @@ void sendTelemetry(boolean force) {
     String((int)floor(telemetry.measuredPressureBars)) + String(", ") +  
     String((int)floor(telemetry.pumpDutyCycle)) + String(", ") +
     String((int)floor(telemetry.flowRateGPS)) + String(", ") +
-    String((int)floor(telemetry.brewTempC));        
+    String((int)floor(telemetry.brewTempC)) + String(", ") +
+    String(telemetry.shotsUntilBackflush) + String(", ") +
+    String(telemetry.totalShots) + String(", ") +
+    String(telemetry.boilerState);
 
     if (force || (!messageToSendToCloud.equals(lastMessageSentToCloud))) {
       Log.error(String(millis()) + String(":") + messageToSendToCloud);

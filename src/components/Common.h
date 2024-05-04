@@ -80,12 +80,14 @@ struct GaggiaState {
 struct Telemetry {  
   int id;
   String stateName;
-  String description;
   double measuredWeightGrams = 0;
   double measuredPressureBars = 0.0;
   double pumpDutyCycle = 0.0;
   double flowRateGPS = 0.0;
   double brewTempC = 0.0;
+  int shotsUntilBackflush = 0;
+  int totalShots = 0;
+  int boilerState = 0;    
 };
 
 void commonInit();
