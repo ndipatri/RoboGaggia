@@ -57,9 +57,18 @@ void sendTelemetry(boolean force) {
            "%.1lf", 
            (float)telemetry.measuredWeightGrams);
 
+  // Now we add the 'target weight' for our composite weight value...
+  char targetWeightGramsBuf[256];
+  snprintf(targetWeightGramsBuf, 
+           sizeof(targetWeightGramsBuf), 
+           "%.1lf", 
+           (float)scaleState.targetWeight);  
+
+  String weight = measuredWeightGramsBuf + String(":") + targetWeightGramsBuf;
+
   String messageToSendToCloud =             
     String(telemetry.stateName) + String(", ") + 
-    String(measuredWeightGramsBuf) + String(", ") + 
+    String(weight) + String(", ") + 
     String((int)floor(telemetry.measuredPressureBars)) + String(", ") +  
     String((int)floor(telemetry.pumpDutyCycle)) + String(", ") +
     String((int)floor(telemetry.flowRateGPS)) + String(", ") +
