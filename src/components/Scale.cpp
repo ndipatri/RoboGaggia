@@ -7,6 +7,8 @@ ScaleState scaleState;
 
 NAU7802 myScale; //Create instance of the NAU7802 class
 
+float KNOWN_CUP_WEIGHT_GRAMS = 54.8;
+
 // This is the suggested target weight when in
 // MEASURE_BEANS state
 double TARGET_BEAN_WEIGHT = 19; // grams
@@ -34,12 +36,9 @@ void readScaleState() {
 // With current settings this is blocking at takes about 1.6 seconds. (40 SPS/64 samples)
 void calibrateScale()
 {
-  // NJD TODO - Need to make this settable using Particle cloud!
-  float knownWeightOnScaleInGrams = 54.8; 
-
-  //Tell the library how much weight is currently on it
-  //We are sampling slowly, so we need to increase the timeout too
-  myScale.calculateCalibrationFactor(knownWeightOnScaleInGrams, 64, 3000); //64 samples at 40SPS. Use a timeout of 3 seconds
+  // Tell the library how much weight is currently on it
+  // We are sampling slowly, so we need to increase the timeout too
+  myScale.calculateCalibrationFactor(KNOWN_CUP_WEIGHT_GRAMS, 64, 3000); //64 samples at 40SPS. Use a timeout of 3 seconds
 
   // Now that this is done, we can make 'getWeight() in grams' calls on the scale instead of
   // unitless getReading() calls! 
