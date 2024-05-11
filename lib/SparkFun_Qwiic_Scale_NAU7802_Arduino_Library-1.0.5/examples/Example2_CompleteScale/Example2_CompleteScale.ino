@@ -30,7 +30,7 @@
   Hardware Connections:
   Plug a Qwiic cable into the Qwiic Scale and a RedBoard Qwiic
   If you don't have a platform with a Qwiic connection use the SparkFun Qwiic Breadboard Jumper (https://www.sparkfun.com/products/14425)
-  Open the serial monitor at 9600 baud to see the output
+  Open the serial monitor at 115200 baud to see the output
 */
 
 #include <Wire.h>
@@ -41,8 +41,9 @@
 NAU7802 myScale; //Create instance of the NAU7802 class
 
 //EEPROM locations to store 4-byte variables
+#define EEPROM_SIZE 100 //Allocate 100 bytes of EEPROM
 #define LOCATION_CALIBRATION_FACTOR 0 //Float, requires 4 bytes of EEPROM
-#define LOCATION_ZERO_OFFSET 10 //Must be more than 4 away from previous spot. Long, requires 4 bytes of EEPROM
+#define LOCATION_ZERO_OFFSET 10 //Must be more than 4 away from previous spot. int32_t, requires 4 bytes of EEPROM
 
 bool settingsDetected = false; //Used to prompt user to calibrate their scale
 
@@ -53,7 +54,9 @@ byte avgWeightSpot = 0;
 
 void setup()
 {
-  Serial.begin(9600);
+  EEPROM.begin(EEPROM_SIZE); //Some platforms need this. Comment this line if needed
+
+  Serial.begin(115200);
   Serial.println("Qwiic Scale Example");
 
   Wire.begin();
@@ -75,13 +78,15 @@ void setup()
   Serial.println(myScale.getZeroOffset());
   Serial.print("Calibration factor: ");
   Serial.println(myScale.getCalibrationFactor());
+
+  Serial.println("\r\nPress 't' to Tare or Zero the scale.");
 }
 
 void loop()
 {
   if (myScale.available() == true)
   {
-    long currentReading = myScale.getReading();
+    int32_t currentReading = myScale.getReading();
     float currentWeight = myScale.getWeight();
 
     Serial.print("Reading: ");
@@ -156,6 +161,8 @@ void calibrateScale(void)
   Serial.println(myScale.getWeight(), 2);
 
   recordSystemSettings(); //Commit these values to EEPROM
+
+  settingsDetected = true;
 }
 
 //Record the current system settings to EEPROM
@@ -164,6 +171,8 @@ void recordSystemSettings(void)
   //Get various values from the library and commit them to NVM
   EEPROM.put(LOCATION_CALIBRATION_FACTOR, myScale.getCalibrationFactor());
   EEPROM.put(LOCATION_ZERO_OFFSET, myScale.getZeroOffset());
+
+  EEPROM.commit(); //Some platforms need this. Comment this line if needed
 }
 
 //Reads the current system settings from EEPROM
@@ -171,13 +180,13 @@ void recordSystemSettings(void)
 void readSystemSettings(void)
 {
   float settingCalibrationFactor; //Value used to convert the load cell reading to lbs or kg
-  long settingZeroOffset; //Zero value that is found when scale is tared
+  int32_t settingZeroOffset; //Zero value that is found when scale is tared
 
   //Look up the calibration factor
   EEPROM.get(LOCATION_CALIBRATION_FACTOR, settingCalibrationFactor);
   if (settingCalibrationFactor == 0xFFFFFFFF)
   {
-    settingCalibrationFactor = 0; //Default to 0
+    settingCalibrationFactor = 1.0; //Default to 1.0
     EEPROM.put(LOCATION_CALIBRATION_FACTOR, settingCalibrationFactor);
   }
 
@@ -185,7 +194,7 @@ void readSystemSettings(void)
   EEPROM.get(LOCATION_ZERO_OFFSET, settingZeroOffset);
   if (settingZeroOffset == 0xFFFFFFFF)
   {
-    settingZeroOffset = 1000L; //Default to 1000 so we don't get inf
+    settingZeroOffset = 0; //Default to 0 - i.e. no offset
     EEPROM.put(LOCATION_ZERO_OFFSET, settingZeroOffset);
   }
 
@@ -194,6 +203,6 @@ void readSystemSettings(void)
   myScale.setZeroOffset(settingZeroOffset);
 
   settingsDetected = true; //Assume for the moment that there are good cal values
-  if (settingCalibrationFactor < 0.1 || settingZeroOffset == 1000)
+  if (settingCalibrationFactor == 1.0 || settingZeroOffset == 0)
     settingsDetected = false; //Defaults detected. Prompt user to cal scale.
 }

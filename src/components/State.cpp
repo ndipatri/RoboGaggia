@@ -1,7 +1,5 @@
 #include "State.h"
 
-#include <Qwiic_Scale_NAU7802_Arduino_Library.h>
-
 GaggiaState sleepState,
             preheatState,
             cleanOptionsState,
@@ -822,6 +820,21 @@ void processOutgoingGaggiaState() {
   // }
 
   // Process Tare Scale
+  
+    // it is assumed the user has been instructed to clear the scale during these states.
+    if (currentGaggiaState->state == JOINING_NETWORK || currentGaggiaState->state == IGNORING_NETWORK) {
+      zeroScale();
+    }
+  
+  // WARNING! This has to happen before we tare the scale for PREHEAT
+  if (currentGaggiaState->state == PREHEAT) {
+    // we know the scale has just the cup on it with a known weight.
+    calibrateScale();
+    delay(50);
+    readScaleState();
+  }
+
+  // WARNING! This has to happen after we calibrate for PREHEAT 
   if (currentGaggiaState->tareScale) {
     scaleState.tareWeight = scaleState.measuredWeight;
   }
@@ -843,7 +856,6 @@ void processOutgoingGaggiaState() {
     clearBackflushBrewCount();
   }
 
-
   // Things we always reset when leaving a state...
   currentGaggiaState->stopTimeMillis = -1;
   currentGaggiaState->counter = -1;
@@ -851,17 +863,6 @@ void processOutgoingGaggiaState() {
 
 String readCurrentState() {
   return String(currentGaggiaState->state);
-}
-
-int setHeatingState(String _) {
-  
-  // by jumping to this state, we are bypassing earlier states.. so we need to
-  // fake any data that should have been collected.
-  scaleState.tareWeight = 320;
-  scaleState.targetWeight = 100;
-
-  manualNextGaggiaState = &heatingToBrewState;
-  return 1;
 }
 
 int setCoolingState(String _) {
@@ -874,42 +875,16 @@ int setSteamingState(String _) {
   return 1;
 }
 
-int setBrewingState(String _) {
-  
-  // by jumping to this state, we are bypassing earlier states.. so we need to
-  // fake any data that should have been collected.
-  scaleState.tareWeight = 320;
-  scaleState.targetWeight = 100;
-
-  manualNextGaggiaState = &brewingState;
-  return 1;
-}
-
-int setPreInfusionState(String _) {
-  
-  // by jumping to this state, we are bypassing earlier states.. so we need to
-  // fake any data that should have been collected.
-  scaleState.tareWeight = 320;
-  scaleState.targetWeight = 100;
-
-  manualNextGaggiaState = &preinfusionState;
-  return 1;
-}
-
 int setDispenseHotWater(String _) {
   manualNextGaggiaState = &dispenseHotWaterState;
   return 1;
 }
-
 
 void stateInit() {
 
   Particle.variable("currentState", readCurrentState);
 
   Particle.function("setDispenseHotWater", setDispenseHotWater);
-  Particle.function("setPreinfusionState", setPreInfusionState);
-  Particle.function("setHeatingState", setHeatingState);
-  Particle.function("setBrewingState", setBrewingState);
   Particle.function("setSteamingState", setSteamingState);
 
  // Define all possible states of RoboGaggia
@@ -947,7 +922,7 @@ void stateInit() {
   // person walked away for a few days ...
   preheatState.brewHeaterOn = true; 
 
-  // we tare here so the weight of the scale itself isn't shown
+  // we tare here so the weight of the scale itself and the cup aren't shown
   // when we are measuring things...
   preheatState.tareScale = true; 
 

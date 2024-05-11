@@ -1,7 +1,7 @@
 
 #include "Scale.h"
 
-#include <Qwiic_Scale_NAU7802_Arduino_Library.h>
+#include <SparkFun_Qwiic_Scale_NAU7802_Arduino_Library.h>
 
 ScaleState scaleState;
 
@@ -18,38 +18,39 @@ int PREINFUSION_WEIGHT_THRESHOLD_GRAMS = 4;
 // that of the ground beans.  Typically this is 2-to-1
 float BREW_WEIGHT_TO_BEAN_RATIO = 2.0;
 
-// Spreadsheet which shows calibration for this scale:
-// https://docs.google.com/spreadsheets/d/1z3atpMJ9mnRWZPx-S3QPc0Lp2lXNPtheInoUFgV0nMo/edit?usp=sharing 
-// weightInGrams = scaleReading * SCALE_FACTOR + SCALE_OFFSET
-// y = 6.33E-04*x + -13.2
-double SCALE_FACTOR = 0.000659; // 3137;  
-double SCALE_OFFSET = 4.92;  // 47;
-
+// This assumes the scale has been properly zero'd and calibrated using
+// below functions.
+// At 40 SPS, 20 Samples means it takes about 500ms to take this reading.
 void readScaleState() {
-  scaleState.measuredWeight = 0.0;
-
   if (myScale.available() == true) {
-    long scaleReading = myScale.getReading();
-
-    // This is a rotating buffer
-    scaleState.avgWeights[scaleState.avgWeightIndex++] = scaleReading;
-    if(scaleState.avgWeightIndex == SCALE_SAMPLE_SIZE) scaleState.avgWeightIndex = 0;
-
-    double avgReading = 0;
-    for (int index = 0 ; index < SCALE_SAMPLE_SIZE ; index++)
-      avgReading += scaleState.avgWeights[index];
-    avgReading /= SCALE_SAMPLE_SIZE;
-
-    double weightInGrams = (float)avgReading * SCALE_FACTOR + SCALE_OFFSET;
-    if (weightInGrams < 0.1) {
-      weightInGrams = 0.0;
-    }
-    Log.error("Scale Reading: " + String(weightInGrams));
-
-    scaleState.measuredWeight = weightInGrams;
+    // allow negative values, tell scale to average values over 20 sample periods...
+    scaleState.measuredWeight = myScale.getWeight(true, 20); 
+  } else {
+    Log.error("Scale not detected!");
   }
 }
 
+// This assumes the reference weight is on the scale 
+// With current settings this is blocking at takes about 1.6 seconds. (40 SPS/64 samples)
+void calibrateScale()
+{
+  // NJD TODO - Need to make this settable using Particle cloud!
+  float knownWeightOnScaleInGrams = 54.8; 
+
+  //Tell the library how much weight is currently on it
+  //We are sampling slowly, so we need to increase the timeout too
+  myScale.calculateCalibrationFactor(knownWeightOnScaleInGrams, 64, 3000); //64 samples at 40SPS. Use a timeout of 3 seconds
+
+  // Now that this is done, we can make 'getWeight() in grams' calls on the scale instead of
+  // unitless getReading() calls! 
+}
+
+void zeroScale() {
+  //Perform an external offset - this sets the NAU7802's internal offset register
+  myScale.calibrateAFE(NAU7802_CALMOD_OFFSET); //Calibrate using external offset
+}
+
+// This assumes nothing is currently on the scale
 void scaleInit() {
   // Scale check
   if (myScale.begin() == false)
@@ -57,13 +58,10 @@ void scaleInit() {
     Log.error("Scale not detected!");
   }
 
-  // Gain might not be necessary now that my I2C board is colocated with load cell.
-  myScale.setGain(NAU7802_GAIN_64); //Gain can be set to 1, 2, 4, 8, 16, 32, 64, or 128. default is 16
-  myScale.setSampleRate(NAU7802_SPS_320); //Sample rate can be set to 10, 20, 40, 80, or 320Hz. default is 10
-  myScale.calibrateAFE(); //Does an internal calibration. Recommended after power up, gain changes, sample rate changes, or channel changes.
+  myScale.setSampleRate(NAU7802_SPS_40); //Set sample rate: 10, 20, 40, 80 or 320
+  myScale.setGain(NAU7802_GAIN_16); //Gain can be set to 1, 2, 4, 8, 16, 32, 64, or 128.
+  myScale.setLDO(NAU7802_LDO_3V0); //Set LDO (AVDD) voltage. 3.0V is the best choice for Qwiic
 
-  Particle.variable("tareWeightGrams",  scaleState.tareWeight);
-  Particle.variable("measuredWeightGrams",  scaleState.measuredWeight);
+  myScale.setCalibrationFactor(1.0);
+  myScale.setChannel1Offset(0);
 }
-
-

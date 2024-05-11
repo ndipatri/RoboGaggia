@@ -23,7 +23,7 @@
   Hardware Connections:
   Plug a Qwiic cable into the Qwiic Scale and a RedBoard Qwiic
   If you don't have a platform with a Qwiic connection use the SparkFun Qwiic Breadboard Jumper (https://www.sparkfun.com/products/14425)
-  Open the serial monitor at 9600 baud to see the output
+  Open the serial monitor at 115200 baud to see the output
 */
 
 #include <Wire.h>
@@ -34,7 +34,7 @@ NAU7802 myScale; //Create instance of the NAU7802 class
 
 void setup()
 {
-  Serial.begin(9600);
+  Serial.begin(115200);
   Serial.println("Qwiic Scale Example");
 
   Wire.begin();
@@ -57,7 +57,7 @@ void loop()
 {
   if(myScale.available() == true)
   {
-    long currentReading = myScale.getReading();
+    int32_t currentReading = myScale.getReading();
     Serial.print("Reading: ");
     Serial.println(currentReading);
   }

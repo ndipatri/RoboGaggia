@@ -49,6 +49,20 @@ getBit	KEYWORD2
 getRegister	KEYWORD2
 setRegister	KEYWORD2
 
+setLDORampDelay	KEYWORD2
+getLDORampDelay	KEYWORD2
+
+get24BitRegister	KEYWORD2
+set24BitRegister	KEYWORD2
+get32BitRegister	KEYWORD2
+set32BitRegister	KEYWORD2
+
+getChannel1Offset	KEYWORD2
+setChannel1Offset	KEYWORD2
+getChannel1Gain	KEYWORD2
+setChannel1Gain	KEYWORD2
+
+
 #######################################
 # Constants (LITERAL1)
 #######################################
@@ -131,3 +145,6 @@ NAU7802_PGA_PWR_PGA_CAP_EN	LITERAL1
 NAU7802_CAL_SUCCESS		LITERAL1
 NAU7802_CAL_IN_PROGRESS		LITERAL1
 NAU7802_CAL_FAILURE		LITERAL1
+NAU7802_CALMOD_INTERNAL		LITERAL1
+NAU7802_CALMOD_OFFSET		LITERAL1
+NAU7802_CALMOD_GAIN		LITERAL1

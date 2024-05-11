@@ -35,6 +35,10 @@ extern ScaleState scaleState;
 
 void scaleInit();
 
+void zeroScale();
+
+void calibrateScale();
+
 void readScaleState();
 
 String updateDisplayLine(char *message, 

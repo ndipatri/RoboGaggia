@@ -21,6 +21,7 @@
         "__locale": "cpp",
         "cstring": "cpp",
         "algorithm": "cpp",
-        "complex": "cpp"
+        "complex": "cpp",
+        "ios": "cpp"
     }
 }
