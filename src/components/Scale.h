@@ -41,10 +41,4 @@ void calibrateScale();
 
 void readScaleState();
 
-String updateDisplayLine(char *message, 
-                         int line,
-                         String previousLineDisplayed);
-
-
-
 #endif

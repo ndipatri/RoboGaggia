@@ -9,7 +9,6 @@
 #include "Telemetry.h"
 #include "WaterReservoir.h"
 #include "UserInput.h"
-#include "Display.h"
 #include "Statistics.h"
 
 

@@ -25,7 +25,6 @@ Copyright (c) 2016 SparkFun Electronics
 #include "components/UserInput.h"
 #include "components/Heater.h"
 #include "components/WaterReservoir.h"
-#include "components/Display.h"
 #include "components/State.h"
 #include "components/Bluetooth.h"
 
@@ -75,10 +74,6 @@ void setup() {
   userInputInit();
 
   heaterInit();
-
-  // Manages 4x24 LCD Display and maintains existing state so we only write to
-  // LCD when text has changed.
-  displayInit();
 
   networkInit();
 

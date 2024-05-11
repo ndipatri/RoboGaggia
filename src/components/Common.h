@@ -42,11 +42,7 @@ enum GaggiaStateEnum {
 // Specific details about the particular state we are in.  
 struct GaggiaState {
    int state;   
-   String display1 = String();
-   String display2 = String();
-   String display3 = String();
-   String display4 = String();
-   
+
    // ************
    // WARNING: this cannot be done at the same time (or even in an adjacent state)
    // to dispensing water... i have no clue why..
