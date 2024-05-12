@@ -14,7 +14,7 @@ float KNOWN_CUP_WEIGHT_GRAMS = 54.8;
 double TARGET_BEAN_WEIGHT = 19; // grams
 
 // The extraction weight which triggers the end of PREINFUSION
-int PREINFUSION_WEIGHT_THRESHOLD_GRAMS = 4;
+int PREINFUSION_WEIGHT_THRESHOLD_GRAMS = 2;
 
 // This is the ration of final espresso weight compared to
 // that of the ground beans.  Typically this is 2-to-1
@@ -24,11 +24,10 @@ float BREW_WEIGHT_TO_BEAN_RATIO = 2.0;
 // below functions.
 // At 40 SPS, 20 Samples means it takes about 500ms to take this reading.
 void readScaleState() {
+  // sometime the scale is not available so don't update.
   if (myScale.available() == true) {
     // allow negative values, tell scale to average values over 20 sample periods...
     scaleState.measuredWeight = myScale.getWeight(true, 20); 
-  } else {
-    Log.error("Scale not detected!");
   }
 }
 
@@ -49,6 +48,10 @@ void zeroScale() {
   myScale.calibrateAFE(NAU7802_CALMOD_OFFSET); //Calibrate using external offset
 }
 
+float getTaredWeight() {
+  return scaleState.measuredWeight - scaleState.tareWeight;
+}
+
 // This assumes nothing is currently on the scale
 void scaleInit() {
   // Scale check
@@ -56,6 +59,8 @@ void scaleInit() {
   {
     Log.error("Scale not detected!");
   }
+
+  Particle.variable("currentWeightInGrams", getTaredWeight);
 
   myScale.setSampleRate(NAU7802_SPS_40); //Set sample rate: 10, 20, 40, 80 or 320
   myScale.setGain(NAU7802_GAIN_16); //Gain can be set to 1, 2, 4, 8, 16, 32, 64, or 128.

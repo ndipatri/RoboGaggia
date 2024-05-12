@@ -459,7 +459,7 @@ char* getStateName(int stateEnum) {
 void processIncomingGaggiaState(GaggiaState *nextGaggiaState) {
   
   if (nextGaggiaState->waterThroughGroupHead || nextGaggiaState->waterThroughWand) {
-    publishParticleLog("dispense", "Launching Pressure PID");
+    publishParticleLog("dispense", "Launching PID");
 
     configureWaterPump(nextGaggiaState->state);
   }

@@ -4,15 +4,15 @@
 // These were emperically derived.  They are highly dependent on the actual system , but should now work
 // for any RoboGaggia.
 // see https://en.wikipedia.org/wiki/PID_controller#Loop_tuning
-double flow_PID_kP = 0.01;
-double flow_PID_kI = .5;
-double flow_PID_kD = 1.0;
+double flow_PID_kP = 30;
+double flow_PID_kI = 0.08;
+double flow_PID_kD = 0.0;
 
 double pressure_PID_kP = 4.0;  
 double pressure_PID_kI = 8.0;
 double pressure_PID_kD = 0.0;
 
-double TARGET_FLOW_RATE = 4.0;
+double TARGET_FLOW_RATE = 3.0;
 
 // We do 'Pressure Profiling', meaning we modulate the water pump power based
 // on the measure pressure, only during PREINFUSION and CLEANING
@@ -25,9 +25,8 @@ WaterPumpState waterPumpState;
 
 Adafruit_ADS1115 ads1115;  // the adc for the pressure sensor
 
-// This is a reasonable mount of time to update flow rate given the scale
-// takes almost 2 seconds to settle
-int FLOW_RATE_SAMPLE_PERIOD_MILLIS = 2000; 
+// How often we recalculate flow rate
+int FLOW_RATE_SAMPLE_PERIOD_MILLIS = 500; 
 
 // The TRIAC on/off signal for the AC Potentiometer
 // https://rocketcontroller.com/product/1-channel-high-load-ac-dimmer-for-use-witch-micro-controller-3-3v-5v-logic-ac-50-60hz/
@@ -263,21 +262,21 @@ int setTargetFlowRate(String _flowRate) {
 
 int setPID_kP(String _PID_kP) {
   
-  pressure_PID_kP = _PID_kP.toFloat();
+  flow_PID_kP = _PID_kP.toFloat();
 
   return 1;
 }
 
 int setPID_kI(String _PID_kI) {
   
-  pressure_PID_kI = _PID_kI.toFloat();
+  flow_PID_kI = _PID_kI.toFloat();
 
   return 1;
 }
 
 int setPID_kD(String _PID_kD) {
   
-  pressure_PID_kD = _PID_kD.toFloat();
+  flow_PID_kD = _PID_kD.toFloat();
 
   return 1;
 }
@@ -301,6 +300,7 @@ void updateFlowRateMetricIfNecessary() {
       // This is the difference between when we thought we were ending this sampling
       // interval and when we did + the length of the sampling interval
       int flowRateInterval = millis() - waterPumpState.nextSampleMillis + FLOW_RATE_SAMPLE_PERIOD_MILLIS;
+      Log.error("Previous PumpDutyCycle: " + String(waterPumpState.pumpDutyCycle));
       Log.error("FlowRate Interval: " + String(flowRateInterval));
       Log.error("FlowRate weight: " + String(measuredWeightNow));
       Log.error("FlowRate previousWeight: " + String(waterPumpState.previousMeasuredWeight));
@@ -346,9 +346,9 @@ void waterPumpInit() {
 
   waterPumpState.targetFlowRateGPS = TARGET_FLOW_RATE;
 
-  Particle.variable("PID_kP", pressure_PID_kP);
-  Particle.variable("PID_kI", pressure_PID_kI);
-  Particle.variable("PID_kD", pressure_PID_kD);
+  Particle.variable("PID_kP", flow_PID_kP);
+  Particle.variable("PID_kI", flow_PID_kI);
+  Particle.variable("PID_kD", flow_PID_kD);
   Particle.variable("targetFlowRate", TARGET_FLOW_RATE);
   Particle.variable("currentPressureBars", getPumpState);
 
