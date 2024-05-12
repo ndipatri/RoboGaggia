@@ -636,7 +636,9 @@ void processOutgoingGaggiaState() {
   // Process Tare Scale
   
     // it is assumed the user has been instructed to clear the scale during these states.
-    if (currentGaggiaState->state == JOINING_NETWORK || currentGaggiaState->state == IGNORING_NETWORK) {
+    if (currentGaggiaState->state == JOINING_NETWORK || 
+        currentGaggiaState->state == IGNORING_NETWORK || 
+        currentGaggiaState->state == SLEEP) {
       zeroScale();
     }
   

@@ -26,8 +26,8 @@ float BREW_WEIGHT_TO_BEAN_RATIO = 2.0;
 void readScaleState() {
   // sometime the scale is not available so don't update.
   if (myScale.available() == true) {
-    // allow negative values, tell scale to average values over 20 sample periods...
-    scaleState.measuredWeight = myScale.getWeight(true, 20); 
+    // don't allow negative values, tell scale to average values over 20 sample periods...
+    scaleState.measuredWeight = myScale.getWeight(false, 20); 
   }
 }
 
