@@ -28,6 +28,8 @@ void readScaleState() {
   if (myScale.available() == true) {
     // don't allow negative values, tell scale to average values over 20 sample periods...
     scaleState.measuredWeight = myScale.getWeight(false, 20); 
+  } else {
+    Log.error("Scale not detected!");
   }
 }
 

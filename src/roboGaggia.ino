@@ -50,7 +50,7 @@ void setup() {
   Wire.begin();
 
   // this might not work for all components of RogoGaggia!!
-  Wire.setClock(400000); //Qwiic Scale is capable of running at 400kHz if desired
+  Wire.setClock(200000); //Qwiic Scale is capable of running at 400kHz if desired
 
   // Manages system state, when to change state, and what to do when
   // entering or leaving state.  
