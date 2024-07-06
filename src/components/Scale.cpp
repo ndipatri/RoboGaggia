@@ -18,7 +18,7 @@ int PREINFUSION_WEIGHT_THRESHOLD_GRAMS = 2;
 
 // This is the ration of final espresso weight compared to
 // that of the ground beans.  Typically this is 2-to-1
-float BREW_WEIGHT_TO_BEAN_RATIO = 2.0;
+float BREW_WEIGHT_TO_BEAN_RATIO = 3.0;
 
 // This assumes the scale has been properly zero'd and calibrated using
 // below functions.
