@@ -46,7 +46,7 @@ void readHeaterState(int CHIP_SELECT_PIN, int SERIAL_OUT_PIN, int SERIAL_CLOCK_P
 
   // enable MAX6675
   digitalWrite(CHIP_SELECT_PIN, LOW);
-  delay(1);
+  delay(5);
 
   // Read in 16 bits,
   //  15    = 0 always
