@@ -1,4 +1,4 @@
-![Robo Gaggia](media/gaggia1.jpg)
+![Robo Gaggia](media/gaggia1.png)
 
 [Nick DiPatri](ndipatri@gmail.com)
 
@@ -72,7 +72,7 @@ I also want to give a shout-out to another great Gaggia hack, the [Gaggiaduino P
 
 # Parts List
 
-I will explain in detail how each of these are used. Here is a list of all major components needed for this modification and links to where you can acquire them.  The brown parts in the above [Robo Gaggia](media/gaggia1.jpg) diagram are all 3D printed.  I designed them using Fusion 360. Below, I've included links to the resulting STL (stereolythic) files which can be used on any 3D printer.
+I will explain in detail how each of these are used. Here is a list of all major components needed for this modification and links to where you can acquire them.  The brown parts in the above [Robo Gaggia](media/gaggia1.png) diagram are all 3D printed.  I designed them using Fusion 360. Below, I've included links to the resulting STL (stereolythic) files which can be used on any 3D printer.
 
 1. [12 DC Power Supply](https://www.amazon.com/gp/product/B07SJRX9R6/ref=ppx_yo_dt_b_asin_title_o04_s00?ie=UTF8&th=1) and the [DC-DC Buck Converter](https://www.amazon.com/HiLetgo-Converter-Circuit-Regulator-Adjustable/dp/B07VJDPZ2L/ref=sr_1_1_sspa?crid=1FEW5SSDSM80M&keywords=dc+dc+buck+converter&qid=1665095735&qu=eyJxc2MiOiI1LjAyIiwicXNhIjoiNC42MCIsInFzcCI6IjQuMjgifQ%3D%3D&sprefix=dc+dc+buck+converte%2Caps%2C104&sr=8-1-spons&psc=1&spLa=ZW5jcnlwdGVkUXVhbGlmaWVyPUEyWTNJSjk3SUcyRDVKJmVuY3J5cHRlZElkPUEwODYxMzIxM1ZMSlROSVg3SjNRRSZlbmNyeXB0ZWRBZElkPUEwNzM0OTMxM1JPS1VWVDM0VTJNSSZ3aWRnZXROYW1lPXNwX2F0ZiZhY3Rpb249Y2xpY2tSZWRpcmVjdCZkb05vdExvZ0NsaWNrPXRydWU=) are both combined together to provide 12Vdc and 5Vdc. The [3D STL file for the AC/DC power enclosure body](/3DPrints/Power_body.stl) and [enclosure lid](/3DPrints/Power_lid.stl) are included.  You hang the power enclosure off of the back of the Gaggia using the included [Power Hanger 3D STL file](/3DPrints/power_hanger.stl).
 2. [High Power Solid State Relay(SSR)](https://www.sparkfun.com/products/13015) (2) You drive these SSDs with 12vdc and they can switch on and off a much higher power AC current. One of these is used to open the 'solenoid valve' which dispenses water from the boiler and the other is used to turn on and off the boiler heater. I mounted these on the inside of the Gaggia using bolts.
