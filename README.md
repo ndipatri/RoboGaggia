@@ -11,20 +11,23 @@
 
 
 ## Android or iOS User Interface
-Robo Gaggia has a sophisticated user interface that runs on both Android and iOS. The [Robo Gaggia Multiplatform Mobile Application](https://github.com/ndipatri/RoboGaggiaMultiplatform).
+Robo Gaggia has a sophisticated user interface that runs on both Android and iOS.
 
 As shown in the image above, the 'boiler on' graphic is inspired by the [Doom Fire Effect](https://fabiensanglard.net/doom_fire_psx/)
 
 ## Custom Brew Scale
 <img src="media/scale.jpg" alt="Digital Scale" width="200"/>
-
+Integrated scale tells lets Robo Gaggia fine-tune extraction pressure and brew time. 
 
 ## Live telemetry
 <img src="media/telemetry.jpg" alt="Live Telemetry" width="300"/>
 
+Provides critical feedback so user can fine tune 'grind-size' and dosage.
 
 
-Front and Back of my custom Printed Circuit Board from [PCBWay.com](http://pcbway.com)
+
+
+Front of my custom Printed Circuit Board from [PCBWay.com](http://pcbway.com)
 
 <img src="media/PCB_top.jpg" alt="PCB Top" width="200"/>
 
