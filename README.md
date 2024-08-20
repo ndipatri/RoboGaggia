@@ -32,30 +32,29 @@ Although it's an amazing machine, the Gaggia requires a number of manual steps t
 1. You have to periodically pour water into the top of the Gaggia to refill the water reservoir.  This can be an inconvenience if your Gaggia is under a kitchen cabinet.
 2. After you've loaded the portafilter with coffee grounds and put a cup under the group head, you have to wait until the brew heater achieves the correct temperature before you can click the 'brew' button.
 3. While brewing, you need to remember the weight of your coffee grounds so you know how much to brew. You need to either weigh your resulting coffee using an external scale or approximate the output by counting the seconds of your extraction.
-4. After brewing, you then have to manually switch the 'steam' button and wait for the heater to achieve the steam temperature.
-5. After steaming, if you want to brew again, you have to go through the process of extracting water to cool off the heater - the heater is always on with the stock Gaggia, so cooling off the heateater takes a while.
-6. If you leave RoboGaggia on, it will continue to heat the boiler and waste energy even if you haven't used it for hours.
+4. While brewing, the water pump operates at a fixed rate, so there is no 'pre-infusion' period where the portafilter is filled with low-pressure water before the high pressure water is used to extract the espresso shot. This can cause the puck to be broken up before extraction begins, resulting in uneven extraction across all coffee grounds. 
+5. While brewing, the fixed rate pump causes underextraction later in the brew process as the coffee solids dissolve and provide less backpressure.
+5. While brewing, the brew thermostat employs a simplistic 'Schmitt Trigger' control algorithm which means the target temperature can vary quite a bit during extraction.
+5. After brewing, you then have to manually switch on the 'steam' button and wait for the heater to achieve the steam temperature.
+6. After steaming, if you want to brew again, you have to go through the process of extracting water to cool off the heater - the heater is always on with the stock Gaggia, so cooling off the heateater takes a while.
+7. If you leave RoboGaggia on, it will continue to heat the boiler and waste energy even if you haven't used it for hours.
 
 ## The above five steps are rather tedious and time consuming. It would be nice if I could load the Gaggia with fresh ground coffee, push a button, then walk away to attend to other things in my morning routine. When I return, I want my shot done and the machine ready to steam. These modifications do this.
 
-Other things to note about the stock Gaggia Pro:
-
-1. The thermostats which measure the brew and steam temperatures employ a simplistic 'Schmitt Trigger' control algorithm which means the target temperature can vary quite a bit from shot to shot.
-2. When brewing, the water pump operates at a fixed rate, so there is no 'pre-infusion' period where the portafilter is filled with low-pressure water before the high pressure water is used to extract the espresso shot.
 
 In an attempt to mitigate the above Gaggia short comings, I've implemented the following features with Robo Gaggia:
 
-1. Integrated scale that fits in the drip tray
+1. Integrated scale that attaches magnetically to the drip tray
 2. Dual PID temperature controllers
 3. PID flow-rate controller that implements Pre-Infusion and a fixed Flow Profile.  
 4. Auto-Fill water reservoir.
 5. Auto-Shutoff
 6. Microcontroller-based automated brew process that eliminates the need for the Brew or Steam buttons.
 7. Cool-down feature to assist in cooling down the heater for alternating between brewing and steaming.  This is important for single-boiler machines such as the Gaggia.
-8. 'Backflush Recommended' feature that maintains a 'shot count'.  
-9. Backflush feature which automates much of the rather tedious process of backflushing the Gaggia's grouphead with Cafiza cleaner. 
-10. All additional electrical features are installed on a separate printed circuit board (PCB) which is attached on the back of the Gaggia.  The designs for this PCB are included in this repo with instructions on how to get the board fabricated.
-11. Robo Gaggia has a sophisticated user interface that runs on both Android an iOS. The [Robo Gaggia Multiplatform Mobile Application](https://github.com/ndipatri/RoboGaggiaMultiplatform) communicates with Robo Gaggia using Bluetooth.  The mobile device hangs on the front of Robo Gaggia and covers the original mechanical Gaggia brew and steam switches which are no longer needed.
+8. Backflush feature which automates much of the rather tedious process of backflushing the Gaggia's grouphead with Cafiza cleaner. 
+9. 'Backflush Recommended' feature that maintains a 'shot count'.  
+10. Separate printed circuit board (PCB) which is attached on the back of the Gaggia.  The designs for this PCB are included in this repo with instructions on how to get the board fabricated.
+11. Robo Gaggia has a sophisticated user interface that runs on both Android and iOS. The [Robo Gaggia Multiplatform Mobile Application](https://github.com/ndipatri/RoboGaggiaMultiplatform) communicates with Robo Gaggia using Bluetooth.  The mobile device hangs on the front of Robo Gaggia and covers the original mechanical Gaggia brew and steam switches which are no longer needed.
 
 
 # Disclaimer
