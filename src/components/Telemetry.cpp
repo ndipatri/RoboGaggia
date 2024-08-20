@@ -2,22 +2,13 @@
 
 using namespace tc; // Import tc::* into the global namespace
 
-String lastMessageSentToCloud = "";
-
 // We want the telemetry send rate to be independent of all 
 // other proceses in gaggia, so track it separately...
-//
-// Any faster than this and we get blocked my adafruit.io due to 
-// MQTT.. eventually we'd like to use bluetooth and dial this
-// way down...
 float nextTelemetrySendMillis = -1;
 
-#if defined(AIO_USERNAME)
-  int SEND_TELEMETRY_INTERVAL_MILLIS = 1200; 
-#else
-  // BLE is fallback 
-  int SEND_TELEMETRY_INTERVAL_MILLIS = 250; 
-#endif
+String lastMessageSentToCloud = "";
+
+int SEND_TELEMETRY_INTERVAL_MILLIS = 250; 
 
 void sendTelemetry(boolean force) {
 
@@ -80,7 +71,6 @@ void sendTelemetry(boolean force) {
     if (force || (!messageToSendToCloud.equals(lastMessageSentToCloud))) {
       Log.error(String(millis()) + String(":") + messageToSendToCloud);
 
-      sendMessageToCloud(messageToSendToCloud);
       sendMessageOverBLE(messageToSendToCloud);
 
       lastMessageSentToCloud = messageToSendToCloud;

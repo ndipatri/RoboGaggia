@@ -69,13 +69,7 @@ void setup() {
   // single 500g capacity load cell.
   scaleInit();
 
-  // Manages user input from the single arcade-style button.  This button is
-  // capable of 'short' and 'long' press operations.
-  userInputInit();
-
   heaterInit();
-
-  networkInit();
 
   // Provides core data types and logging
   commonInit();
@@ -91,8 +85,6 @@ void loop() {
   
   readScaleState();
   
-  readUserInputState();
-
   // Determine next Gaggia state based on inputs and current state ...
   // (e.g. move to 'Done Brewing' state once target weight is achieved, etc.)
   GaggiaState* nextGaggiaState = getNextGaggiaState();
@@ -132,8 +124,6 @@ void loop() {
   } else {
     delay(LOOP_INTERVAL_MILLIS);
   }
-
-  pingMQTTIfNecessary();
 
   first = false;
 }

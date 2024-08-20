@@ -2,7 +2,6 @@
 #define CORE_H
 
 #include <Arduino.h>
-#include "Secrets.h"
 
 enum GaggiaStateEnum {
   SLEEP,
