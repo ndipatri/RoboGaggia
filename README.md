@@ -7,6 +7,8 @@
 # Robo Gaggia in Action!
 [Video of RoboGaggia!](https://youtu.be/XLj9ECMzo4Y?si=x9k2pggxU6RgygX5)
 
+[Custom brew scale](/media/scale.png)
+
 [GIF of RoboGaggia extracting](/media/meCoffee.gif)
 
 [Video of Shot Extraction Including Telemetry!](https://youtu.be/NSmCpHrQ0_Q)
