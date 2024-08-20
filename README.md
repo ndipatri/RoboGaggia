@@ -10,8 +10,10 @@
 [Video of RoboGaggia!](https://youtu.be/XLj9ECMzo4Y?si=x9k2pggxU6RgygX5)
 
 
-
 ## Android or iOS User Interface
+Robo Gaggia has a sophisticated user interface that runs on both Android and iOS. The [Robo Gaggia Multiplatform Mobile Application](https://github.com/ndipatri/RoboGaggiaMultiplatform).
+
+As shown in the image above, the 'boiler on' graphic is inspired by the [Doom Fire Effect](https://fabiensanglard.net/doom_fire_psx/)
 
 ## Custom Brew Scale
 <img src="media/scale.jpg" alt="Digital Scale" width="200"/>
