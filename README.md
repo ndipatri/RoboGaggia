@@ -142,6 +142,33 @@ The Particle Argon is a small microcontroller that combines WiFi/Bluetooth and t
 I would start by checking out this repo and building it using the [Visual Studio Code](https://code.visualstudio.com/) IDE with the [Particle Workbench](https://docs.particle.io/getting-started/developer-tools/workbench/) extension installed.
 
 
+
+## Bluetooth Low Energy (BLE) Communications
+
+The Gaggia communicates with the [Robo Gaggia Multiplatform Mobile Application](https://github.com/ndipatri/RoboGaggiaMultiplatform) using the BLE 'UART Service'. 
+
+The Gaggia emits **Live Telemetry** every 250 milliseconds that declares its state (e.g. Brewing, Steaming, etc.) as well as multiple sensor values.
+
+The columns for the posted data are:
+
+state, 
+measuredWeightGrams (currentWeight:targetWeight), 
+measuredPressureInBars, 
+pumpDutyCyclePercentage, 
+flowRateGramsPerSecond, 
+boilerTempC, 
+shotsUntilBackflush, 
+totalShotsBrewed, 
+boilerOnOrOff
+
+when backflushing: 
+  measuredWeightGrams --> currentPassCount, 
+  pressure --> targetPassCount
+
+To change state of the Gaggia, the mobile applications sends one of two simple commands over the serial BLE connection: 'short' and 'long'.  This is because Robo Gaggia originally had a button and there were only two possible inputs. 
+
+
+
 # Wiring Changes for the Gaggia
 
 Ok, so the existing Gaggia wiring is actually quite brilliant. 
@@ -217,40 +244,6 @@ In the interest of simplicity, the heater PID uses the same tuning values as the
 ## More on Pressure and FlowRate
 
 During the development of RoboGaggia, I migrated from 'Pressure Profiling' to 'Flow Profiling' during brewing.  What this means is, at the start, I used the system pressure as an input to the brew PID and the output was the duty cycle of the Gaggia's vibration pump.  However, after doing more research such as listening to the [Decent Folks](https://youtu.be/KsagEqYYxDw?t=604), I pivoted and now I use pressure only for pre-infusion (I keep it around 1bar), but during brewing, I drive the brew PID with the instantaneous flow rate.  For now, I keep this at around 3 grams/second.  So the PID will drive the pump's duty cycle to whatever it needs to in order to achieve a somewhat constant fow rate.  This implies that the pressure shoots up in the beginning (once the puck is saturated), but then has to get dialed back down as the flow rate increases during the shot (due to reduced coffee solids, etc.). 
-
-
-## Live Flow Telemetry
-
-To use the **Live Telemetry** feature, you need to add a `components/Secrets.h` header file containing this information:
-
-```
-  #ifndef SECRETS_H
-  #define SECRETS_H
-
-  // If you check in this code WITH this KEY defined, it will be detected by IO.Adafruit
-  // and IT WILL BE DISABLED !!!  So please make sure this file is 'ignored' by your
-  // source code management!
-  #define AIO_USERNAME "your adafruit username"
-  #define AIO_KEY "your adafruit api key"
-
-  #endif 
-```
-
-If the above file is present, RoboGaggia will attempt to post live flow telemetry data to Adafruit.IO. 
-
-In order to use this feature, you will need to go to Adafruit.IO and create an account.  You can then [update the code with your username and an 'API KEY'](https://github.com/ndipatri/roboGaggia/blob/main/src/roboGaggia.ino#L409).
-
-The columns for the posted data are:
-
-'state, measuredWeight, measuredPressure, dutyCycle, flowRate, tempC'
-
-Telemetry is only posted during the PREINFUSION and BREWING states.
-
-The PREINFUSION state indicates the beginning of a new brew cycle.  The target pressure is 1 bar during preInfusion and it lasts until 2 grams has been extracted.  This is to saturate the puck so it accepts higher pressures better without tunneling. 
-
-The BREWING state indicates active brewing. A new telemetry value is posted every 1200ms.  If you post more often than this, Adafruit.IO will block the account for overusage. 
-
-You can visit my [RoboGaggiaAndroid](https://github.com/ndipatri/RoboGaggiaAndroid) GitHub repository to download an Android app that presents this realtime Telemetry as your shot is being extracted!
 
 
 
