@@ -13,7 +13,7 @@
 ## Android or iOS User Interface
 Robo Gaggia has a sophisticated user interface that runs on both Android and iOS.
 
-As shown in the image above, the 'boiler on' graphic is inspired by the [Doom Fire Effect](https://fabiensanglard.net/doom_fire_psx/)
+As shown in the image above, the 'boiler on' animated graphic is inspired by the [Doom Fire Effect](https://fabiensanglard.net/doom_fire_psx/)
 
 ## Custom Brew Scale
 <img src="media/scale.jpg" alt="Digital Scale" width="200"/>
