@@ -600,10 +600,30 @@ void processCurrentGaggiaState() {
   if (currentGaggiaState->state == BREWING || currentGaggiaState->state == PREINFUSION) {
     updateFlowRateMetricIfNecessary();
   }
+
+  if (currentGaggiaState->state == SLEEP) {
+    if (networkState.connected) {
+      // recall the system returns to hello after 15 minutes of inactivity.
+      sendTelemetryIfNecessary(true);
+    }
+  }
 }
 
-
 void processOutgoingGaggiaState() {
+
+  // Good time to pick up any MQTT erors...
+  // this is our 'wait for incoming subscription packets' busy subloop
+  // try to spend your time here
+  //
+  // NJD - this seems to take too long,. ignoring for now...
+  // Adafruit_MQTT_Subscribe *subscription;
+  // while ((subscription = mqtt.readSubscription(3000))) {
+  //   if(subscription == &errors) {
+  //     publishParticleLog("mqtt", "Error: (" + String((char *)errors.lastread) + ").");
+  //   } else if(subscription == &throttle) {
+  //     publishParticleLog("mqtt", "Throttle: (" + String((char *)throttle.lastread) + ").");
+  //   }
+  // }
 
   // Process Tare Scale
   

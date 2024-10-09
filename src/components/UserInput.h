@@ -22,4 +22,6 @@ struct UserInputState {
 
 extern UserInputState userInputState;
 
+void readUserInputState();
+
 #endif

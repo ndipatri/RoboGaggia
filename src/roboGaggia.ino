@@ -85,6 +85,8 @@ void loop() {
   
   readScaleState();
   
+  readUserInputState();
+
   // Determine next Gaggia state based on inputs and current state ...
   // (e.g. move to 'Done Brewing' state once target weight is achieved, etc.)
   GaggiaState* nextGaggiaState = getNextGaggiaState();

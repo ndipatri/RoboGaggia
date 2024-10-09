@@ -7,7 +7,7 @@ ScaleState scaleState;
 
 NAU7802 myScale; //Create instance of the NAU7802 class
 
-float KNOWN_CUP_WEIGHT_GRAMS = 54.8;
+float KNOWN_CUP_WEIGHT_GRAMS = 97.1;
 
 // This is the suggested target weight when in
 // MEASURE_BEANS state
