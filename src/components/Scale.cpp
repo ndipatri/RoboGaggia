@@ -28,8 +28,6 @@ void readScaleState() {
   if (myScale.available() == true) {
     // don't allow negative values, tell scale to average values over 20 sample periods...
     scaleState.measuredWeight = myScale.getWeight(false, 20); 
-  } else {
-    Log.error("Scale not detected!");
   }
 }
 
@@ -37,9 +35,11 @@ void readScaleState() {
 // With current settings this is blocking at takes about 1.6 seconds. (40 SPS/64 samples)
 void calibrateScale()
 {
+  int referenceCupWeight = loadSettings().referenceCupWeight;  
+
   // Tell the library how much weight is currently on it
   // We are sampling slowly, so we need to increase the timeout too
-  myScale.calculateCalibrationFactor(KNOWN_CUP_WEIGHT_GRAMS, 64, 3000); //64 samples at 40SPS. Use a timeout of 3 seconds
+  myScale.calculateCalibrationFactor(referenceCupWeight, 64, 3000); //64 samples at 40SPS. Use a timeout of 3 seconds
 
   // Now that this is done, we can make 'getWeight() in grams' calls on the scale instead of
   // unitless getReading() calls! 
@@ -50,8 +50,27 @@ void zeroScale() {
   myScale.calibrateAFE(NAU7802_CALMOD_OFFSET); //Calibrate using external offset
 }
 
-float getTaredWeight() {
-  return scaleState.measuredWeight - scaleState.tareWeight;
+// It is assumed that the reference weight is on the scale when this
+// method is called!
+int setReferenceCupWeight(String _referenceCupWeight) {
+  Log.error("setting new weight:" + String(_referenceCupWeight));
+  
+  SettingsStorage settingsStorage = loadSettings();
+
+  settingsStorage.referenceCupWeight = _referenceCupWeight.toInt();
+  Log.error("new weight:" + String(settingsStorage.referenceCupWeight));
+  
+  saveSettings(settingsStorage);
+
+  Log.error("stored weight:" + String(loadSettings().referenceCupWeight));
+
+  calibrateScale();
+
+  return 1;
+}
+
+int getReferenceCupWeight() {
+  return loadSettings().referenceCupWeight;
 }
 
 // This assumes nothing is currently on the scale
@@ -62,7 +81,8 @@ void scaleInit() {
     Log.error("Scale not detected!");
   }
 
-  Particle.variable("currentWeightInGrams", getTaredWeight);
+  Particle.variable("referenceCupWeight", getReferenceCupWeight); 
+  Particle.function("setReferenceCupWeight", setReferenceCupWeight);
 
   myScale.setSampleRate(NAU7802_SPS_40); //Set sample rate: 10, 20, 40, 80 or 320
   myScale.setGain(NAU7802_GAIN_16); //Gain can be set to 1, 2, 4, 8, 16, 32, 64, or 128.

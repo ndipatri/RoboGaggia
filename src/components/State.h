@@ -5,6 +5,7 @@
 #include "Heater.h"
 #include "WaterPump.h"
 #include "Network.h"
+#include "Settings.h"
 #include "Scale.h"
 #include "Telemetry.h"
 #include "WaterReservoir.h"
