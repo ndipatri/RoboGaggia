@@ -3,9 +3,6 @@
 // TODO - Need to increase this after testing.
 int MAX_BREW_COUNT_BEFORE_CLEANING = 25;
 
-int BACKFLUSH_BREW_COUNT_EEPROM_ADDRESS = 0;
-int TOTAL_BREW_COUNT_EEPROM_ADDRESS = 5;
-
 int readBackflushBrewCount() {
   uint16_t value;
   EEPROM.get(BACKFLUSH_BREW_COUNT_EEPROM_ADDRESS, value);
@@ -44,7 +41,6 @@ void increaseBrewCount() {
 
   int totalBrewCount = readTotalBrewCount();  
   EEPROM.put(TOTAL_BREW_COUNT_EEPROM_ADDRESS, totalBrewCount + 1);
-
 }
 
 void clearBackflushBrewCount() {

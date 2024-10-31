@@ -1,5 +1,9 @@
 #include "Common.h"
 
+int BACKFLUSH_BREW_COUNT_EEPROM_ADDRESS = 1;
+int TOTAL_BREW_COUNT_EEPROM_ADDRESS = 5;
+int SETTINGS_EEPROM_ADDRESS = 6;
+
 // Slows down the main loop interval so we can monitor certain behaviors.. also allows
 // for loop-level debug logs to be sent to Particle Cloud
 boolean isInTestMode = false;

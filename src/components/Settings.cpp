@@ -4,7 +4,7 @@
 SettingsStorage loadSettings() {
     SettingsStorage settingsStorage;    
 
-    EEPROM.get(0, settingsStorage);
+    EEPROM.get(SETTINGS_EEPROM_ADDRESS, settingsStorage);
     
     // the very first value will be garbage and we have to initialize it..
     if (settingsStorage.version != 0) {
@@ -16,6 +16,6 @@ SettingsStorage loadSettings() {
 }
 
 void saveSettings(SettingsStorage settingsStorage) {
-    EEPROM.put(0, settingsStorage);
+    EEPROM.put(SETTINGS_EEPROM_ADDRESS, settingsStorage);
 }
 

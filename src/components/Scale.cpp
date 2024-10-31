@@ -53,16 +53,12 @@ void zeroScale() {
 // It is assumed that the reference weight is on the scale when this
 // method is called!
 int setReferenceCupWeight(String _referenceCupWeight) {
-  Log.error("setting new weight:" + String(_referenceCupWeight));
   
   SettingsStorage settingsStorage = loadSettings();
 
   settingsStorage.referenceCupWeight = _referenceCupWeight.toInt();
-  Log.error("new weight:" + String(settingsStorage.referenceCupWeight));
   
   saveSettings(settingsStorage);
-
-  Log.error("stored weight:" + String(loadSettings().referenceCupWeight));
 
   calibrateScale();
 

@@ -85,6 +85,10 @@ struct Telemetry {
   int boilerState = 0;    
 };
 
+extern int BACKFLUSH_BREW_COUNT_EEPROM_ADDRESS;
+extern int TOTAL_BREW_COUNT_EEPROM_ADDRESS;
+extern int SETTINGS_EEPROM_ADDRESS;
+
 void commonInit();
 
 void publishParticleLogNow(String group, String message);
