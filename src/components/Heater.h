@@ -17,6 +17,9 @@ struct HeaterState {
   // current temp
   // this is  updated as we read thermocouple sensor
   double measuredTemp;
+
+  // current target is updated as we change states
+  double targetTemp;
   
   // This is calculated and updated by the PID
   double heaterShouldBeOn;

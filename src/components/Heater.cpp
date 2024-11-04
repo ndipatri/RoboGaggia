@@ -124,6 +124,7 @@ void configureHeater(double *heaterTemp) {
     thisHeaterPID->SetMode(PID::AUTOMATIC);
     thisHeaterPID->SetSampleTime(500);
 
+    heaterState.targetTemp = *heaterTemp;
 
     delete heaterState.heaterPID;
     heaterState.heaterPID = thisHeaterPID;

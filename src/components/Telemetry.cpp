@@ -57,13 +57,28 @@ void sendTelemetry(boolean force) {
 
   String weight = measuredWeightGramsBuf + String(":") + targetWeightGramsBuf;
 
+  char measuredTempBuf[256];
+  snprintf(measuredTempBuf, 
+           sizeof(measuredTempBuf), 
+           "%.1lf", 
+           (float)telemetry.brewTempC);
+
+  // Now we add the 'target temp' for our composite temp value...
+  char targetTempGramsBuf[256];
+  snprintf(targetTempGramsBuf, 
+           sizeof(targetTempGramsBuf), 
+           "%.1lf", 
+           (float)heaterState.targetTemp);  
+
+  String temp = measuredTempBuf + String(":") + targetTempGramsBuf;
+
   String messageToSendToCloud =             
     String(telemetry.stateName) + String(", ") + 
     String(weight) + String(", ") + 
     String((int)floor(telemetry.measuredPressureBars)) + String(", ") +  
     String((int)floor(telemetry.pumpDutyCycle)) + String(", ") +
     String((int)floor(telemetry.flowRateGPS)) + String(", ") +
-    String((int)floor(telemetry.brewTempC)) + String(", ") +
+    String(temp) + String(", ") + 
     String(telemetry.shotsUntilBackflush) + String(", ") +
     String(telemetry.totalShots) + String(", ") +
     String(telemetry.boilerState);
