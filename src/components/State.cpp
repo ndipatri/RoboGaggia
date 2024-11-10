@@ -649,8 +649,11 @@ void processOutgoingGaggiaState() {
 
   // Process Record Weight 
   if (currentGaggiaState->recordWeight) {
+    
+    int weightToBeanRatio = loadSettings().weightToBeanRatio;
+
     scaleState.targetWeight = 
-      (scaleState.measuredWeight - scaleState.tareWeight)*BREW_WEIGHT_TO_BEAN_RATIO; 
+      (scaleState.measuredWeight - scaleState.tareWeight)*weightToBeanRatio; 
   }
 
   // This gives our current state one last chance to log any telemetry.

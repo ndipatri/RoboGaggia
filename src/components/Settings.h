@@ -3,9 +3,12 @@
 
 #include "Common.h"
 
+void settingsInit();
+
 struct SettingsStorage {
   int version;
   int referenceCupWeight;
+  int weightToBeanRatio;
 };
 
 SettingsStorage loadSettings();

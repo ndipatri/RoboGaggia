@@ -10,10 +10,6 @@
 
 extern int PREINFUSION_WEIGHT_THRESHOLD_GRAMS;
 
-extern double TARGET_BEAN_WEIGHT;
-
-extern float BREW_WEIGHT_TO_BEAN_RATIO;
-
 struct ScaleState {
 
   // The current weight measurement is a sliding average

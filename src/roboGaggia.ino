@@ -76,6 +76,8 @@ void setup() {
 
   bluetoothInit();
 
+  settingsInit();
+
   // Wait for a USB serial connection for up to 3 seconds
   waitFor(Serial.isConnected, 3000);
 }
