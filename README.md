@@ -161,7 +161,7 @@ measuredWeightGrams (currentWeight:targetWeight),
 measuredPressureInBars, 
 pumpDutyCyclePercentage, 
 flowRateGramsPerSecond, 
-boilerTempC, 
+boilerTempC (currentTemp:targetTemp), 
 shotsUntilBackflush, 
 totalShotsBrewed, 
 boilerOnOrOff
