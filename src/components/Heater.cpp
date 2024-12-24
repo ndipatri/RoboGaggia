@@ -7,7 +7,6 @@ HeaterState heaterState;
 
 // Chip Select! - tie low to turn on MAX6675 and 
 // get a temperature reading
-#define MAX6675_CS_brew   D2 
 #define MAX6675_CS_steam  D5
 
 // Serial Clock - when brought high, shifts
@@ -17,7 +16,6 @@ HeaterState heaterState;
 #define MAX6675_SCK D3
 
 // Serial Data Out
-#define MAX6675_SO_brew   D4 
 #define MAX6675_SO_steam  D6
 
 // CS, SCK, and SO together are used to read serial data
@@ -78,10 +76,6 @@ void readHeaterState(int CHIP_SELECT_PIN, int SERIAL_OUT_PIN, int SERIAL_CLOCK_P
     // The remaining bits are the number of 0.25 degree (C) counts
     heaterState.measuredTemp = measuredValue*0.25;
   }
-}
-
-void readBrewHeaterState() {
-  readHeaterState(MAX6675_CS_brew, MAX6675_SO_brew, MAX6675_SCK);
 }
 
 void readSteamHeaterState() {
@@ -145,9 +139,7 @@ void configureHotWaterDispenseHeater() {
 void heaterInit() {
   
   // setup MAX6675 to read the temperature from thermocouple
-  pinMode(MAX6675_CS_brew, OUTPUT);
   pinMode(MAX6675_CS_steam, OUTPUT);
-  pinMode(MAX6675_SO_brew, INPUT);
   pinMode(MAX6675_SO_steam, INPUT);
   pinMode(MAX6675_SCK, OUTPUT);
   

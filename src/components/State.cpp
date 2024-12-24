@@ -491,7 +491,7 @@ void processCurrentGaggiaState() {
   // for the heater turns it off and on intermittently in an attempt to regulate
   // the temperature around the target temp.
   if (currentGaggiaState->brewHeaterOn) {
-    readBrewHeaterState();  
+    readSteamHeaterState();  
 
     if (shouldTurnOnHeater()) {
       turnHeaterOn();
@@ -536,7 +536,7 @@ void processCurrentGaggiaState() {
   }
 
   if (currentGaggiaState->measureTemp) {
-    readBrewHeaterState();
+    readSteamHeaterState();
   }
 
   if (currentGaggiaState->waterThroughGroupHead || currentGaggiaState->waterThroughWand) {

@@ -37,8 +37,6 @@ extern HeaterState heaterState;
 
 void heaterInit();
 
-void readBrewHeaterState();
-
 void readSteamHeaterState();
 
 boolean shouldTurnOnHeater();
