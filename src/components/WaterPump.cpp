@@ -23,8 +23,6 @@ double MAX_PUMP_DUTY_CYCLE = 100.0;
 
 WaterPumpState waterPumpState;
 
-Adafruit_ADS1115 ads1115;  // the adc for the pressure sensor
-
 // How often we recalculate flow rate
 int FLOW_RATE_SAMPLE_PERIOD_MILLIS = 500; 
 
@@ -39,6 +37,7 @@ int FLOW_RATE_SAMPLE_PERIOD_MILLIS = 500;
 // 'Pulse Shape Modulation' (PSM)
 #define ZERO_CROSS_DISPENSE_POT A2  
 
+#define PRESSURE_SENSOR_ANALOG_IN A0
 
 // This sends water to the group head
 #define SOLENOID_VALVE_SSR  TX
@@ -59,8 +58,8 @@ double MAX_BAR = 14.0;
 // see https://docs.google.com/spreadsheets/d/1_15rEy-WI82vABUwQZRAxucncsh84hbYKb2WIA9cnOU/edit?usp=sharing
 // as shown in shart above, the following values were derived by hooking up a bicycle pump w/ guage to the
 // pressure sensor and measuring a series of values vs bar pressure. 
-double PRESSURE_SENSOR_SCALE_FACTOR = 1658.0;
-int PRESSURE_SENSOR_OFFSET = 2470; 
+double PRESSURE_SENSOR_SCALE_FACTOR = 319.0;
+int PRESSURE_SENSOR_OFFSET = 515; 
 
 
 
@@ -68,8 +67,10 @@ void readPumpState() {
   // reading from first channel of the 1015
 
   // no pressure ~1100
-  int rawPressure = ads1115.readADC_SingleEnded(0);
+  int rawPressure = analogRead(PRESSURE_SENSOR_ANALOG_IN);
   int normalizedPressureInBars = (rawPressure-PRESSURE_SENSOR_OFFSET)/PRESSURE_SENSOR_SCALE_FACTOR;
+  Log.error("raw pressure: " + String(rawPressure));
+  Log.error("normalized pressure: " + String(normalizedPressureInBars));
 
   publishParticleLog("pump", "dutyCycle: " + String(waterPumpState.pumpDutyCycle) + "', normalizedPressure: " + String(normalizedPressureInBars));
 
@@ -333,9 +334,6 @@ void updateFlowRateMetricIfNecessary() {
 }
 
 void waterPumpInit() {
-  ads1115.begin();// Initialize ads1015 at the default address 0x48
-  // use hte following if x48 is already taken
-  //ads1115.begin(0x49);  // Initialize ads1115 at address 0x49
   
   // Water Pump Potentiometer
   pinMode(DISPENSE_POT, OUTPUT);

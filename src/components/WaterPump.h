@@ -3,7 +3,6 @@
 
 #include "Common.h"
 #include <pid.h>
-#include <Adafruit_ADS1X15.h>
 #include "Telemetry.h"
 #include "Scale.h"
 
