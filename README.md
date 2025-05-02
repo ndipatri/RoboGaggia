@@ -120,7 +120,6 @@ These are other modifications & purchases I've made to my Gaggia which I've foun
 <img src="media/gaggiaMain.jpg" alt="Gaggia Main" width="300"/>
 <img src="media/gaggiaWiring2.jpg" alt="Gaggia Internals" width="300"/>
 <img src="media/magsafe.jpg" alt="Magsafe" width="300"/>
-<img src="media/telemetry.jpg" alt="Live Telemetry" width="300"/>
 
 
 # Schematic Diagram
