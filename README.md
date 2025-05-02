@@ -26,10 +26,9 @@ Provides critical feedback so user can fine tune 'grind-size' and dosage.
 
 
 
+RoboGaggia is completely driven by a custom-built brain that goes inside where the original water funnel normally fits.
 
-Front of my custom Printed Circuit Board from [PCBWay.com](http://pcbway.com)
-
-<img src="media/PCB_top.jpg" alt="PCB Top" width="200"/>
+<img src="media/gaggia_brain.jpg" alt="Gaggia Brain" width="200"/>
 
 
 

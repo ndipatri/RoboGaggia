@@ -34,9 +34,23 @@ double TARGET_STEAM_TEMP = 140;
 // These were emperically derived.  They are highly dependent on the actual system , but should now work
 // for any RoboGaggia.
 // see https://en.wikipedia.org/wiki/PID_controller#Loop_tuning
-double heater_PID_kP = 8.0;
-double heater_PID_kI = 5.0;
-double heater_PID_kD = 2.0;
+
+// OG 
+// double heater_PID_kP = 8.0;
+// double heater_PID_kI = 5.0;
+// double heater_PID_kD = 2.0;
+
+// horible overshot to 140!
+// double heater_PID_kP = 30;
+// double heater_PID_kI = 0.08;
+// double heater_PID_kD = 0.0;
+
+double heater_PID_kP = 4.0;  
+double heater_PID_kI = 8.0;
+double heater_PID_kD = 0.0;
+
+
+
 
 void readHeaterState(int CHIP_SELECT_PIN, int SERIAL_OUT_PIN, int SERIAL_CLOCK_PIN) {
 
@@ -116,7 +130,7 @@ void configureHeater(double *heaterTemp) {
     // So the PID either turns the heater on or off.
     thisHeaterPID->SetOutputLimits(0, 1);
     thisHeaterPID->SetMode(PID::AUTOMATIC);
-    thisHeaterPID->SetSampleTime(500);
+    thisHeaterPID->SetSampleTime(10);
 
     heaterState.targetTemp = *heaterTemp;
 
