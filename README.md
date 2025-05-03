@@ -49,7 +49,7 @@ Although it's an amazing machine, the Gaggia requires a number of manual steps t
 6. After steaming, if you want to brew again, you have to go through the process of extracting water to cool off the heater - the heater is always on with the stock Gaggia, so cooling off the heateater takes a while.
 7. If you leave RoboGaggia on, it will continue to heat the boiler and waste energy even if you haven't used it for hours.
 
-## The above five steps are rather tedious and time consuming. It would be nice if I could load the Gaggia with fresh ground coffee, push a button, then walk away to attend to other things in my morning routine. When I return, I want my shot done and the machine ready to steam. These modifications do this.
+## The above steps are rather tedious and time consuming. It would be nice if I could load the Gaggia with fresh ground coffee, push a button, then walk away to attend to other things in my morning routine. When I return, I want my shot done and the machine ready to steam. These modifications do this.
 
 
 In an attempt to mitigate the above Gaggia short comings, I've implemented the following features with Robo Gaggia:
@@ -204,6 +204,15 @@ Here are the highlights:
 
 
 # Additional Notes
+
+## Weiss Distribution Technique (WST) 
+
+You might have noticed in my [Video of RoboGaggia](https://youtu.be/XLj9ECMzo4Y?si=x9k2pggxU6RgygX5), that I use a strange [Weiss Distribution Technique](https://www.baristahustle.com/weiss-distribution-technique/) device.  This is something I built myself using [these instructions](https://roastandrevel.de/blogs/news/open-sourcing-our-wdt-tool-with-ball-bearings).  It uses sealed bearings, machine screws, accupuncture needles, and some [3D printed parts](https://www.thingiverse.com/thing:6449968).
+
+I highly recommend this device.  The [real ones are too expensive](https://weberworkshops.com/products/moonraker?srsltid=AfmBOoq93-CjbLfZFJlaB6r35zZhMxr4DsDmBQNCG9kKDfXNpOomiOfd), but it actually does a great job of creating an even puck that doesn't suffer from [channeling](https://www.youtube.com/watch?v=aMLViitLPFY&t=70s&ab_channel=CliveCoffee).
+
+I 
+
 
 ## Calibrating Sensors
 
