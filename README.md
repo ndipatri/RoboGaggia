@@ -211,12 +211,11 @@ You might have noticed in my [Video of RoboGaggia](https://youtu.be/7mQ_3sYM7KM)
 
 I highly recommend this device.  The [real ones are too expensive](https://weberworkshops.com/products/moonraker?srsltid=AfmBOoq93-CjbLfZFJlaB6r35zZhMxr4DsDmBQNCG9kKDfXNpOomiOfd), but it actually does a great job of creating an even puck that doesn't suffer from [channeling](https://www.youtube.com/watch?v=aMLViitLPFY&t=70s&ab_channel=CliveCoffee).
 
-I 
 
 
 ## Calibrating Sensors
 
-Both the [Water Pressure Sensor](https://www.aliexpress.us/item/2255800570317172.html?spm=a2g0o.order_list.0.0.21ef1802Ig0OM9&gatewayAdapt=glo2usa&_randl_shipto=US) and the [500g Mini Load Cell](https://www.sparkfun.com/products/14728) are transducer sensors: they convert some form of energy to an eletrical signal. As a result, both of these devices needed to be calibrated.
+Both the [Water Pressure Sensor](https://www.aliexpress.us/item/2255800570317172.html?spm=a2g0o.order_list.0.0.21ef1802Ig0OM9&gatewayAdapt=glo2usa&_randl_shipto=US) and the [500g Mini Load Cell](https://www.sparkfun.com/products/14728) are transducer sensors: they convert some form of energy to an electrical signal. As a result, both of these devices needed to be calibrated.
 
 Calibration is what allows us to assign a given sensor output voltage level to a useful measured value (e.g. bars of pressure or grams of weight).
 
