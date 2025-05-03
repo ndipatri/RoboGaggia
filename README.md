@@ -7,7 +7,7 @@
 ![Robo Gaggia](media/gaggia1.png)
 
 
-[Video of RoboGaggia!](https://youtu.be/XLj9ECMzo4Y?si=x9k2pggxU6RgygX5)
+[Video of RoboGaggia!](https://youtu.be/7m-M25iiajQ)
 
 
 ## Android or iOS User Interface
@@ -207,7 +207,7 @@ Here are the highlights:
 
 ## Weiss Distribution Technique (WST) 
 
-You might have noticed in my [Video of RoboGaggia](https://youtu.be/XLj9ECMzo4Y?si=x9k2pggxU6RgygX5), that I use a strange [Weiss Distribution Technique](https://www.baristahustle.com/weiss-distribution-technique/) device.  This is something I built myself using [these instructions](https://roastandrevel.de/blogs/news/open-sourcing-our-wdt-tool-with-ball-bearings).  It uses sealed bearings, machine screws, accupuncture needles, and some [3D printed parts](https://www.thingiverse.com/thing:6449968).
+You might have noticed in my [Video of RoboGaggia](https://youtu.be/7m-M25iiajQ), that I use a strange [Weiss Distribution Technique](https://www.baristahustle.com/weiss-distribution-technique/) device.  This is something I built myself using [these instructions](https://roastandrevel.de/blogs/news/open-sourcing-our-wdt-tool-with-ball-bearings).  It uses sealed bearings, machine screws, accupuncture needles, and some [3D printed parts](https://www.thingiverse.com/thing:6449968).
 
 I highly recommend this device.  The [real ones are too expensive](https://weberworkshops.com/products/moonraker?srsltid=AfmBOoq93-CjbLfZFJlaB6r35zZhMxr4DsDmBQNCG9kKDfXNpOomiOfd), but it actually does a great job of creating an even puck that doesn't suffer from [channeling](https://www.youtube.com/watch?v=aMLViitLPFY&t=70s&ab_channel=CliveCoffee).
 
