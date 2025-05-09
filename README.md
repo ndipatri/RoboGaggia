@@ -4,7 +4,11 @@
 
 [LinkedIn](https://www.linkedin.com/in/ndipatri/)
 
-![Robo Gaggia](media/roboGaggiaHeader.gif)
+
+![Robo Gaggia](media/coffee_robot.png)
+
+
+[Robo Gaggia](media/roboGaggiaHeader.gif)
 
 
 [Video of RoboGaggia!](https://youtu.be/7mQ_3sYM7KM)
