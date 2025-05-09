@@ -7,6 +7,7 @@
 ![Robo Gaggia](media/roboGaggiaHeader.gif)
 
 ![Robo Gaggia](media/coffee_robot.png)
+(compliments of my artistic friend, https://www.linkedin.com/in/mikeballz/)
 
 ![Robo Gaggia](media/gaggia_sleep.jpg)
 
