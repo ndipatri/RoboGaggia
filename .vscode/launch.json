@@ -11,7 +11,6 @@
             "armToolchainPath": "${command:particle.getDebuggerCompilerDir}",
             "executable": "${command:particle.getDebuggerExecutable}",
             "serverpath": "${command:particle.getDebuggerOpenocdPath}",
-            "preLaunchTask": "Particle: Flash application for debug (local)",
             "searchDir": [
                 "${command:particle.getDebuggerSearchDir}"
             ],
@@ -22,33 +21,8 @@
                 "${command:particle.getDebuggerPostAttachCommands}"
             ],
             "particle": {
-                "version": "1.0.1",
+                "version": "1.1.0",
                 "debugger": "particle-debugger"
-            }
-        },
-        {
-            "type": "cortex-debug",
-            "request": "attach",
-            "servertype": "openocd",
-            "name": "Particle Programmer Shield",
-            "cwd": "${workspaceRoot}",
-            "rtos": "FreeRTOS",
-            "armToolchainPath": "${command:particle.getDebuggerCompilerDir}",
-            "executable": "${command:particle.getDebuggerExecutable}",
-            "serverpath": "${command:particle.getDebuggerOpenocdPath}",
-            "preLaunchTask": "Particle: Flash application for debug (local)",
-            "searchDir": [
-                "${command:particle.getDebuggerSearchDir}"
-            ],
-            "configFiles": [
-                "${command:particle.getDebuggerConfigFiles}"
-            ],
-            "postAttachCommands": [
-                "${command:particle.getDebuggerPostAttachCommands}"
-            ],
-            "particle": {
-                "version": "1.0.1",
-                "debugger": "particle-programmer-shield"
             }
         },
         {
@@ -61,6 +35,30 @@
             "armToolchainPath": "${command:particle.getDebuggerCompilerDir}",
             "executable": "${command:particle.getDebuggerExecutable}",
             "serverpath": "${command:particle.getDebuggerOpenocdPath}",
+            "searchDir": [
+                "${command:particle.getDebuggerSearchDir}"
+            ],
+            "configFiles": [
+                "${command:particle.getDebuggerConfigFiles}"
+            ],
+            "postAttachCommands": [
+                "${command:particle.getDebuggerPostAttachCommands}"
+            ],
+            "particle": {
+                "version": "1.1.0",
+                "debugger": "generic-cmsis-dap"
+            }
+        },
+        {
+            "type": "cortex-debug",
+            "request": "attach",
+            "servertype": "openocd",
+            "name": "[outdated] Particle Debugger",
+            "cwd": "${workspaceRoot}",
+            "rtos": "FreeRTOS",
+            "armToolchainPath": "${command:particle.getDebuggerCompilerDir}",
+            "executable": "${command:particle.getDebuggerExecutable}",
+            "serverpath": "${command:particle.getDebuggerOpenocdPath}",
             "preLaunchTask": "Particle: Flash application for debug (local)",
             "searchDir": [
                 "${command:particle.getDebuggerSearchDir}"
@@ -73,55 +71,7 @@
             ],
             "particle": {
                 "version": "1.0.1",
-                "debugger": "generic-cmsis-dap"
-            }
-        },
-        {
-            "type": "cortex-debug",
-            "request": "attach",
-            "servertype": "openocd",
-            "name": "[outdated] Particle Debugger",
-            "cwd": "${workspaceRoot}",
-            "armToolchainPath": "${command:particle.getDebuggerCompilerDir}",
-            "executable": "${command:particle.getDebuggerExecutable}",
-            "serverpath": "${command:particle.getDebuggerOpenocdPath}",
-            "preLaunchTask": "Particle: Flash application for debug (local)",
-            "searchDir": [
-                "${command:particle.getDebuggerSearchDir}"
-            ],
-            "configFiles": [
-                "${command:particle.getDebuggerConfigFiles}"
-            ],
-            "postAttachCommands": [
-                "${command:particle.getDebuggerPostAttachCommands}"
-            ],
-            "particle": {
-                "version": "1.0.0",
                 "debugger": "particle-debugger"
-            }
-        },
-        {
-            "type": "cortex-debug",
-            "request": "attach",
-            "servertype": "openocd",
-            "name": "[outdated] Particle Programmer Shield",
-            "cwd": "${workspaceRoot}",
-            "armToolchainPath": "${command:particle.getDebuggerCompilerDir}",
-            "executable": "${command:particle.getDebuggerExecutable}",
-            "serverpath": "${command:particle.getDebuggerOpenocdPath}",
-            "preLaunchTask": "Particle: Flash application for debug (local)",
-            "searchDir": [
-                "${command:particle.getDebuggerSearchDir}"
-            ],
-            "configFiles": [
-                "${command:particle.getDebuggerConfigFiles}"
-            ],
-            "postAttachCommands": [
-                "${command:particle.getDebuggerPostAttachCommands}"
-            ],
-            "particle": {
-                "version": "1.0.0",
-                "debugger": "particle-programmer-shield"
             }
         },
         {
@@ -130,6 +80,7 @@
             "servertype": "openocd",
             "name": "[outdated] Generic DAPLink Compatible Debugger",
             "cwd": "${workspaceRoot}",
+            "rtos": "FreeRTOS",
             "armToolchainPath": "${command:particle.getDebuggerCompilerDir}",
             "executable": "${command:particle.getDebuggerExecutable}",
             "serverpath": "${command:particle.getDebuggerOpenocdPath}",
@@ -144,7 +95,7 @@
                 "${command:particle.getDebuggerPostAttachCommands}"
             ],
             "particle": {
-                "version": "1.0.0",
+                "version": "1.0.1",
                 "debugger": "generic-cmsis-dap"
             }
         },
