@@ -1,6 +1,6 @@
 {
     "particle.targetDevice": "roboGaggia3",
-    "particle.firmwareVersion": "5.5.0",
+    "particle.firmwareVersion": "6.2.1",
     "particle.targetPlatform": "argon",
     "files.associations": {
         "ctime": "cpp",
