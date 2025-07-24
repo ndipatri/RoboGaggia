@@ -280,6 +280,3 @@ To start understanding this code, begin with the [roboGaggia.ino](https://github
 
 
 
-
-
-
